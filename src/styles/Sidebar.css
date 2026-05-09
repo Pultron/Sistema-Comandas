@@ -1,0 +1,60 @@
+/* Animación de entrada para los items del sidebar */
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Animación para el logo */
+@keyframes logoFloat {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+/* Animación para el item activo */
+@keyframes activeGlow {
+  0% {
+    box-shadow: inset 0 0 0px rgba(125, 43, 232, 0);
+  }
+  100% {
+    box-shadow: inset 0 0 10px rgba(125, 43, 232, 0.2);
+  }
+}
+
+/* Aplicar animación a cada item del nav */
+.sidebar-nav-item {
+  animation: slideInLeft 0.4s ease-out forwards;
+}
+
+/* Stagger animation - cada item aparece con delay */
+.sidebar-nav-item:nth-child(1) { animation-delay: 0.05s; }
+.sidebar-nav-item:nth-child(2) { animation-delay: 0.1s; }
+.sidebar-nav-item:nth-child(3) { animation-delay: 0.15s; }
+.sidebar-nav-item:nth-child(4) { animation-delay: 0.2s; }
+.sidebar-nav-item:nth-child(5) { animation-delay: 0.25s; }
+.sidebar-nav-item:nth-child(6) { animation-delay: 0.3s; }
+.sidebar-nav-item:nth-child(7) { animation-delay: 0.35s; }
+.sidebar-nav-item:nth-child(8) { animation-delay: 0.4s; }
+
+/* Efecto de brillo en item activo */
+.sidebar-nav-item.active {
+  animation: activeGlow 0.6s ease-in-out infinite;
+}
+
+/* Efecto de hover mejorado */
+.sidebar-nav-item:hover {
+  transform: translateX(4px);
+}
+
+.sidebar-nav-item.active:hover {
+  transform: translateX(4px);
+}
