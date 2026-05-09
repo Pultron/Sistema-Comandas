@@ -47,11 +47,19 @@ export const MenuModule = ({ menu, categories, selectedCategory, setSelectedCate
                       ...(selectedDish?.id === platillo.id ? appStyles.dishCardHover : {})
                     }}
                     onClick={() => setSelectedDish(platillo)}
-                    onMouseEnter={(e) => Object.assign(e.currentTarget.style, appStyles.dishCardHover)}
-                    onMouseLeave={(e) => Object.assign(e.currentTarget.style, { transform: 'none', boxShadow: 'none', borderColor: '#e6e6e6' })}
+                    onMouseEnter={(e) => {
+                      Object.assign(e.currentTarget.style, appStyles.dishCardHover)
+                      const img = e.currentTarget.querySelector('img')
+                      if (img) img.style.transform = 'scale(1.05)'
+                    }}
+                    onMouseLeave={(e) => {
+                      Object.assign(e.currentTarget.style, { transform: 'none', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)', borderColor: '#e0e0e0', transition: 'all 0.3s ease' })
+                      const img = e.currentTarget.querySelector('img')
+                      if (img) img.style.transform = 'scale(1)'
+                    }}
                   >
-                    <div style={{width: '100%', height: '110px', overflow: 'hidden'}}>
-                      <img src={platillo.imagen} alt={platillo.nombre} style={{width: '100%', height: '110px', objectFit: 'cover', display: 'block'}} />
+                    <div style={{width: '100%', height: '110px', overflow: 'hidden', borderRadius: '6px 6px 0 0'}}>
+                      <img src={platillo.imagen} alt={platillo.nombre} style={{width: '100%', height: '110px', objectFit: 'cover', display: 'block', transition: 'transform 0.3s ease'}} />
                     </div>
                     <div style={appStyles.dishName}>{platillo.nombre}</div>
                   </div>
@@ -77,18 +85,18 @@ export const MenuModule = ({ menu, categories, selectedCategory, setSelectedCate
               ×
             </button>
             {selectedDish.imagen.startsWith('/') ? (
-              <img src={selectedDish.imagen} alt={selectedDish.nombre} style={{width: '100%', height: '150px', objectFit: 'cover', borderRadius: '8px', marginBottom: '1rem'}} />
+              <img src={selectedDish.imagen} alt={selectedDish.nombre} style={{width: '100%', height: '120px', objectFit: 'cover', borderRadius: '8px', marginBottom: '0.8rem'}} />
             ) : (
               <div style={appStyles.dishImage}>{selectedDish.imagen}</div>
             )}
-            <h2 style={{color: '#FFD54F', marginBottom: '1rem', textAlign: 'center'}}>
+            <h2 style={{color: '#FFD54F', marginBottom: '0.8rem', textAlign: 'center', fontSize: '1.3rem'}}>
               {selectedDish.nombre}
             </h2>
-            <div style={{color: '#4CAF50', fontSize: '1.3rem', fontWeight: 'bold', marginBottom: '1.5rem', textAlign: 'center'}}>
+            <div style={{color: '#4CAF50', fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '1rem', textAlign: 'center'}}>
               {selectedDish.precio}
             </div>
             
-            <h3 style={{color: '#FFD54F', marginBottom: '1rem'}}>Ingredientes:</h3>
+            <h3 style={{color: '#FFD54F', marginBottom: '0.8rem', fontSize: '0.95rem'}}>Ingredientes:</h3>
             <ul style={appStyles.ingredientsList}>
               {selectedDish.ingredientes.map((ingrediente, index) => (
                 <li key={index} style={appStyles.ingredientItem}>
@@ -97,16 +105,6 @@ export const MenuModule = ({ menu, categories, selectedCategory, setSelectedCate
                 </li>
               ))}
             </ul>
-
-            <button
-              style={{...appStyles.btnPrimary, width: '100%', marginTop: '1.5rem'}}
-              onClick={() => {
-                alert(`${selectedDish.nombre} agregado a la comanda`)
-                setSelectedDish(null)
-              }}
-            >
-              Agregar a Comanda
-            </button>
           </div>
         </div>
       )}
