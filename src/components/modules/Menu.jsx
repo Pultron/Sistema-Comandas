@@ -29,35 +29,41 @@ export const MenuModule = ({ menu, categories, selectedCategory, setSelectedCate
           ))}
         </div>
 
-        {/* Platillos de la Categoría */}
+        {/* Platillos de la Categoría (cuadrícula tipo POS con placeholders) */}
         <div style={appStyles.dishGrid}>
-          {menu[selectedCategory].platillos.map((platillo) => (
-            <div
-              key={platillo.id}
-              style={{
-                ...appStyles.dishCard,
-                ...(selectedDish?.id === platillo.id && appStyles.dishCardHover)
-              }}
-              onClick={() => setSelectedDish(platillo)}
-              onMouseEnter={(e) => {
-                Object.assign(e.currentTarget.style, appStyles.dishCardHover)
-              }}
-              onMouseLeave={(e) => {
-                Object.assign(e.currentTarget.style, {
-                  transform: 'none',
-                  boxShadow: '0 4px 12px rgba(255, 111, 0, 0.2)',
-                  borderColor: '#FF6F00',
-                })
-              }}
-            >
-              <div style={{width: '100%', height: '150px', marginBottom: '1rem', overflow: 'hidden', borderRadius: '6px'}}>
-                <img src={platillo.imagen} alt={platillo.nombre} style={{width: '100%', height: '100%', objectFit: 'cover'}} />
-              </div>
-              <div style={appStyles.dishName}>{platillo.nombre}</div>
-              <div style={appStyles.dishPrice}>{platillo.precio}</div>  
-              <div style={appStyles.dishClick}>Haz clic para ver ingredientes</div>
-            </div>
-          ))}
+          {(() => {
+            const items = menu[selectedCategory].platillos || []
+            const columns = 5
+            const remainder = items.length % columns
+            const placeholders = remainder === 0 ? 0 : columns - remainder
+
+            return (
+              <>
+                {items.map((platillo) => (
+                  <div
+                    key={platillo.id}
+                    style={{
+                      ...appStyles.dishCard,
+                      ...(selectedDish?.id === platillo.id ? appStyles.dishCardHover : {})
+                    }}
+                    onClick={() => setSelectedDish(platillo)}
+                    onMouseEnter={(e) => Object.assign(e.currentTarget.style, appStyles.dishCardHover)}
+                    onMouseLeave={(e) => Object.assign(e.currentTarget.style, { transform: 'none', boxShadow: 'none', borderColor: '#e6e6e6' })}
+                  >
+                    <div style={{width: '100%', height: '110px', overflow: 'hidden'}}>
+                      <img src={platillo.imagen} alt={platillo.nombre} style={{width: '100%', height: '110px', objectFit: 'cover', display: 'block'}} />
+                    </div>
+                    <div style={appStyles.dishName}>{platillo.nombre}</div>
+                  </div>
+                ))}
+
+                {/* Placeholders para mantener la cuadrícula uniforme */}
+                {Array.from({ length: placeholders }).map((_, idx) => (
+                  <div key={`ph-${idx}`} style={appStyles.placeholderCard} />
+                ))}
+              </>
+            )
+          })()}
         </div>
       </div>
 

@@ -7,9 +7,6 @@ export const Comandas = ({ comandas }) => {
   const [showComandaForm, setShowComandaForm] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState('caliente')
   const [itemsComanda, setItemsComanda] = useState([])
-  const [selectedItem, setSelectedItem] = useState(null)
-  const [cantidad, setCantidad] = useState(1)
-  const [comentarios, setComentarios] = useState('')
 
   const getBadgeStyle = (estado) => {
     if (estado === 'Servido') return { ...appStyles.badge, ...appStyles.badgeSuccess }
@@ -17,21 +14,67 @@ export const Comandas = ({ comandas }) => {
     return { ...appStyles.badge, ...appStyles.badgeProgress }
   }
 
-  const agregarAlComanda = () => {
-    if (!selectedItem) return
+  const agregarAlComanda = (platillo) => {
+    const existente = itemsComanda.find(item => item.nombre === platillo.nombre)
     
-    const nuevoItem = {
-      id: Date.now(),
-      ...selectedItem,
-      cantidad,
-      comentarios,
-      subtotal: parseFloat(selectedItem.precio.replace('$', '')) * cantidad
+    if (existente) {
+      const actualizado = itemsComanda.map(item => 
+        item.nombre === platillo.nombre 
+          ? {
+              ...item,
+              cantidad: item.cantidad + 1,
+              subtotal: parseFloat(platillo.precio.replace('$', '')) * (item.cantidad + 1)
+            }
+          : item
+      )
+      setItemsComanda(actualizado)
+    } else {
+      const nuevoItem = {
+        id: Date.now(),
+        ...platillo,
+        cantidad: 1,
+        comentarios: '',
+        subtotal: parseFloat(platillo.precio.replace('$', '')) * 1
+      }
+      setItemsComanda([...itemsComanda, nuevoItem])
     }
-    
-    setItemsComanda([...itemsComanda, nuevoItem])
-    setSelectedItem(null)
-    setCantidad(1)
-    setComentarios('')
+  }
+
+  const incrementarCantidad = (id) => {
+    const actualizado = itemsComanda.map(item => 
+      item.id === id 
+        ? {
+            ...item,
+            cantidad: item.cantidad + 1,
+            subtotal: parseFloat(item.precio.replace('$', '')) * (item.cantidad + 1)
+          }
+        : item
+    )
+    setItemsComanda(actualizado)
+  }
+
+  const decrementarCantidad = (id) => {
+    const actualizado = itemsComanda.map(item => 
+      item.id === id && item.cantidad > 1
+        ? {
+            ...item,
+            cantidad: item.cantidad - 1,
+            subtotal: parseFloat(item.precio.replace('$', '')) * (item.cantidad - 1)
+          }
+        : item
+    )
+    setItemsComanda(actualizado)
+  }
+
+  const actualizarComentario = (id, nuevoComentario) => {
+    const actualizado = itemsComanda.map(item =>
+      item.id === id ? { ...item, comentarios: nuevoComentario } : item
+    )
+    setItemsComanda(actualizado)
+  }
+
+  const eliminarTodo = () => {
+    setItemsComanda([])
   }
 
   const eliminarDelComanda = (id) => {
@@ -45,9 +88,6 @@ export const Comandas = ({ comandas }) => {
   const cerrarComanda = () => {
     setShowComandaForm(false)
     setItemsComanda([])
-    setSelectedItem(null)
-    setCantidad(1)
-    setComentarios('')
     setSelectedCategory('caliente')
   }
 
@@ -147,7 +187,8 @@ export const Comandas = ({ comandas }) => {
           zIndex: 1000
         }}>
           <div style={{
-            width: '95vw',
+            width: '100vw',
+            maxWidth: '1110px',
             height: '85vh',
             backgroundColor: '#FF6F00',
             borderRadius: '12px',
@@ -176,15 +217,15 @@ export const Comandas = ({ comandas }) => {
             </div>
 
             {/* Content */}
-            <div style={{display: 'flex', flex: 1, overflow: 'hidden'}}>
+            <div style={{display: 'flex', flex: 1, overflow: 'hidden', alignItems: 'stretch'}}>
               {/* Left Side - Platillos */}
-              <div style={{flex: 1, display: 'flex', flexDirection: 'column', borderRight: '2px solid #000', overflow: 'hidden'}}>
+              <div style={{flex: 1, display: 'flex', flexDirection: 'column', borderRight: '1px solid #000', overflow: 'hidden'}}>
                 
                 {/* Categorías */}
                 <div style={{
                   display: 'flex',
-                  gap: '0.5rem',
-                  padding: '1rem',
+                  gap: '0.3rem',
+                  padding: '0.3rem 0.2rem',
                   borderBottom: '2px solid #000',
                   overflowX: 'auto',
                   backgroundColor: '#FF6F00'
@@ -194,7 +235,7 @@ export const Comandas = ({ comandas }) => {
                       key={key}
                       onClick={() => setSelectedCategory(key)}
                       style={{
-                        padding: '0.6rem 1.2rem',
+                        padding: '0.4rem 0.8rem',
                         border: '2px solid #000',
                         backgroundColor: selectedCategory === key ? '#000' : '#FF6F00',
                         color: selectedCategory === key ? '#FFD54F' : '#000',
@@ -221,56 +262,53 @@ export const Comandas = ({ comandas }) => {
                 <div style={{
                   flex: 1,
                   overflowY: 'auto',
-                  padding: '0',
+                  padding: '0.5rem',
+                  margin: '0',
                   display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))',
-                  gap: '0',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
+                  gap: '0.5rem',
                   backgroundColor: '#fff'
                 }}>
                   {menuData[selectedCategory].platillos.map((platillo) => (
                     <div
                       key={platillo.id}
-                      onClick={() => setSelectedItem(platillo)}
+                      onClick={() => agregarAlComanda(platillo)}
                       style={{
                         cursor: 'pointer',
-                        border: '1px solid #999',
+                        border: '1px solid rgba(255,255,255,0.15)',
                         borderRadius: '0',
-                        padding: '1rem 0.8rem',
+                        padding: '8px',
                         textAlign: 'center',
-                        backgroundColor: '#fff',
-                        transition: 'background-color 0.2s',
-                        height: '140px',
+                        backgroundColor: '#FF6F00',
+                        transition: 'all 0.3s ease-in-out',
+                        height: '100px',
                         display: 'flex',
                         flexDirection: 'column',
                         justifyContent: 'center',
                         alignItems: 'center',
-                        minWidth: '0'
+                        minWidth: '0',
+                        transform: 'scale(1)'
                       }}
-                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f9f9f9'}
-                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#fff'}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = 'scale(1.1)'
+                        e.currentTarget.style.backgroundColor = '#E55100'
+                        e.currentTarget.style.boxShadow = '0 8px 20px rgba(0, 0, 0, 0.4)'
+                        e.currentTarget.style.borderColor = 'rgba(255,255,255,0.4)'
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'scale(1)'
+                        e.currentTarget.style.backgroundColor = '#FF6F00'
+                        e.currentTarget.style.boxShadow = 'none'
+                        e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)'
+                      }}
                     >
-                      <div style={{marginBottom: '0.5rem'}}>
-                        {typeof platillo.imagen === 'string' && platillo.imagen.startsWith('/') ? (
-                          <img 
-                            src={platillo.imagen} 
-                            alt={platillo.nombre} 
-                            style={{
-                              width: '50px', 
-                              height: '50px', 
-                              objectFit: 'cover', 
-                              borderRadius: '2px'
-                            }} 
-                          />
-                        ) : (
-                          <div style={{fontSize: '2.5rem'}}>{platillo.imagen}</div>
-                        )}
-                      </div>
                       <p style={{
-                        fontSize: '0.65rem',
+                        fontSize: '13px',
                         color: '#000',
-                        margin: '0.3rem 0 0 0',
+                        margin: '0',
                         fontWeight: 600,
-                        lineHeight: '1.2'
+                        lineHeight: '1.2',
+                        padding: '0'
                       }}>
                         {platillo.nombre}
                       </p>
@@ -279,140 +317,232 @@ export const Comandas = ({ comandas }) => {
                 </div>
               </div>
 
-              {/* Right Side - Comanda */}
-              <div style={{width: '300px', display: 'flex', flexDirection: 'column', backgroundColor: '#FF6F00'}}>
+              {/* Right Side - Comanda (Carrito) */}
+              <div style={{width: '400px', minWidth: '380px', height: '100%', display: 'flex', flexDirection: 'column', backgroundColor: '#FF6F00', boxSizing: 'border-box'}}>
                 
-                {/* Item Details */}
-                {selectedItem && (
-                  <div style={{padding: '1rem', borderBottom: '2px solid #000'}}>
-                    <h3 style={{color: '#000', margin: '0 0 1rem 0', fontSize: '0.9rem'}}>Detalles</h3>
-                    <p style={{color: '#000', fontSize: '0.85rem', margin: '0.3rem 0'}}>{selectedItem.nombre}</p>
-                    <p style={{color: '#000', fontSize: '0.9rem', fontWeight: 700, margin: '0.5rem 0 1rem 0'}}>{selectedItem.precio}</p>
-                    
-                    <label style={{color: '#000', fontSize: '0.8rem', display: 'block', marginBottom: '0.3rem'}}>
-                      Cantidad
-                    </label>
-                    <input
-                      type="number"
-                      value={cantidad}
-                      onChange={(e) => setCantidad(Math.max(1, parseInt(e.target.value) || 1))}
-                      style={{
-                        width: '100%',
-                        padding: '0.5rem',
-                        marginBottom: '1rem',
-                        backgroundColor: '#fff',
-                        border: '2px solid #000',
-                        color: '#000',
-                        borderRadius: '4px'
-                      }}
-                    />
-
-                    <label style={{color: '#000', fontSize: '0.8rem', display: 'block', marginBottom: '0.3rem'}}>
-                      Comentarios
-                    </label>
-                    <textarea
-                      value={comentarios}
-                      onChange={(e) => setComentarios(e.target.value)}
-                      placeholder="Ej: sin cebolla, poco picante..."
-                      style={{
-                        width: '100%',
-                        padding: '0.5rem',
-                        backgroundColor: '#fff',
-                        border: '2px solid #000',
-                        color: '#000',
-                        borderRadius: '4px',
-                        fontFamily: 'inherit',
-                        resize: 'vertical',
-                        height: '50px',
-                        marginBottom: '1rem'
-                      }}
-                    />
-
-                    <button
-                      onClick={agregarAlComanda}
-                      style={{
-                        width: '100%',
-                        padding: '0.8rem',
-                        backgroundColor: '#000',
-                        color: '#FFD54F',
-                        border: 'none',
-                        borderRadius: '6px',
-                        fontWeight: 700,
-                        cursor: 'pointer'
-                      }}
-                    >
-                      Agregar a Comanda
-                    </button>
-                  </div>
-                )}
-
-                {/* Items en la Comanda */}
-                <div style={{flex: 1, overflowY: 'auto', padding: '1rem', borderBottom: '2px solid #000'}}>
-                  <h3 style={{color: '#000', margin: '0 0 1rem 0', fontSize: '0.9rem'}}>
-                    Items ({itemsComanda.length})
-                  </h3>
-                  {itemsComanda.map((item) => (
-                    <div key={item.id} style={{
-                      backgroundColor: '#fff',
-                      padding: '0.6rem',
-                      marginBottom: '0.6rem',
+                {/* Cabecera */}
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '1rem',
+                  borderBottom: '2px solid #000',
+                  backgroundColor: '#FF6F00'
+                }}>
+                  <h3 style={{color: '#000', margin: 0, fontSize: '16px', fontWeight: 700}}>Comanda</h3>
+                  <button
+                    onClick={eliminarTodo}
+                    disabled={itemsComanda.length === 0}
+                    style={{
+                      backgroundColor: itemsComanda.length === 0 ? '#ccc' : '#DC2626',
+                      border: 'none',
+                      color: '#fff',
+                      cursor: itemsComanda.length === 0 ? 'not-allowed' : 'pointer',
+                      fontSize: '13px',
+                      fontWeight: 700,
+                      padding: '0.5rem 0.8rem',
                       borderRadius: '6px',
-                      border: '2px solid #000',
-                      maxHeight: '80px'
-                    }}>
-                      <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'start'}}>
-                        <div style={{flex: 1}}>
-                          <p style={{color: '#000', margin: '0 0 0.2rem 0', fontSize: '0.8rem', fontWeight: 700}}>
-                            {item.nombre}
-                          </p>
-                          <p style={{color: '#000', margin: '0 0 0.2rem 0', fontSize: '0.7rem'}}>
-                            Cant: {item.cantidad}
-                          </p>
-                          {item.comentarios && (
-                            <p style={{color: '#000', margin: '0.2rem 0 0 0', fontSize: '0.65rem', fontStyle: 'italic'}}>
-                              {item.comentarios}
-                            </p>
-                          )}
-                          <p style={{color: '#000', margin: '0.2rem 0 0 0', fontSize: '0.75rem', fontWeight: 700}}>
-                            ${item.subtotal.toFixed(2)}
-                          </p>
-                        </div>
-                        <button
-                          onClick={() => eliminarDelComanda(item.id)}
-                          style={{
-                            background: 'none',
-                            border: 'none',
-                            color: '#000',
-                            cursor: 'pointer',
-                            fontSize: '1.2rem'
-                          }}
-                        >
-                          ×
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                      opacity: itemsComanda.length === 0 ? 0.6 : 1,
+                      transition: 'all 0.2s ease-in-out',
+                      boxShadow: itemsComanda.length === 0 ? 'none' : '0 4px 8px rgba(0, 0, 0, 0.3)'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (itemsComanda.length > 0) {
+                        e.currentTarget.style.backgroundColor = '#B91C1C'
+                        e.currentTarget.style.transform = 'scale(1.05)'
+                        e.currentTarget.style.boxShadow = '0 6px 12px rgba(0, 0, 0, 0.4)'
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (itemsComanda.length > 0) {
+                        e.currentTarget.style.backgroundColor = '#DC2626'
+                        e.currentTarget.style.transform = 'scale(1)'
+                        e.currentTarget.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.3)'
+                      }
+                    }}
+                  >
+                    🗑 Eliminar Todo
+                  </button>
                 </div>
 
-                {/* Total */}
-                <div style={{padding: '1rem', backgroundColor: '#FF6F00'}}>
-                  <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '1rem'}}>
-                    <span style={{color: '#000'}}>Total:</span>
-                    <span style={{color: '#000', fontWeight: 700, fontSize: '1.2rem'}}>
+                {/* Lista de Items - Formato Tabla */}
+                <div style={{flex: 1, overflowY: 'auto', padding: '0', backgroundColor: '#FF6F00'}}>
+                  {itemsComanda.length === 0 ? (
+                    <p style={{color: '#000', textAlign: 'center', fontSize: '14px', margin: '2rem 1rem'}}>
+                      Selecciona productos para agregar
+                    </p>
+                  ) : (
+                    <div style={{display: 'flex', flexDirection: 'column'}}>
+                      {/* Encabezado */}
+                      <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: '50px 1fr 60px 60px',
+                        gap: '8px',
+                        padding: '0.8rem 1rem',
+                        backgroundColor: '#FF6F00',
+                        borderBottom: '2px solid #000',
+                        fontWeight: 700,
+                        fontSize: '12px',
+                        color: '#000',
+                        position: 'sticky',
+                        top: 0,
+                        zIndex: 10
+                      }}>
+                        <div style={{textAlign: 'center'}}>CANT.</div>
+                        <div>DESCRIPCIÓN</div>
+                        <div style={{textAlign: 'right'}}>PRECIO</div>
+                        <div style={{textAlign: 'right'}}>TOTAL</div>
+                      </div>
+
+                      {/* Items */}
+                      {itemsComanda.map((item, index) => (
+                        <div key={item.id}>
+                          {/* Row Principal */}
+                          <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: '50px 1fr 60px 60px',
+                            gap: '8px',
+                            padding: '0.8rem 1rem',
+                            backgroundColor: '#fff',
+                            borderBottom: '1px solid #FFD54F',
+                            alignItems: 'center',
+                            fontSize: '13px'
+                          }}>
+                            {/* Cantidad con controles */}
+                            <div style={{display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px'}}>
+                              <button
+                                onClick={() => decrementarCantidad(item.id)}
+                                style={{
+                                  background: '#FF6F00',
+                                  border: '1px solid #000',
+                                  width: '18px',
+                                  height: '18px',
+                                  borderRadius: '2px',
+                                  cursor: 'pointer',
+                                  fontSize: '12px',
+                                  fontWeight: 700,
+                                  color: '#fff',
+                                  padding: '0',
+                                  transition: 'all 0.2s'
+                                }}
+                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#E55100'}
+                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#FF6F00'}
+                              >
+                                −
+                              </button>
+                              <span style={{fontWeight: 700, minWidth: '16px', textAlign: 'center', color: '#000'}}>
+                                {item.cantidad}
+                              </span>
+                              <button
+                                onClick={() => incrementarCantidad(item.id)}
+                                style={{
+                                  background: '#FF6F00',
+                                  border: '1px solid #000',
+                                  width: '18px',
+                                  height: '18px',
+                                  borderRadius: '2px',
+                                  cursor: 'pointer',
+                                  fontSize: '12px',
+                                  fontWeight: 700,
+                                  color: '#fff',
+                                  padding: '0',
+                                  transition: 'all 0.2s'
+                                }}
+                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#E55100'}
+                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#FF6F00'}
+                              >
+                                +
+                              </button>
+                            </div>
+
+                            {/* Descripción */}
+                            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                              <span style={{fontWeight: 600, color: '#000'}}>
+                                {item.nombre}
+                              </span>
+                              <button
+                                onClick={() => eliminarDelComanda(item.id)}
+                                style={{
+                                  background: 'none',
+                                  border: 'none',
+                                  color: '#DC2626',
+                                  cursor: 'pointer',
+                                  fontSize: '16px',
+                                  padding: '0',
+                                  fontWeight: 700,
+                                  transition: 'all 0.2s'
+                                }}
+                                onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.2)'}
+                                onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                              >
+                                ×
+                              </button>
+                            </div>
+
+                            {/* Precio Unitario */}
+                            <div style={{textAlign: 'right', fontWeight: 600, color: '#FF6F00'}}>
+                              {item.precio}
+                            </div>
+
+                            {/* Subtotal */}
+                            <div style={{textAlign: 'right', fontWeight: 700, color: '#4CAF50', fontSize: '14px'}}>
+                              ${item.subtotal.toFixed(2)}
+                            </div>
+                          </div>
+
+                          {/* Row Comentarios */}
+                          <div style={{
+                            display: 'flex',
+                            padding: '0.6rem 1rem',
+                            backgroundColor: '#f9f9f9',
+                            borderBottom: index === itemsComanda.length - 1 ? '2px solid #000' : '1px solid #FFD54F'
+                          }}>
+                            <input
+                              type="text"
+                              value={item.comentarios}
+                              onChange={(e) => actualizarComentario(item.id, e.target.value)}
+                              placeholder="Agregar comentario..."
+                              style={{
+                                width: '100%',
+                                padding: '0.4rem 0.6rem',
+                                fontSize: '12px',
+                                border: '1px solid #ddd',
+                                borderRadius: '4px',
+                                boxSizing: 'border-box',
+                                fontFamily: 'inherit',
+                                fontStyle: item.comentarios ? 'normal' : 'italic',
+                                color: item.comentarios ? '#000' : '#999'
+                              }}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Total y Botón Guardar */}
+                <div style={{padding: '1rem', borderTop: '2px solid #000', backgroundColor: '#FF6F00'}}>
+                  <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem'}}>
+                    <span style={{color: '#000', fontWeight: 700, fontSize: '14px'}}>Total:</span>
+                    <span style={{color: '#000', fontWeight: 700, fontSize: '18px'}}>
                       ${calcularTotal()}
                     </span>
                   </div>
                   <button
                     onClick={cerrarComanda}
+                    disabled={itemsComanda.length === 0}
                     style={{
                       width: '100%',
                       padding: '0.8rem',
-                      backgroundColor: '#4CAF50',
+                      backgroundColor: itemsComanda.length === 0 ? '#ccc' : '#4CAF50',
                       color: '#000',
                       border: 'none',
                       borderRadius: '6px',
                       fontWeight: 700,
-                      cursor: 'pointer'
+                      cursor: itemsComanda.length === 0 ? 'not-allowed' : 'pointer',
+                      fontSize: '14px',
+                      transition: 'background-color 0.2s'
                     }}
                   >
                     Guardar Comanda
