@@ -3,10 +3,30 @@ import { ComandIcon, ReportesIcon, HourglassIcon, CheckCircleIcon, DollarSignIco
 import { appStyles } from '../../styles/styles'
 import { menuData } from '../../data/menuData'
 
-export const Comandas = ({ comandas }) => {
+export const Comandas = ({ comandas, agregarComanda }) => {
   const [showComandaForm, setShowComandaForm] = useState(false)
+  const [showMesaModal, setShowMesaModal] = useState(false)
+  const [nombreMesa, setNombreMesa] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('caliente')
   const [itemsComanda, setItemsComanda] = useState([])
+  const [comandaSeleccionada, setComandaSeleccionada] = useState(null)
+  const [mostrarVerComanda, setMostrarVerComanda] = useState(false)
+  const [mensajeAlerta, setMensajeAlerta] = useState('')
+  const [comandaAEditar, setComandaAEditar] = useState(null)
+  const [mostrarConfirmacionEliminar, setMostrarConfirmacionEliminar] = useState(false)
+  const [comandaAEliminar, setComandaAEliminar] = useState(null)
+
+  // Calcular ID automáticamente basado en comandas existentes
+  const proximoId = comandas.length + 1
+
+  // Calcular estadísticas
+  const totalComandas = comandas.length
+  const comandasEnProgreso = comandas.filter(c => c.estado === 'En progreso').length
+  const comandasCompletadas = comandas.filter(c => c.estado === 'Servido').length
+  const ingresosHoy = comandas.reduce((total, c) => {
+    const precio = parseFloat(c.total.replace('$', ''))
+    return total + precio
+  }, 0)
 
   const getBadgeStyle = (estado) => {
     if (estado === 'Servido') return { ...appStyles.badge, ...appStyles.badgeSuccess }
@@ -85,10 +105,110 @@ export const Comandas = ({ comandas }) => {
     return itemsComanda.reduce((total, item) => total + item.subtotal, 0).toFixed(2)
   }
 
+  const abrirNuevaComanda = () => {
+    setShowMesaModal(true)
+    setNombreMesa('')
+  }
+
+  const confirmarMesa = () => {
+    if (nombreMesa.trim()) {
+      setShowMesaModal(false)
+      setShowComandaForm(true)
+      setItemsComanda([])
+    }
+  }
+
   const cerrarComanda = () => {
     setShowComandaForm(false)
     setItemsComanda([])
     setSelectedCategory('caliente')
+    setNombreMesa('')
+    setComandaAEditar(null)
+  }
+
+  const guardarComanda = () => {
+    if (itemsComanda.length === 0) return
+
+    const ahora = new Date()
+    const fecha = ahora.toISOString().split('T')[0]
+    const hora = ahora.toTimeString().split(' ')[0].substring(0, 5)
+    const fechaHora = `${fecha} ${hora}`
+
+    if (comandaAEditar) {
+      // Modo edición: actualizar comanda existente
+      const comandasActualizadas = comandas.map(c => 
+        c.id === comandaAEditar.id 
+          ? {
+              ...c,
+              mesa: nombreMesa,
+              items: itemsComanda,
+              productos: itemsComanda.length,
+              total: `$${calcularTotal()}`,
+              subtotal: parseFloat(calcularTotal())
+            }
+          : c
+      )
+      // Aquí deberías actualizar en App.jsx
+      setMensajeAlerta(`Comanda #${comandaAEditar.id} actualizada correctamente`)
+      setComandaAEditar(null)
+    } else {
+      // Modo creación: nueva comanda
+      const nuevaComanda = {
+        id: proximoId,
+        mesa: nombreMesa,
+        fecha: fechaHora,
+        productos: itemsComanda.length,
+        total: `$${calcularTotal()}`,
+        estado: 'En progreso',
+        items: itemsComanda,
+        subtotal: parseFloat(calcularTotal())
+      }
+      agregarComanda(nuevaComanda)
+    }
+
+    setTimeout(() => setMensajeAlerta(''), 3000)
+    cerrarComanda()
+  }
+
+  const verComanda = (comanda) => {
+    setComandaSeleccionada(comanda)
+    setMostrarVerComanda(true)
+  }
+
+  const cerrarVerComanda = () => {
+    setMostrarVerComanda(false)
+    setComandaSeleccionada(null)
+    setMensajeAlerta('')
+  }
+
+  const editarComanda = (comanda) => {
+    if (comanda.estado !== 'En progreso') {
+      setMensajeAlerta('No se puede editar una comanda finalizada. El pedido ya ha sido completado.')
+      setTimeout(() => setMensajeAlerta(''), 3000)
+      return
+    }
+    // Establecer la comanda a editar y los items
+    setComandaAEditar(comanda)
+    setItemsComanda(comanda.items)
+    setNombreMesa(comanda.mesa)
+    setShowComandaForm(true)
+    setMostrarVerComanda(false)
+  }
+
+  const eliminarComanda = (comanda) => {
+    setComandaAEliminar(comanda)
+    setMostrarConfirmacionEliminar(true)
+  }
+
+  const confirmarEliminacion = () => {
+    if (comandaAEliminar) {
+      const comandasActualizadas = comandas.filter(c => c.id !== comandaAEliminar.id)
+      // Aquí deberías actualizar el estado en App.jsx, por ahora solo actualizamos local
+      setMostrarConfirmacionEliminar(false)
+      setComandaAEliminar(null)
+      setMensajeAlerta(`Comanda #${comandaAEliminar.id} eliminada correctamente`)
+      setTimeout(() => setMensajeAlerta(''), 3000)
+    }
   }
 
   return (
@@ -98,7 +218,7 @@ export const Comandas = ({ comandas }) => {
           <ComandIcon size={24} color="#FFD54F" style={{marginRight: '0.5rem', verticalAlign: 'middle'}} /> 
           Comandas Activas
         </h1>
-        <button style={appStyles.btnPrimary} onClick={() => setShowComandaForm(true)}>+ Nueva Comanda</button>
+        <button style={appStyles.btnPrimary} onClick={abrirNuevaComanda}>+ Nueva Comanda</button>
       </div>
 
       {/* Stats */}
@@ -108,28 +228,28 @@ export const Comandas = ({ comandas }) => {
             <ReportesIcon size={28} color="white" />
           </div>
           <div style={appStyles.statLabel}>Total Comandas</div>
-          <div style={appStyles.statValue}>12</div>
+          <div style={appStyles.statValue}>{totalComandas}</div>
         </div>
         <div style={appStyles.statCard}>
           <div style={appStyles.statIcon}>
             <HourglassIcon size={28} color="white" />
           </div>
           <div style={appStyles.statLabel}>En Progreso</div>
-          <div style={appStyles.statValue}>5</div>
+          <div style={appStyles.statValue}>{comandasEnProgreso}</div>
         </div>
         <div style={appStyles.statCard}>
           <div style={appStyles.statIcon}>
             <CheckCircleIcon size={28} color="white" />
           </div>
           <div style={appStyles.statLabel}>Completadas</div>
-          <div style={appStyles.statValue}>6</div>
+          <div style={appStyles.statValue}>{comandasCompletadas}</div>
         </div>
         <div style={appStyles.statCard}>
           <div style={appStyles.statIcon}>
             <DollarSignIcon size={28} color="white" />
           </div>
           <div style={appStyles.statLabel}>Ingresos Hoy</div>
-          <div style={appStyles.statValue}>$850</div>
+          <div style={appStyles.statValue}>${ingresosHoy.toFixed(2)}</div>
         </div>
       </div>
 
@@ -159,10 +279,57 @@ export const Comandas = ({ comandas }) => {
                 <td style={appStyles.tableTd}><strong>{comanda.total}</strong></td>
                 <td style={appStyles.tableTd}><span style={getBadgeStyle(comanda.estado)}>{comanda.estado}</span></td>
                 <td style={appStyles.tableTd}>
-                  <button style={{background: 'none', border: 'none', cursor: 'pointer', marginRight: '0.5rem', color: '#FFD54F', padding: '0.4rem'}}>
+                  <button 
+                    onClick={() => verComanda(comanda)}
+                    style={{
+                      background: '#4CAF50',
+                      border: 'none',
+                      cursor: 'pointer',
+                      marginRight: '0.5rem',
+                      color: '#fff',
+                      padding: '0.6rem 1rem',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      borderRadius: '6px',
+                      transition: 'all 0.3s ease',
+                      boxShadow: '0 2px 8px rgba(76, 175, 80, 0.3)',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.4rem'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = '#45A049'
+                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(76, 175, 80, 0.5)'
+                      e.currentTarget.style.transform = 'translateY(-2px)'
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = '#4CAF50'
+                      e.currentTarget.style.boxShadow = '0 2px 8px rgba(76, 175, 80, 0.3)'
+                      e.currentTarget.style.transform = 'translateY(0)'
+                    }}
+                    title="Ver Comanda"
+                  >
+                    📄 Ver Comanda
+                  </button>
+                  <button 
+                    onClick={() => editarComanda(comanda)}
+                    style={{background: 'none', border: 'none', cursor: comanda.estado === 'En progreso' ? 'pointer' : 'not-allowed', marginRight: '0.5rem', color: comanda.estado === 'En progreso' ? '#FFD54F' : '#ccc', padding: '0.4rem', opacity: comanda.estado === 'En progreso' ? 1 : 0.5}}
+                    title={comanda.estado === 'En progreso' ? 'Editar Comanda' : 'No se puede editar'}
+                  >
                     <EditIcon size={18} color="currentColor" />
                   </button>
-                  <button style={{background: 'none', border: 'none', cursor: 'pointer', color: '#FF6F6F', padding: '0.4rem'}}>
+                  <button 
+                    onClick={() => eliminarComanda(comanda)}
+                    style={{background: 'none', border: 'none', cursor: 'pointer', color: '#FF6F6F', padding: '0.4rem', transition: 'all 0.2s'}}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.color = '#DC2626'
+                      e.currentTarget.style.transform = 'scale(1.2)'
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.color = '#FF6F6F'
+                      e.currentTarget.style.transform = 'scale(1)'
+                    }}
+                  >
                     <TrashIcon size={18} color="currentColor" />
                   </button>
                 </td>
@@ -206,7 +373,9 @@ export const Comandas = ({ comandas }) => {
               borderBottom: '2px solid #000',
               backgroundColor: '#FF6F00'
             }}>
-              <h2 style={{color: '#000', margin: 0}}>Nueva Comanda</h2>
+              <h2 style={{color: '#000', margin: 0}}>
+                {comandaAEditar ? 'Editar Comanda' : 'Nueva Comanda'}
+              </h2>
               <button onClick={cerrarComanda} style={{
                 background: 'none',
                 border: 'none',
@@ -530,7 +699,7 @@ export const Comandas = ({ comandas }) => {
                     </span>
                   </div>
                   <button
-                    onClick={cerrarComanda}
+                    onClick={guardarComanda}
                     disabled={itemsComanda.length === 0}
                     style={{
                       width: '100%',
@@ -545,7 +714,7 @@ export const Comandas = ({ comandas }) => {
                       transition: 'background-color 0.2s'
                     }}
                   >
-                    Guardar Comanda
+                    {comandaAEditar ? 'Actualizar Comanda' : 'Guardar Comanda'}
                   </button>
                 </div>
               </div>
@@ -553,6 +722,301 @@ export const Comandas = ({ comandas }) => {
           </div>
         </div>
       )}
+
+      {/* Modal para solicitar nombre de mesa */}
+      {showMesaModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1001
+        }}>
+          <div style={{
+            backgroundColor: '#FF6F00',
+            borderRadius: '12px',
+            padding: '2rem',
+            minWidth: '400px',
+            border: '2px solid #000',
+            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4)'
+          }}>
+            <h2 style={{color: '#000', margin: '0 0 1.5rem 0', fontSize: '24px', fontWeight: 700, textAlign: 'center'}}>
+              Nueva Comanda #{proximoId}
+            </h2>
+            <label style={{display: 'block', color: '#000', fontWeight: 700, marginBottom: '0.5rem', fontSize: '14px'}}>
+              Nombre de la Mesa:
+            </label>
+            <input
+              type="text"
+              value={nombreMesa}
+              onChange={(e) => setNombreMesa(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && confirmarMesa()}
+              placeholder="Ej: Mesa 5, Barra, Domicilio"
+              autoFocus
+              style={{
+                width: '100%',
+                padding: '0.8rem',
+                fontSize: '16px',
+                border: '2px solid #000',
+                borderRadius: '6px',
+                marginBottom: '1.5rem',
+                boxSizing: 'border-box',
+                fontFamily: 'inherit'
+              }}
+            />
+            <div style={{display: 'flex', gap: '1rem', justifyContent: 'flex-end'}}>
+              <button
+                onClick={() => {
+                  setShowMesaModal(false)
+                  setNombreMesa('')
+                }}
+                style={{
+                  padding: '0.8rem 1.5rem',
+                  backgroundColor: '#DC2626',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  transition: 'background-color 0.2s'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#B91C1C'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#DC2626'}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmarMesa}
+                disabled={!nombreMesa.trim()}
+                style={{
+                  padding: '0.8rem 1.5rem',
+                  backgroundColor: !nombreMesa.trim() ? '#ccc' : '#4CAF50',
+                  color: '#000',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontWeight: 700,
+                  cursor: !nombreMesa.trim() ? 'not-allowed' : 'pointer',
+                  fontSize: '14px',
+                  transition: 'background-color 0.2s'
+                }}
+                onMouseEnter={(e) => {
+                  if (nombreMesa.trim()) {
+                    e.currentTarget.style.backgroundColor = '#45A049'
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (nombreMesa.trim()) {
+                    e.currentTarget.style.backgroundColor = '#4CAF50'
+                  }
+                }}
+              >
+                Continuar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal para Ver Comanda */}
+      {mostrarVerComanda && comandaSeleccionada && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1002
+        }}>
+          <div style={{
+            backgroundColor: '#fff',
+            borderRadius: '12px',
+            padding: '2rem',
+            maxWidth: '600px',
+            width: '100%',
+            maxHeight: '90vh',
+            overflow: 'auto',
+            border: '3px solid #FF6F00',
+            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4)'
+          }}>
+            {/* Encabezado */}
+            <div style={{display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: '1.5rem', paddingBottom: '1rem', borderBottom: '2px solid #FF6F00', position: 'relative'}}>
+              <h2 style={{color: '#000', margin: 0, fontSize: '20px', fontWeight: 700}}>COMANDA</h2>
+              <button 
+                onClick={cerrarVerComanda}
+                style={{background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', fontWeight: 700, position: 'absolute', right: 0}}
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Información de la comanda */}
+            <div style={{marginBottom: '1.5rem', fontSize: '14px', textAlign: 'left'}}>
+              <div style={{marginBottom: '0.8rem'}}>
+                <span style={{fontWeight: 700}}>MESA:</span>
+                <span> {comandaSeleccionada.mesa}</span>
+              </div>
+              <div style={{marginBottom: '0.8rem'}}>
+                <span style={{fontWeight: 700}}>MESERO:</span>
+                <span> -</span>
+              </div>
+              <div>
+                <span style={{fontWeight: 700}}>COMANDA ID:</span>
+                <span> #{comandaSeleccionada.id}</span>
+              </div>
+            </div>
+
+            {/* Separador */}
+            <div style={{borderTop: '2px solid #FF6F00', padding: '1rem 0', margin: '1rem 0'}}></div>
+
+            {/* Productos */}
+            <div style={{marginBottom: '1.5rem'}}>
+              <h3 style={{margin: '0 0 1rem 0', fontSize: '14px', fontWeight: 700, color: '#000'}}>PRODUCTOS:</h3>
+              {comandaSeleccionada.items && comandaSeleccionada.items.length > 0 ? (
+                comandaSeleccionada.items.map((item, idx) => (
+                  <div key={idx} style={{marginBottom: '1rem', paddingBottom: '1rem', borderBottom: '1px solid #eee'}}>
+                    <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem', fontSize: '13px'}}>
+                      <span style={{fontWeight: 600}}>{item.nombre}</span>
+                      <span style={{color: '#FF6F00', fontWeight: 700}}>{item.cantidad} x {item.precio}</span>
+                    </div>
+                    {item.comentarios && (
+                      <div style={{fontSize: '12px', color: '#666', fontStyle: 'italic', marginTop: '0.5rem'}}>
+                        Nota: {item.comentarios}
+                      </div>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <p style={{color: '#999', fontSize: '12px'}}>Sin productos</p>
+              )}
+            </div>
+
+            {/* Botón Cerrar */}
+            <button 
+              onClick={cerrarVerComanda}
+              style={{
+                width: '100%',
+                padding: '0.8rem',
+                backgroundColor: '#FF6F00',
+                color: '#000',
+                border: 'none',
+                borderRadius: '6px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                fontSize: '14px',
+                transition: 'background-color 0.2s'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#E55100'}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#FF6F00'}
+            >
+              Cerrar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Alert de Mensaje */}
+      {mensajeAlerta && (
+        <div style={{
+          position: 'fixed',
+          top: '20px',
+          right: '20px',
+          backgroundColor: '#DC2626',
+          color: '#fff',
+          padding: '1rem 1.5rem',
+          borderRadius: '8px',
+          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+          zIndex: 2000,
+          fontWeight: 700,
+          fontSize: '14px'
+        }}>
+          {mensajeAlerta}
+        </div>
+      )}
+
+      {/* Modal de Confirmación de Eliminación */}
+      {mostrarConfirmacionEliminar && comandaAEliminar && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 2001
+        }}>
+          <div style={{
+            backgroundColor: '#fff',
+            borderRadius: '12px',
+            padding: '2rem',
+            maxWidth: '400px',
+            width: '100%',
+            border: '3px solid #FF6F00',
+            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4)'
+          }}>
+            <h2 style={{color: '#000', margin: '0 0 1rem 0', fontSize: '18px', fontWeight: 700, textAlign: 'center'}}>
+              ¿Eliminar Comanda?
+            </h2>
+            <p style={{color: '#666', fontSize: '14px', textAlign: 'center', margin: '0 0 1.5rem 0'}}>
+              ¿Estás seguro de que deseas eliminar la comanda #{comandaAEliminar.id} de {comandaAEliminar.mesa}? Esta acción no se puede deshacer.
+            </p>
+            <div style={{display: 'flex', gap: '1rem', justifyContent: 'flex-end'}}>
+              <button
+                onClick={() => {
+                  setMostrarConfirmacionEliminar(false)
+                  setComandaAEliminar(null)
+                }}
+                style={{
+                  padding: '0.8rem 1.5rem',
+                  backgroundColor: '#999',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  transition: 'background-color 0.2s'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#777'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#999'}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmarEliminacion}
+                style={{
+                  padding: '0.8rem 1.5rem',
+                  backgroundColor: '#DC2626',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  transition: 'background-color 0.2s'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#B91C1C'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#DC2626'}
+              >
+                Sí, Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
+

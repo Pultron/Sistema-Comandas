@@ -13,6 +13,11 @@ function App() {
   const [activeModule, setActiveModule] = useState('comandas')
   const [selectedDish, setSelectedDish] = useState(null)
   const [selectedCategory, setSelectedCategory] = useState('caliente')
+  const [comandas, setComandas] = useState(comandasData)
+
+  const agregarComanda = (comanda) => {
+    setComandas([...comandas, comanda])
+  }
 
   const handleLogin = () => {
     setIsAuthenticated(true)
@@ -55,7 +60,8 @@ function App() {
           setSelectedCategory={setSelectedCategory}
           selectedDish={selectedDish}
           setSelectedDish={setSelectedDish}
-          comandas={comandasData}
+          comandas={comandas}
+          agregarComanda={agregarComanda}
           modules={modulesData}
         />
       </div>

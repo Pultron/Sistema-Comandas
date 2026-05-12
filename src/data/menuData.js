@@ -19,16 +19,16 @@ export const menuData = {
       },
       {
         id: 5,
-        nombre: 'Pechuga Rellena de Queso y Jamón',
+        nombre: 'Pechuga CordonBlue',
         precio: '$17.00',
-        imagen: '/MenuImagenes/Pechuga rellena.jpg',
+        imagen: '/MenuImagenes/PechugaCordonblue.png',
         ingredientes: ['Pechuga de pollo', 'Queso cheddar', 'Jamón serrano', 'Salsa blanca', 'Vegetales al vapor', 'Papas gratinadas']
       },
       {
         id: 6,
         nombre: 'Costillas BBQ',
         precio: '$19.99',
-        imagen: '/MenuImagenes/Costillas BBQ.jpg',
+        imagen: '/MenuImagenes/CostillasBBQ.png',
         ingredientes: ['Costillas de cerdo', 'Salsa BBQ casera', 'Especias ahumadas', 'Ensalada de col', 'Papas rellenas', 'Pan de ajo']
       },
     ]
@@ -41,14 +41,14 @@ export const menuData = {
         id: 8,
         nombre: 'Ceviche Mixto',
         precio: '$16.00',
-        imagen: '🍲',
+        imagen: '/MenuImagenes/CevicheMixto.jpg',
         ingredientes: ['Filete de pez', 'Camarones', 'Pulpo', 'Limón', 'Cilantro', 'Cebolla roja', 'Ají mirasol', 'Patata']
       },
       {
         id: 9,
-        nombre: 'Ensalada César',
+        nombre: 'Aguachile',
         precio: '$12.00',
-        imagen: '🥗',
+        imagen: '/MenuImagenes/Aguachile.jpg',
         ingredientes: ['Lechuga romana', 'Queso parmesano', 'Croutons', 'Pollo a la parrilla', 'Salsa César casera', 'Pimienta']
       },
     ]
@@ -59,9 +59,9 @@ export const menuData = {
     platillos: [
       {
         id: 3,
-        nombre: 'Pizza Margarita',
+        nombre: 'PizzaMediana(Ingrediente a elegir)',
         precio: '$14.99',
-        imagen: '🍅',
+        imagen: '/MenuImagenes/Pizza.png',
         ingredientes: ['Masa artesanal', 'Tomate fresco', 'Queso mozzarella', 'Albahaca', 'Aceite de oliva', 'Orégano']
       },
       {
@@ -208,7 +208,7 @@ export const categories = [
 ]
 
 export const comandasData = [
-  { id: 1, mesa: 'Mesa 1', fecha: '2024-04-24 10:30', productos: 3, total: '$45.50', estado: 'En progreso' },
-  { id: 2, mesa: 'Mesa 3', fecha: '2024-04-24 10:15', productos: 2, total: '$28.00', estado: 'Servido' },
-  { id: 3, mesa: 'Barra', fecha: '2024-04-24 10:45', productos: 1, total: '$12.00', estado: 'Pendiente' },
+  { id: 1, mesa: 'Mesa 1', fecha: '2024-04-24 10:30', productos: 3, total: '$45.50', estado: 'En progreso', items: [] },
+  { id: 2, mesa: 'Mesa 3', fecha: '2024-04-24 10:15', productos: 2, total: '$28.00', estado: 'Servido', items: [] },
+  { id: 3, mesa: 'Barra', fecha: '2024-04-24 10:45', productos: 1, total: '$12.00', estado: 'Pendiente', items: [] },
 ]
