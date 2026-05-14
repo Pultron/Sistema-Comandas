@@ -2,7 +2,7 @@ import { appStyles } from '../styles/styles'
 import '../styles/LoginScreen.css'
 import fondoLogin from '../assets/FondoLogin.jpg'
 
-export const LoginScreen = ({ password, setPassword, onLogin }) => {
+export const LoginScreen = ({ username, setUsername, password, setPassword, onLogin, error }) => {
   return (
     <div 
       style={{
@@ -37,16 +37,34 @@ export const LoginScreen = ({ password, setPassword, onLogin }) => {
         {/* Sección de Login */}
         <div style={appStyles.loginFormBox}>
           <h1 style={appStyles.loginFormTitle}>Iniciar Sesión</h1>
-          <p style={appStyles.loginFormSubtitle}>Ingresa tu contraseña para acceder</p>
+          <p style={appStyles.loginFormSubtitle}>Ingresa tus credenciales</p>
           
+          <div style={appStyles.loginFormGroup}>
+            <label style={appStyles.loginLabel}>Usuario</label>
+            <input
+              type="text"
+              placeholder="admin o mesero"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              style={{...appStyles.loginInput}}
+              onFocus={(e) => Object.assign(e.target.style, appStyles.loginInputFocus)}
+              onBlur={(e) => {
+                e.target.style.borderColor = '#e0e0e0'
+                e.target.style.background = '#f9f9f9'
+                e.target.style.boxShadow = 'none'
+              }}
+            />
+          </div>
+
           <div style={appStyles.loginFormGroup}>
             <label style={appStyles.loginLabel}>Contraseña</label>
             <input
               type="password"
+              placeholder="Ingresa tu contraseña"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               onKeyPress={(e) => {
-                if (e.key === 'Enter' && password) {
+                if (e.key === 'Enter' && username && password) {
                   onLogin()
                 }
               }}
@@ -61,10 +79,19 @@ export const LoginScreen = ({ password, setPassword, onLogin }) => {
             />
           </div>
 
+          {error && (
+            <div style={{padding: '0.8rem', background: '#fee2e2', color: '#991b1b', borderRadius: '6px', marginBottom: '1rem', fontSize: '0.9rem', textAlign: 'center'}}>
+              {error}
+            </div>
+          )}
+
           <div style={appStyles.loginButtonGroup}>
             <button
               style={appStyles.loginButtonClear}
-              onClick={() => setPassword('')}
+              onClick={() => {
+                setUsername('')
+                setPassword('')
+              }}
               onMouseEnter={(e) => e.target.style.background = '#DC2626'}
               onMouseLeave={(e) => e.target.style.background = '#EF4444'}
             >
@@ -72,7 +99,7 @@ export const LoginScreen = ({ password, setPassword, onLogin }) => {
             </button>
             <button
               style={appStyles.loginButtonEnter}
-              onClick={() => password && onLogin()}
+              onClick={() => username && password && onLogin()}
               onMouseEnter={(e) => e.target.style.background = '#059669'}
               onMouseLeave={(e) => e.target.style.background = '#10B981'}
             >

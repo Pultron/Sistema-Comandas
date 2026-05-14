@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ComandIcon, ReportesIcon, HourglassIcon, CheckCircleIcon, DollarSignIcon, EditIcon, TrashIcon } from '../Icons'
+import { ComandIcon, ReportesIcon, HourglassIcon, CheckCircleIcon, DollarSignIcon, EditIcon, TrashIcon, ClockIcon } from '../Icons'
 import { appStyles } from '../../styles/styles'
 import { menuData } from '../../data/menuData'
 
@@ -225,28 +225,28 @@ export const Comandas = ({ comandas, agregarComanda }) => {
       <div style={appStyles.statsContainer}>
         <div style={appStyles.statCard}>
           <div style={appStyles.statIcon}>
-            <ReportesIcon size={28} color="white" />
+            <ComandIcon size={28} color="#000000" />
           </div>
           <div style={appStyles.statLabel}>Total Comandas</div>
           <div style={appStyles.statValue}>{totalComandas}</div>
         </div>
         <div style={appStyles.statCard}>
           <div style={appStyles.statIcon}>
-            <HourglassIcon size={28} color="white" />
+            <ClockIcon size={28} color="#000000" />
           </div>
           <div style={appStyles.statLabel}>En Progreso</div>
           <div style={appStyles.statValue}>{comandasEnProgreso}</div>
         </div>
         <div style={appStyles.statCard}>
           <div style={appStyles.statIcon}>
-            <CheckCircleIcon size={28} color="white" />
+            <CheckCircleIcon size={28} color="#000000" />
           </div>
           <div style={appStyles.statLabel}>Completadas</div>
           <div style={appStyles.statValue}>{comandasCompletadas}</div>
         </div>
         <div style={appStyles.statCard}>
           <div style={appStyles.statIcon}>
-            <DollarSignIcon size={28} color="white" />
+            <DollarSignIcon size={28} color="#000000" />
           </div>
           <div style={appStyles.statLabel}>Ingresos Hoy</div>
           <div style={appStyles.statValue}>${ingresosHoy.toFixed(2)}</div>

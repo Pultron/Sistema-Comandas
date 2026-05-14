@@ -9,9 +9,13 @@ export const ComandIcon = ({ size = 24, color = "currentColor" }) => (
 
 export const MenuIcon = ({ size = 24, color = "currentColor" }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="11" cy="11" r="8"></circle>
-    <path d="m21 21-4.35-4.35"></path>
-    <path d="M6 9h10M6 13h10M6 11h10"></path>
+    {/* Menu/Document */}
+    <path d="M3 3h18a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"></path>
+    
+    {/* Horizontal lines (menu items) */}
+    <line x1="6" y1="8" x2="18" y2="8"></line>
+    <line x1="6" y1="12" x2="18" y2="12"></line>
+    <line x1="6" y1="16" x2="18" y2="16"></line>
   </svg>
 );
 
@@ -147,5 +151,12 @@ export const XIcon = ({ size = 24, color = "currentColor" }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <line x1="18" y1="6" x2="6" y2="18"></line>
     <line x1="6" y1="6" x2="18" y2="18"></line>
+  </svg>
+);
+
+export const ClockIcon = ({ size = 24, color = "currentColor" }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10"></circle>
+    <polyline points="12 6 12 12 16 14"></polyline>
   </svg>
 );

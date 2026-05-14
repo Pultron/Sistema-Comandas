@@ -198,13 +198,13 @@ export const menuData = {
 }
 
 export const categories = [
-  { key: 'caliente', label: '🔥 Calientes' },
-  { key: 'fria', label: '❄️ Fríos' },
-  { key: 'pizza', label: '🍕 Pizzas' },
-  { key: 'pasta', label: '🍝 Pastas' },
-  { key: 'bebidas_calientes', label: '☕ Bebidas Calientes' },
-  { key: 'bebidas_frias', label: '🧊 Bebidas Frías' },
-  { key: 'snacks', label: '🍟 Snacks' },
+  { key: 'caliente', label: 'Calientes', icon: '🔥' },
+  { key: 'fria', label: 'Fríos', icon: '❄️' },
+  { key: 'pizza', label: 'Pizzas', icon: '🍕' },
+  { key: 'pasta', label: 'Pastas', icon: '🍝' },
+  { key: 'bebidas_calientes', label: 'Bebidas Calientes', icon: '☕' },
+  { key: 'bebidas_frias', label: 'Bebidas Frías', icon: '🧊' },
+  { key: 'snacks', label: 'Snacks', icon: '🍟' },
 ]
 
 export const comandasData = [

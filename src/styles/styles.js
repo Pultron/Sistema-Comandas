@@ -32,7 +32,7 @@ export const appStyles = {
     color: 'white',
   },
   loginBrandBox: {
-    background: 'linear-gradient(135deg, #FF9800 0%, #FF7F3D 50%, #FF6F00 100%)',
+    background: 'linear-gradient(90deg, #FF6F00 0%, #FFB300 50%, #FF9800 100%)',
     borderRadius: '20px',
     padding: '4.5rem',
     marginBottom: '2rem',
@@ -178,7 +178,7 @@ export const appStyles = {
   // Sidebar
   sidebar: {
     width: '240px',
-    background: 'linear-gradient(180deg, #FF6F00 0%, #E85A00 40%, #8B4513 85%, #4a2c1a 100%)',
+    background: 'linear-gradient(90deg, #FF6F00 0%, #FFB300 50%, #FF9800 100%)',
     color: 'white',
     display: 'flex',
     flexDirection: 'column',
@@ -197,13 +197,15 @@ export const appStyles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    animation: 'logoFloat 3s ease-in-out infinite',
+    transition: 'transform 0.3s ease',
   },
   sidebarHeader_h3: {
     fontSize: '1rem',
     fontWeight: 700,
     margin: 0,
     letterSpacing: '0.5px',
+    color: '#000000',
+    textShadow: '0 2px 4px rgba(0,0,0,0.3)',
   },
   sidebarNav: {
     flex: 1,
@@ -215,7 +217,8 @@ export const appStyles = {
     alignItems: 'center',
     gap: '1rem',
     padding: '0.9rem 1.2rem',
-    color: 'rgba(245,243,240,0.75)',
+    color: '#000000',
+    textShadow: '0 2px 4px rgba(0,0,0,0.3)',
     textDecoration: 'none',
     transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
     borderLeft: '3px solid transparent',
@@ -229,10 +232,11 @@ export const appStyles = {
     position: 'relative',
   },
   navItemActive: {
-    background: '#7D2BE8',
-    color: '#FFFFFF',
+    background: 'rgba(255, 111, 0, 0.25)',
+    color: '#000000',
+    textShadow: '0 2px 4px rgba(0,0,0,0.3)',
     borderLeftColor: '#FFD54F',
-    boxShadow: 'inset 0 0 15px rgba(125, 43, 232, 0.3)',
+    boxShadow: 'inset 0 2px 8px rgba(255, 111, 0, 0.15)',
   },
   navIcon: {
     fontSize: '1.2rem',
@@ -250,7 +254,8 @@ export const appStyles = {
     width: '100%',
     padding: '0.6rem 1rem',
     background: 'rgba(255,255,255,0.1)',
-    color: '#f5f3f0',
+    color: '#000000',
+    textShadow: '0 2px 4px rgba(0,0,0,0.3)',
     border: '1px solid rgba(255,255,255,0.2)',
     borderRadius: '4px',
     cursor: 'pointer',
@@ -270,7 +275,7 @@ export const appStyles = {
     overflow: 'hidden',
   },
   topHeader: {
-    background: 'linear-gradient(90deg, #FF6F00 0%, #FF8C33 50%, #C85A1F 100%)',
+    background: 'linear-gradient(90deg, #FF6F00 0%, #FFB300 50%, #FF9800 100%)',
     borderBottom: '2px solid #FF6F00',
     padding: '1.2rem 2rem',
     display: 'flex',
@@ -311,10 +316,10 @@ export const appStyles = {
   },
   // Page Content
   pageContent: {
-    flex: 1,
+    display: 'block',
     overflowY: 'auto',
     padding: '2rem',
-    background: 'linear-gradient(135deg, #2a2a2a 0%, #3a3a3a 50%, #2d2d2d 100%)',
+    background: '#ECEFF1',
   },
   pageHeader: {
     display: 'flex',
@@ -324,13 +329,13 @@ export const appStyles = {
   },
   pageTitle: {
     fontSize: '1.6rem',
-    color: '#FFD54F',
+    color: '#000000',
     fontWeight: 700,
     margin: 0,
     textShadow: '0 2px 4px rgba(0,0,0,0.3)',
   },
   btnPrimary: {
-    background: 'linear-gradient(135deg, #FFB300 0%, #FF9800 100%)',
+    background: 'linear-gradient(90deg, #FF6F00 0%, #FFB300 50%, #FF9800 100%)',
     color: '#1a1a1a',
     border: 'none',
     padding: '0.7rem 1.5rem',
@@ -349,13 +354,13 @@ export const appStyles = {
     marginBottom: '2rem',
   },
   statCard: {
-    background: 'linear-gradient(135deg, #FF6F00 0%, #E85A00 100%)',
+    background: 'linear-gradient(90deg, #FF6F00 0%, #FFB300 50%, #FF9800 100%)',
     padding: '1.2rem',
     borderRadius: '8px',
     border: 'none',
     textAlign: 'center',
     boxShadow: '0 4px 12px rgba(255, 111, 0, 0.3)',
-    color: 'white',
+    color: '#000000',
   },
   statIcon: {
     fontSize: '1.8rem',
@@ -363,17 +368,17 @@ export const appStyles = {
   },
   statLabel: {
     fontSize: '0.85rem',
-    color: 'rgba(255,255,255,0.9)',
+    color: '#000000',
     marginBottom: '0.5rem',
   },
   statValue: {
     fontSize: '1.6rem',
     fontWeight: 700,
-    color: '#FFFFFF',
+    color: '#000000',
   },
   // Table
   tableContainer: {
-    background: '#1a1a1a',
+    background: '#ECEFF1',
     borderRadius: '8px',
     border: '2px solid #FF6F00',
     overflow: 'hidden',
@@ -392,15 +397,17 @@ export const appStyles = {
   tableTh: {
     padding: '1rem',
     textAlign: 'left',
-    color: '#1a1a1a',
+    color: '#000000',
     fontWeight: 600,
     fontSize: '0.9rem',
     letterSpacing: '0.3px',
+    textShadow: '0 2px 4px rgba(0,0,0,0.3)',
   },
   tableTd: {
     padding: '1rem',
     borderBottom: '1px solid #333333',
-    color: '#FFD54F',
+    color: '#000000',
+    textShadow: '0 2px 4px rgba(0,0,0,0.3)',
   },
   // Badge
   badge: {
@@ -428,7 +435,7 @@ export const appStyles = {
     gridTemplateColumns: 'repeat(5, 1fr)',
     gap: '16px',
     padding: '20px',
-    background: '#f5f5f5',
+   // background: '#f5f5f5',
     overflowY: 'auto',
     height: '100%',
     margin: 0,
@@ -443,7 +450,7 @@ export const appStyles = {
     display: 'flex',
     flexDirection: 'column',
     overflow: 'hidden',
-    background: '#ffffff',
+    background: 'transparent',
     boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
     transition: 'all 0.3s ease',
   },
@@ -456,7 +463,7 @@ export const appStyles = {
     fontSize: '12px',
     textAlign: 'center',
     padding: '8px 6px',
-    background: '#FF6F00',
+    background: 'linear-gradient(90deg, #FF6F00 0%, #FFB300 50%, #FF9800 100%)',
     color: '#000',
     lineHeight: 1.3,
     margin: 0,
@@ -505,7 +512,7 @@ export const appStyles = {
     zIndex: 1000,
   },
   modalContent: {
-    background: 'linear-gradient(135deg, #2a2a2a 0%, #3a3a3a 100%)',
+    background: '#ffffff',
     borderRadius: '12px',
     padding: '1.2rem',
     maxWidth: '380px',
@@ -519,7 +526,7 @@ export const appStyles = {
     float: 'right',
     fontSize: '1.8rem',
     cursor: 'pointer',
-    color: '#FFD54F',
+    color: '#FF6F00',
     background: 'none',
     border: 'none',
     padding: 0,
@@ -532,12 +539,12 @@ export const appStyles = {
   },
   ingredientItem: {
     padding: '0.4rem 0',
-    color: '#FFD54F',
-    borderBottom: '1px solid rgba(255, 111, 0, 0.2)',
+    color: '#000000',
+    borderBottom: '1px solid rgba(0, 0, 0, 0.1)',
     display: 'flex',
     alignItems: 'center',
     gap: '0.5rem',
-    fontSize: '0.9rem',
+    fontSize: '1rem',
   },
   bullet: {
     color: '#FF6F00',
@@ -551,20 +558,26 @@ export const appStyles = {
     flexWrap: 'wrap',
   },
   categoryBtn: {
-    padding: '0.6rem 1rem',
-    border: '2px solid #000',
-    background: '#ffffff',
-    color: '#000',
-    borderRadius: '6px',
+    padding: '0.7rem 1.2rem',
+    border: '2px solid rgba(255, 111, 0, 0.3)',
+    background: 'rgba(255, 255, 255, 0.8)',
+    color: '#000000',
+    borderRadius: '8px',
     cursor: 'pointer',
     fontSize: '0.95rem',
-    fontWeight: 700,
-    transition: 'all 0.15s',
+    fontWeight: 600,
+    transition: 'all 0.3s ease',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.6rem',
+    transform: 'scale(1)',
   },
   categoryBtnActive: {
-    background: '#FF6600',
-    color: '#000',
-    borderColor: '#000',
+    background: 'linear-gradient(90deg, #FF6F00 0%, #FFB300 50%, #FF9800 100%)',
+    color: '#000000',
+    border: '2px solid #FF6F00',
+    boxShadow: '0 4px 12px rgba(255, 111, 0, 0.3)',
+    transform: 'scale(1.05)',
   },
   // Placeholder empty card to keep grid uniform
   placeholderCard: {
@@ -574,4 +587,11 @@ export const appStyles = {
     border: '1px dashed #e9e9e9',
     borderRadius: '4px',
   },
+}
+
+
+export const moduleBackgrounds = {
+  comandas: '#ECEFF1',      
+  menu: '#ECEFF1',          
+  pagos: '#ECEFF1',         
 }

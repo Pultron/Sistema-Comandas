@@ -2,7 +2,7 @@ import { Comandas } from './modules/Comandas'
 import { MenuModule } from './modules/Menu'
 import { Pagos } from './modules/Pagos'
 import { DefaultModule } from './modules/DefaultModule'
-import { appStyles } from '../styles/styles'
+import { appStyles, moduleBackgrounds } from '../styles/styles'
 
 export const Dashboard = ({ 
   activeModule, 
@@ -16,8 +16,18 @@ export const Dashboard = ({
   agregarComanda,
   modules
 }) => {
+  // Determinar el fondo según el módulo activo usando colores configurables
+  const getPageContentStyle = () => {
+    const baseStyle = {...appStyles.pageContent}
+    // Usar el color del módulo, o el default de styles.js si no existe
+    baseStyle.background = moduleBackgrounds[activeModule] || appStyles.pageContent.background
+    baseStyle.minHeight = '100%'
+    baseStyle.width = '100%'
+    return baseStyle
+  }
+
   return (
-    <main style={appStyles.pageContent}>
+    <main style={getPageContentStyle()}>
       {activeModule === 'comandas' && (
         <Comandas comandas={comandas} agregarComanda={agregarComanda} />
       )}

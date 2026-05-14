@@ -6,8 +6,12 @@ export const Sidebar = ({ modules, activeModule, onModuleChange, onLogout }) => 
   return (
     <aside style={appStyles.sidebar}>
       <div style={appStyles.sidebarHeader}>
-        <div style={appStyles.logo}>
-          <LogoIcon size={28} color="#7D2BE8" />
+        <div 
+          style={appStyles.logo}
+          onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
+          onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+        >
+          <LogoIcon size={28} color="#FFD54F" />
         </div>
         <h3 style={appStyles.sidebarHeader_h3}>GastroSoft</h3>
       </div>
@@ -28,14 +32,18 @@ export const Sidebar = ({ modules, activeModule, onModuleChange, onLogout }) => 
             }}
             onMouseEnter={(e) => {
               if (activeModule !== module.id) {
-                e.currentTarget.style.background = 'rgba(255,255,255,0.08)'
-                e.currentTarget.style.borderLeftColor = 'rgba(255,215,79,0.5)'
+                e.currentTarget.style.background = 'rgba(255,255,255,0.05)'
+                e.currentTarget.style.borderLeftColor = '#FFD54F'
+                e.currentTarget.style.color = '#000000'
+                e.currentTarget.style.textShadow = '0 2px 4px rgba(0,0,0,0.3)'
               }
             }}
             onMouseLeave={(e) => {
               if (activeModule !== module.id) {
                 e.currentTarget.style.background = 'none'
                 e.currentTarget.style.borderLeftColor = 'transparent'
+                e.currentTarget.style.color = '#000000'
+                e.currentTarget.style.textShadow = '0 2px 4px rgba(0,0,0,0.3)'
               }
             }}
           >
@@ -52,7 +60,11 @@ export const Sidebar = ({ modules, activeModule, onModuleChange, onLogout }) => 
           style={appStyles.logoutBtn} 
           onClick={onLogout}
           onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.15)'}
-          onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
+          onMouseLeave={(e) => {
+            e.target.style.background = 'rgba(255,255,255,0.1)'
+            e.target.style.color = '#000000'
+            e.target.style.textShadow = '0 2px 4px rgba(0,0,0,0.3)'
+          }}
         >
           <LogoutIcon size={16} color="currentColor" style={{marginRight: '0.4rem'}} />
           Salir

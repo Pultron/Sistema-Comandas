@@ -43,16 +43,9 @@ export const Pagos = ({ comandas }) => {
   }
 
   return (
-    <div>
-      <div style={appStyles.pageHeader}>
-        <h1 style={appStyles.pageTitle}>
-          <DollarSignIcon size={24} color="#FFD54F" style={{marginRight: '0.5rem', verticalAlign: 'middle'}} /> 
-          Gestión de Pagos
-        </h1>
-      </div>
-
+    <div style={{display: 'flex', flexDirection: 'column', height: '100%', width: '100%'}}>
       {/* Mesas disponibles */}
-      <div style={{background: 'white', borderRadius: '12px', overflow: 'hidden', border: '2px solid #FF6F00', marginBottom: '2rem'}}>
+      <div style={{background: '#ECEFF1', borderRadius: '12px', overflow: 'hidden', border: '2px solid #FF6F00', flex: 1, display: 'flex', flexDirection: 'column'}}>
         {comandas.length === 0 ? (
           <div style={{padding: '3rem', textAlign: 'center', color: '#999'}}>
             <p style={{fontSize: '16px', fontWeight: 500}}>No hay comandas activas</p>
@@ -115,7 +108,7 @@ export const Pagos = ({ comandas }) => {
                   style={{
                     width: '100%',
                     padding: '0.8rem',
-                    backgroundColor: '#FF6F00',
+                    background: 'linear-gradient(90deg, #FF6F00 0%, #FFB300 50%, #FF9800 100%)',
                     color: '#000',
                     border: 'none',
                     borderRadius: '6px',
@@ -130,11 +123,11 @@ export const Pagos = ({ comandas }) => {
                     gap: '0.5rem'
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = '#E55100'
+                    e.currentTarget.style.background = 'linear-gradient(90deg, #E55100 0%, #FF9800 50%, #FF7F3D 100%)'
                     e.currentTarget.style.transform = 'scale(1.02)'
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = '#FF6F00'
+                    e.currentTarget.style.background = 'linear-gradient(90deg, #FF6F00 0%, #FFB300 50%, #FF9800 100%)'
                     e.currentTarget.style.transform = 'scale(1)'
                   }}
                 >
