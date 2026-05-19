@@ -2,60 +2,51 @@ import { useState } from 'react'
 import { LoginScreen } from './components/LoginScreen'
 import { Header } from './components/Header'
 import { Dashboard } from './components/Dashboard'
-import { menuData, categories, comandasData } from './data/menuData'
 import { modulesData } from './data/modulesData'
 import { appStyles } from './styles/styles'
+import { supabase } from './supabase'
+
+
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [username, setUsername] = useState('')
-  const [password, setPassword] = useState('')
-  const [userRole, setUserRole] = useState(null)
-  const [loginError, setLoginError] = useState('')
-  const [activeModule, setActiveModule] = useState('comandas')
-  const [selectedDish, setSelectedDish] = useState(null)
-  const [selectedCategory, setSelectedCategory] = useState('caliente')
-  const [comandas, setComandas] = useState(comandasData)
+  const [currentUser, setCurrentUser]         = useState(null)
+  const [userRole, setUserRole]               = useState(null)
+  const [username, setUsername]               = useState('')
+  const [password, setPassword]               = useState('')
+  const [loginError, setLoginError]           = useState('')
+  const [activeModule, setActiveModule]       = useState('comandas')
+  const [selectedDish, setSelectedDish]       = useState(null)
+  const [selectedCategory, setSelectedCategory] = useState(null)
 
-  // Credenciales válidas
-  const validCredentials = {
-    admin: { password: 'admin123', role: 'admin' },
-    mesero: { password: 'mesero123', role: 'mesero' }
-  }
-
-  const agregarComanda = (comanda) => {
-    setComandas([...comandas, comanda])
-  }
-
-  const handleLogin = () => {
+  // ── LOGIN CON SUPABASE ──────────────────────
+  const handleLogin = async () => {
     setLoginError('')
-    
-    const user = validCredentials[username]
-    
-    if (!user) {
-      setLoginError('Usuario no válido')
-      return
-    }
-    
-    if (user.password !== password) {
-      setLoginError('Contraseña incorrecta')
+
+    const { data, error } = await supabase
+      .from('usuarios')
+      .select('*')
+      .eq('usuario', username)
+      .eq('contrasena', password)   // En producción usa hashing
+      .eq('estado', 'activo')
+      .single()
+
+    if (error || !data) {
+      setLoginError('Usuario o contraseña incorrectos')
       return
     }
 
+    setCurrentUser(data)
     setIsAuthenticated(true)
-    setUserRole(user.role)
-    // Cambiar módulo inicial según el rol
-    if (user.role === 'admin') {
-      setActiveModule('dashboard')
-    } else {
-      setActiveModule('comandas')
-    }
+    setUserRole(data.rol)
+    setActiveModule(data.rol === 'administrador' || data.rol === 'gerente' ? 'dashboard' : 'comandas')
     setUsername('')
     setPassword('')
   }
 
   const handleLogout = () => {
     setIsAuthenticated(false)
+    setCurrentUser(null)
     setUserRole(null)
     setUsername('')
     setPassword('')
@@ -65,43 +56,47 @@ function App() {
 
   if (!isAuthenticated) {
     return (
-      <LoginScreen 
+      <LoginScreen
         username={username}
         setUsername={setUsername}
-        password={password} 
-        setPassword={setPassword} 
+        password={password}
+        setPassword={setPassword}
         onLogin={handleLogin}
         error={loginError}
       />
     )
   }
 
-  // Filtrar módulos según el rol
-  const availableModules = userRole === 'mesero' 
-    ? modulesData.filter(m => ['comandas', 'menu', 'pagos'].includes(m.id))
-    : modulesData
+  // Filtrar módulos según rol
+  const modulosAdmin   = modulesData
+  const modulosMesero  = modulesData.filter(m => ['comandas', 'menu', 'pagos'].includes(m.id))
+  const modulosGerente = modulesData.filter(m => !['configuracion'].includes(m.id))
+
+  const availableModules =
+    userRole === 'mesero'        ? modulosMesero  :
+    userRole === 'gerente'       ? modulosGerente :
+    userRole === 'cocinero'      ? modulosMesero  :
+    modulosAdmin
 
   return (
-    <div style={{display: 'flex', flexDirection: 'column', height: '100vh'}}>
-      <Header 
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+      <Header
         modules={availableModules}
         activeModule={activeModule}
         onModuleChange={setActiveModule}
         onLogout={handleLogout}
+        currentUser={currentUser}
       />
 
-      <div style={{flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column'}}>
-        <Dashboard 
+      <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        <Dashboard
           activeModule={activeModule}
-          menu={menuData}
-          categories={categories}
           selectedCategory={selectedCategory}
           setSelectedCategory={setSelectedCategory}
           selectedDish={selectedDish}
           setSelectedDish={setSelectedDish}
-          comandas={comandas}
-          agregarComanda={agregarComanda}
           modules={availableModules}
+          currentUser={currentUser}
         />
       </div>
     </div>

@@ -1,169 +1,210 @@
-import { DashboardIcon } from '../Icons'
-import { appStyles } from '../../styles/styles'
+import { Comandas } from './Comandas'
+import { Menu } from './Menu'
+import { Pagos } from './Pagos'
+import { Dashboard as DashboardModule } from './Dashboard'
+import { Mesas } from './Mesas'
+import { Personal } from './Personal'
+import { Reportes } from './Reportes'
+import { Clientes } from './Clientes'
+import { Caja } from './Caja'
+import { Configuracion } from './Configuracion'
+import { Inventario } from './Inventario'
+import { Proveedores } from './Proveedores'
+import { Promociones } from './Promociones'
+import { DefaultModule } from './DefaultModule'
+import { appStyles, moduleBackgrounds } from '../../styles/styles'
 
-export const DashboardModule = ({ comandas }) => {
-  // Calcula estadísticas del día
-  const calcularEstadisticas = () => {
-    const comandasActivas = comandas.filter(c => c.estado !== 'pagada')
-    const totalVentas = comandas.reduce((sum, c) => sum + parseFloat(c.total || 0), 0)
-    const mesasOcupadas = new Set(comandasActivas.map(c => c.mesa)).size
-    
-    // Productos más vendidos (simulado)
-    const productosVendidos = {}
-    comandas.forEach(comanda => {
-      const productos = comanda.productos || 1
-      productosVendidos['Pizza'] = (productosVendidos['Pizza'] || 0) + productos
-    })
-    
-    const productoMasVendido = Object.entries(productosVendidos)[0]?.[0] || 'N/A'
 
-    return {
-      totalVentas: totalVentas.toFixed(2),
-      comandasActivas: comandasActivas.length,
-      mesasOcupadas,
-      productoMasVendido
-    }
+import {
+  useMenu,
+  useComandas,
+  useMesas,
+  usePersonal,
+  useClientes,
+  useInventario,
+  useProveedores,
+  usePromociones,
+  useCaja,
+  useReportes
+} from '../../hooks/useSupabase'
+
+export const Dashboard = ({
+  activeModule,
+  selectedCategory,
+  setSelectedCategory,
+  selectedDish,
+  setSelectedDish,
+  modules,
+  currentUser
+}) => {
+  // ── Datos desde Supabase ──────────────────
+  const { menu, categories, loading: loadingMenu }         = useMenu()
+  const { comandas, agregarComanda, actualizarEstadoComanda,
+          eliminarComanda, loading: loadingComandas }       = useComandas()
+  const { mesas, guardarMesa, eliminarMesa,
+          cambiarEstadoMesa, loading: loadingMesas }        = useMesas()
+  const { personal, guardarEmpleado, eliminarEmpleado,
+          loading: loadingPersonal }                        = usePersonal()
+  const { clientes, reservaciones, guardarCliente,
+          eliminarCliente, guardarReservacion,
+          loading: loadingClientes }                        = useClientes()
+  const { ingredientes, movimientos, guardarIngrediente,
+          registrarMovimiento, loading: loadingInv }        = useInventario()
+  const { proveedores, historialCompras, guardarProveedor,
+          registrarCompra, loading: loadingProv }           = useProveedores()
+  const { promociones, menuDelDia, guardarPromocion,
+          loading: loadingPromo }                           = usePromociones()
+  const { historialCortes, realizarCorte,
+          loading: loadingCaja }                            = useCaja()
+  const { ventas, topProductos, loading: loadingReportes } = useReportes()
+
+  // Primer categoría disponible si no hay seleccionada
+  const catActiva = selectedCategory || (categories.length > 0 ? categories[0].key : null)
+
+  const getPageContentStyle = () => {
+    const baseStyle = { ...appStyles.pageContent }
+    baseStyle.background = moduleBackgrounds[activeModule] || appStyles.pageContent.background
+    baseStyle.minHeight  = '100%'
+    baseStyle.width      = '100%'
+    return baseStyle
   }
 
-  const stats = calcularEstadisticas()
+  // Spinner simple mientras cargan datos
+  const Loader = () => (
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '200px' }}>
+      <p style={{ color: '#FF6F00', fontSize: '1.1rem' }}>Cargando datos...</p>
+    </div>
+  )
 
   return (
-    <div style={{display: 'flex', flexDirection: 'column', gap: '2rem', padding: '2rem', width: '100%'}}>
-      {/* Header */}
-      <div style={appStyles.pageHeader}>
-        <h1 style={appStyles.pageTitle}>
-          📊 Dashboard / Resumen del Día
-        </h1>
-      </div>
+    <main style={getPageContentStyle()}>
 
-      {/* Cards de Estadísticas */}
-      <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.5rem'}}>
-        
-        {/* Card - Total Ventas */}
-        <div style={{
-          background: 'linear-gradient(135deg, #FF6F00 0%, #FFB300 100%)',
-          borderRadius: '12px',
-          padding: '2rem',
-          color: '#000',
-          boxShadow: '0 4px 15px rgba(255, 111, 0, 0.3)',
-          border: '2px solid #FFB300'
-        }}>
-          <div style={{fontSize: '14px', fontWeight: 600, opacity: 0.9, marginBottom: '0.5rem'}}>TOTAL VENTAS</div>
-          <div style={{fontSize: '2.5rem', fontWeight: 700, marginBottom: '1rem'}}>
-            ${stats.totalVentas}
-          </div>
-          <div style={{fontSize: '12px', opacity: 0.8}}>💰 Ingresos del día</div>
-        </div>
+      {activeModule === 'dashboard' && (
+        loadingComandas ? <Loader /> :
+        <DashboardModule comandas={comandas} />
+      )}
 
-        {/* Card - Comandas Activas */}
-        <div style={{
-          background: 'linear-gradient(135deg, #4CAF50 0%, #66BB6A 100%)',
-          borderRadius: '12px',
-          padding: '2rem',
-          color: 'white',
-          boxShadow: '0 4px 15px rgba(76, 175, 80, 0.3)',
-          border: '2px solid #66BB6A'
-        }}>
-          <div style={{fontSize: '14px', fontWeight: 600, opacity: 0.9, marginBottom: '0.5rem'}}>COMANDAS ACTIVAS</div>
-          <div style={{fontSize: '2.5rem', fontWeight: 700, marginBottom: '1rem'}}>
-            {stats.comandasActivas}
-          </div>
-          <div style={{fontSize: '12px', opacity: 0.8}}>🧾 Órdenes en proceso</div>
-        </div>
+      {activeModule === 'comandas' && (
+        loadingComandas ? <Loader /> :
+        <Comandas
+          comandas={comandas}
+          agregarComanda={agregarComanda}
+          actualizarEstado={actualizarEstadoComanda}
+          eliminarComanda={eliminarComanda}
+          menu={menu}
+          categories={categories}
+          currentUser={currentUser}
+        />
+      )}
 
-        {/* Card - Mesas Ocupadas */}
-        <div style={{
-          background: 'linear-gradient(135deg, #2196F3 0%, #42A5F5 100%)',
-          borderRadius: '12px',
-          padding: '2rem',
-          color: 'white',
-          boxShadow: '0 4px 15px rgba(33, 150, 243, 0.3)',
-          border: '2px solid #42A5F5'
-        }}>
-          <div style={{fontSize: '14px', fontWeight: 600, opacity: 0.9, marginBottom: '0.5rem'}}>MESAS OCUPADAS</div>
-          <div style={{fontSize: '2.5rem', fontWeight: 700, marginBottom: '1rem'}}>
-            {stats.mesasOcupadas}
-          </div>
-          <div style={{fontSize: '12px', opacity: 0.8}}>🪑 De 10 disponibles</div>
-        </div>
+      {activeModule === 'menu' && (
+        loadingMenu ? <Loader /> :
+        <MenuModule
+          menu={menu}
+          categories={categories}
+          selectedCategory={catActiva}
+          setSelectedCategory={setSelectedCategory}
+          selectedDish={selectedDish}
+          setSelectedDish={setSelectedDish}
+        />
+      )}
 
-        {/* Card - Producto Más Vendido */}
-        <div style={{
-          background: 'linear-gradient(135deg, #9C27B0 0%, #BA68C8 100%)',
-          borderRadius: '12px',
-          padding: '2rem',
-          color: 'white',
-          boxShadow: '0 4px 15px rgba(156, 39, 176, 0.3)',
-          border: '2px solid #BA68C8'
-        }}>
-          <div style={{fontSize: '14px', fontWeight: 600, opacity: 0.9, marginBottom: '0.5rem'}}>PRODUCTO MÁS VENDIDO</div>
-          <div style={{fontSize: '2rem', fontWeight: 700, marginBottom: '1rem'}}>
-            {stats.productoMasVendido}
-          </div>
-          <div style={{fontSize: '12px', opacity: 0.8}}>⭐ Favorito del día</div>
-        </div>
+      {activeModule === 'mesas' && (
+        loadingMesas ? <Loader /> :
+        <MesasModule
+          mesas={mesas}
+          comandas={comandas}
+          guardarMesa={guardarMesa}
+          eliminarMesa={eliminarMesa}
+          cambiarEstado={cambiarEstadoMesa}
+        />
+      )}
 
-      </div>
+      {activeModule === 'personal' && (
+        loadingPersonal ? <Loader /> :
+        <PersonalModule
+          personal={personal}
+          guardarEmpleado={guardarEmpleado}
+          eliminarEmpleado={eliminarEmpleado}
+        />
+      )}
 
-      {/* Resumen de Actividad */}
-      <div style={{
-        background: 'white',
-        borderRadius: '12px',
-        padding: '2rem',
-        border: '2px solid #e8dcc8',
-        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
-      }}>
-        <h2 style={{color: '#333', fontWeight: 700, marginBottom: '1.5rem', fontSize: '18px'}}>
-          📈 Resumen de Actividad
-        </h2>
-        
-        <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem'}}>
-          <div>
-            <div style={{color: '#999', fontSize: '12px', fontWeight: 600, marginBottom: '0.5rem'}}>TICKETS EMITIDOS</div>
-            <div style={{fontSize: '28px', fontWeight: 700, color: '#FF6F00'}}>
-              {comandas.length}
-            </div>
-          </div>
-          <div>
-            <div style={{color: '#999', fontSize: '12px', fontWeight: 600, marginBottom: '0.5rem'}}>TICKET PROMEDIO</div>
-            <div style={{fontSize: '28px', fontWeight: 700, color: '#4CAF50'}}>
-              ${(stats.totalVentas / (comandas.length || 1)).toFixed(2)}
-            </div>
-          </div>
-        </div>
-      </div>
+      {activeModule === 'clientes' && (
+        loadingClientes ? <Loader /> :
+        <ClientesModule
+          clientes={clientes}
+          reservaciones={reservaciones}
+          guardarCliente={guardarCliente}
+          eliminarCliente={eliminarCliente}
+          guardarReservacion={guardarReservacion}
+        />
+      )}
 
-      {/* Últimas Comandas */}
-      <div style={{
-        background: 'white',
-        borderRadius: '12px',
-        padding: '2rem',
-        border: '2px solid #e8dcc8',
-        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
-      }}>
-        <h2 style={{color: '#333', fontWeight: 700, marginBottom: '1.5rem', fontSize: '18px'}}>
-          🕐 Últimas Comandas
-        </h2>
-        
-        {comandas.slice(-5).reverse().map((comanda, idx) => (
-          <div key={idx} style={{
-            padding: '1rem',
-            borderBottom: '1px solid #eee',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center'
-          }}>
-            <div>
-              <div style={{fontWeight: 700, color: '#333'}}>Comanda #{comanda.id}</div>
-              <div style={{fontSize: '12px', color: '#999'}}>Mesa: {comanda.mesa}</div>
-            </div>
-            <div style={{textAlign: 'right'}}>
-              <div style={{fontWeight: 700, color: '#FF6F00'}}>${comanda.total}</div>
-              <div style={{fontSize: '12px', color: '#999'}}>{comanda.fecha}</div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
+      {activeModule === 'inventario' && (
+        loadingInv ? <Loader /> :
+        <InventarioModule
+          ingredientes={ingredientes}
+          movimientos={movimientos}
+          guardarIngrediente={guardarIngrediente}
+          registrarMovimiento={registrarMovimiento}
+        />
+      )}
+
+      {activeModule === 'proveedores' && (
+        loadingProv ? <Loader /> :
+        <ProveedoresModule
+          proveedores={proveedores}
+          historialCompras={historialCompras}
+          guardarProveedor={guardarProveedor}
+          registrarCompra={registrarCompra}
+        />
+      )}
+
+      {activeModule === 'promociones' && (
+        loadingPromo ? <Loader /> :
+        <PromocionesModule
+          promociones={promociones}
+          menuDelDia={menuDelDia}
+          guardarPromocion={guardarPromocion}
+        />
+      )}
+
+      {activeModule === 'caja' && (
+        loadingCaja ? <Loader /> :
+        <CajaModule
+          comandas={comandas}
+          historialCortes={historialCortes}
+          realizarCorte={realizarCorte}
+        />
+      )}
+
+      {activeModule === 'reportes' && (
+        loadingReportes ? <Loader /> :
+        <ReportesModule
+          comandas={comandas}
+          ventas={ventas}
+          topProductos={topProductos}
+        />
+      )}
+
+      {activeModule === 'pagos' && (
+        loadingComandas ? <Loader /> :
+        <Pagos comandas={comandas} />
+      )}
+
+      {activeModule === 'configuracion' && (
+        <ConfiguracionModule currentUser={currentUser} />
+      )}
+
+      {activeModule !== 'dashboard'     && activeModule !== 'comandas'   &&
+       activeModule !== 'menu'          && activeModule !== 'mesas'      &&
+       activeModule !== 'personal'      && activeModule !== 'reportes'   &&
+       activeModule !== 'clientes'      && activeModule !== 'caja'       &&
+       activeModule !== 'configuracion' && activeModule !== 'pagos'      &&
+       activeModule !== 'inventario'    && activeModule !== 'proveedores' &&
+       activeModule !== 'promociones'   && (
+        <DefaultModule module={activeModule} modules={modules} />
+      )}
+    </main>
   )
 }
