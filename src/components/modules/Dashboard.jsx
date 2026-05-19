@@ -1,16 +1,15 @@
 import { Comandas } from './Comandas'
-import { Menu } from './Menu'
+import { MenuModule} from './Menu'
 import { Pagos } from './Pagos'
-import { Dashboard as DashboardModule } from './Dashboard'
-import { Mesas } from './Mesas'
-import { Personal } from './Personal'
-import { Reportes } from './Reportes'
-import { Clientes } from './Clientes'
-import { Caja } from './Caja'
-import { Configuracion } from './Configuracion'
-import { Inventario } from './Inventario'
-import { Proveedores } from './Proveedores'
-import { Promociones } from './Promociones'
+import { MesasModule } from './Mesas'
+import { PersonalModule } from './Personal'
+import { ReportesModule } from './Reportes'
+import { ClientesModule } from './Clientes'
+import { CajaModule } from './Caja'
+import { ConfiguracionModule } from './Configuracion'
+import { InventarioModule} from './Inventario'
+import { ProveedoresModule } from './Proveedores'
+import { PromocionesModule } from './Promociones'
 import { DefaultModule } from './DefaultModule'
 import { appStyles, moduleBackgrounds } from '../../styles/styles'
 
@@ -28,7 +27,7 @@ import {
   useReportes
 } from '../../hooks/useSupabase'
 
-export const Dashboard = ({
+export const DashboardModule = ({
   activeModule,
   selectedCategory,
   setSelectedCategory,

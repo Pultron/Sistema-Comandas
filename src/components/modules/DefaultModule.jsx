@@ -6,7 +6,7 @@ export const DefaultModule = ({ module, modules }) => {
       <div style={appStyles.pageHeader}>
         <h1 style={appStyles.pageTitle}>
           {(() => {
-            const currentModule = modules.find(m => m.id === module)
+            const currentModule = modules?.find(m => m.id === module)
             if (currentModule) {
               const IconComponent = currentModule.icon
               return (
