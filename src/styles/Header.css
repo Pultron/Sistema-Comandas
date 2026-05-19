@@ -1,0 +1,32 @@
+/* Scrollbar para navegación de módulos */
+header:has(nav) {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.3) rgba(255, 255, 255, 0.1);
+}
+
+header:has(nav)::-webkit-scrollbar {
+  height: 8px;
+}
+
+header:has(nav)::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+header:has(nav)::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+}
+
+header:has(nav)::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+/* Ocultar scrollbar en navegación de módulos pero permitir scroll */
+nav {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+nav::-webkit-scrollbar {
+  display: none;
+}

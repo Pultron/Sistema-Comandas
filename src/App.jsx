@@ -44,6 +44,12 @@ function App() {
 
     setIsAuthenticated(true)
     setUserRole(user.role)
+    // Cambiar módulo inicial según el rol
+    if (user.role === 'admin') {
+      setActiveModule('dashboard')
+    } else {
+      setActiveModule('comandas')
+    }
     setUsername('')
     setPassword('')
   }
@@ -84,7 +90,7 @@ function App() {
         onLogout={handleLogout}
       />
 
-      <div style={{flex: 1, overflow: 'auto', height: '100%'}}>
+      <div style={{flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column'}}>
         <Dashboard 
           activeModule={activeModule}
           menu={menuData}
