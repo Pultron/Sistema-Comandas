@@ -1,14 +1,10 @@
 import { useState } from 'react'
 import { appStyles } from '../../styles/styles'
 import { XIcon } from '../Icons'
+import { usePersonal } from '../../hooks/useSupabase'
 
 export const PersonalModule = () => {
-  const [personal, setPersonal] = useState([
-    { id: 1, nombre: 'Juan Pérez', usuario: 'juan_p', rol: 'mesero', estado: 'activo', fechaIngreso: '2024-01-15', asistencia: 22 },
-    { id: 2, nombre: 'María García', usuario: 'maria_g', rol: 'mesero', estado: 'activo', fechaIngreso: '2024-02-20', asistencia: 20 },
-    { id: 3, nombre: 'Carlos López', usuario: 'carlos_l', rol: 'cocinero', estado: 'activo', fechaIngreso: '2023-12-10', asistencia: 21 },
-    { id: 4, nombre: 'Ana Rodríguez', usuario: 'ana_r', rol: 'mesero', estado: 'inactivo', fechaIngreso: '2024-01-01', asistencia: 10 },
-  ])
+  const { personal, guardarEmpleado: guardarEmpleadoBd, eliminarEmpleado: eliminarEmpleadoBd } = usePersonal()
 
   const [mostrarFormulario, setMostrarFormulario] = useState(false)
   const [editando, setEditando] = useState(null)
@@ -49,40 +45,27 @@ export const PersonalModule = () => {
       return
     }
 
-    if (editando) {
-      setPersonal(personal.map(p => p.id === editando.id ? {
-        ...editando,
-        nombre: formData.nombre,
-        usuario: formData.usuario,
-        rol: formData.rol,
-        estado: formData.estado
-      } : p))
-    } else {
-      const nuevoEmpleado = {
-        id: Math.max(...personal.map(p => p.id), 0) + 1,
-        nombre: formData.nombre,
-        usuario: formData.usuario,
-        rol: formData.rol,
-        estado: 'activo',
-        fechaIngreso: new Date().toISOString().split('T')[0],
-        asistencia: 0
-      }
-      setPersonal([...personal, nuevoEmpleado])
-    }
+    guardarEmpleadoBd(formData, editando)
 
     setMostrarFormulario(false)
   }
 
   const eliminarEmpleado = (id) => {
     if (confirm('¿Estás seguro de que deseas eliminar este empleado?')) {
-      setPersonal(personal.filter(p => p.id !== id))
+      eliminarEmpleadoBd(id)
     }
   }
 
   const toggleEstado = (id) => {
-    setPersonal(personal.map(p => 
-      p.id === id ? {...p, estado: p.estado === 'activo' ? 'inactivo' : 'activo'} : p
-    ))
+    const empleado = personal.find(p => p.id === id)
+    if (!empleado) return
+
+    guardarEmpleadoBd({
+      nombre: empleado.nombre,
+      usuario: empleado.usuario,
+      rol: empleado.rol,
+      estado: empleado.estado === 'activo' ? 'inactivo' : 'activo'
+    }, empleado)
   }
 
   return (
@@ -153,7 +136,7 @@ export const PersonalModule = () => {
                       fontWeight: 600,
                       fontSize: '12px'
                     }}>
-                      {empleado.rol === 'mesero' ? '🧑‍💼' : '👨‍🍳'} {empleado.rol}
+                      {empleado.rol === 'mesero' ? '' : ''} {empleado.rol}
                     </div>
                   </td>
                   <td style={{padding: '1rem', textAlign: 'center'}}>
@@ -166,7 +149,7 @@ export const PersonalModule = () => {
                       fontWeight: 600,
                       fontSize: '12px'
                     }}>
-                      {empleado.estado === 'activo' ? '🟢 Activo' : '🔴 Inactivo'}
+                      {empleado.estado === 'activo' ? ' Activo' : ' Inactivo'}
                     </div>
                   </td>
                   <td style={{padding: '1rem', textAlign: 'center', color: '#666', fontSize: '12px'}}>
@@ -193,7 +176,7 @@ export const PersonalModule = () => {
                         onMouseEnter={(e) => e.currentTarget.style.background = '#1976D2'}
                         onMouseLeave={(e) => e.currentTarget.style.background = '#2196F3'}
                       >
-                        ✏️
+                        Editar
                       </button>
                       <button
                         onClick={() => toggleEstado(empleado.id)}
@@ -229,7 +212,7 @@ export const PersonalModule = () => {
                         onMouseEnter={(e) => e.currentTarget.style.background = '#DC2626'}
                         onMouseLeave={(e) => e.currentTarget.style.background = '#EF4444'}
                       >
-                        🗑️
+                        Eliminar
                       </button>
                     </div>
                   </td>

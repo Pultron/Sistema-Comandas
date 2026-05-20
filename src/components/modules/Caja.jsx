@@ -1,32 +1,10 @@
 import { useState } from 'react'
 import { appStyles } from '../../styles/styles'
+import { useCaja } from '../../hooks/useSupabase'
 
-export const CajaModule = ({ comandas }) => {
+export const CajaModule = () => {
   const [mostrarCorte, setMostrarCorte] = useState(false)
-  const [historialCortes, setHistorialCortes] = useState([
-    {
-      id: 1,
-      fecha: '2024-05-17',
-      turno: 'Mañana',
-      totalVentas: 125000,
-      pagosEfectivo: 75000,
-      pagosTarjeta: 50000,
-      cancelaciones: 5000,
-      descuentos: 3000,
-      usuario: 'Juan Pérez'
-    },
-    {
-      id: 2,
-      fecha: '2024-05-16',
-      turno: 'Tarde',
-      totalVentas: 98000,
-      pagosEfectivo: 60000,
-      pagosTarjeta: 38000,
-      cancelaciones: 2000,
-      descuentos: 1000,
-      usuario: 'María García'
-    }
-  ])
+  const { historialCortes, realizarCorte: realizarCorteBd } = useCaja()
 
   const [formCorte, setFormCorte] = useState({
     turno: 'Mañana',
@@ -36,25 +14,12 @@ export const CajaModule = ({ comandas }) => {
     descuentos: ''
   })
 
-  const realizarCorte = () => {
+  const realizarCorte = async () => {
     if (!formCorte.pagosEfectivo || !formCorte.pagosTarjeta) {
       alert('Por favor completa todos los campos de pago')
       return
     }
-
-    const nuevoCorte = {
-      id: Math.max(...historialCortes.map(c => c.id), 0) + 1,
-      fecha: new Date().toISOString().split('T')[0],
-      turno: formCorte.turno,
-      totalVentas: parseInt(formCorte.pagosEfectivo) + parseInt(formCorte.pagosTarjeta),
-      pagosEfectivo: parseInt(formCorte.pagosEfectivo),
-      pagosTarjeta: parseInt(formCorte.pagosTarjeta),
-      cancelaciones: parseInt(formCorte.cancelaciones) || 0,
-      descuentos: parseInt(formCorte.descuentos) || 0,
-      usuario: 'Admin'
-    }
-
-    setHistorialCortes([nuevoCorte, ...historialCortes])
+    await realizarCorteBd(formCorte)
     setFormCorte({
       turno: 'Mañana',
       pagosEfectivo: '',
@@ -89,7 +54,7 @@ export const CajaModule = ({ comandas }) => {
       {/* Header */}
       <div style={appStyles.pageHeader}>
         <h1 style={appStyles.pageTitle}>
-          💰 Caja y Ventas
+          Caja y Ventas
         </h1>
         <button
           onClick={() => setMostrarCorte(true)}

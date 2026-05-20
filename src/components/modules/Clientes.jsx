@@ -1,49 +1,19 @@
 import { useState } from 'react'
 import { appStyles } from '../../styles/styles'
+import { useClientes } from '../../hooks/useSupabase'
 
 export const ClientesModule = () => {
-  const [pestana, setPestana] = useState('clientes')
-  const [clientes, setClientes] = useState([
-    {
-      id: 1,
-      nombre: 'Cliente VIP 1',
-      email: 'vip1@email.com',
-      telefono: '123-456-7890',
-      tipoCliente: 'vip',
-      capitalConsumable: 50000,
-      capitalUtilizado: 15000,
-      fechasVisitas: ['2024-05-15', '2024-05-10', '2024-05-05'],
-      estadoActivo: true
-    },
-    {
-      id: 2,
-      nombre: 'Cliente VIP 2',
-      email: 'vip2@email.com',
-      telefono: '098-765-4321',
-      tipoCliente: 'vip',
-      capitalConsumable: 100000,
-      capitalUtilizado: 45000,
-      fechasVisitas: ['2024-05-16', '2024-05-12'],
-      estadoActivo: true
-    },
-    {
-      id: 3,
-      nombre: 'Cliente Regular',
-      email: 'regular@email.com',
-      telefono: '555-123-4567',
-      tipoCliente: 'regular',
-      capitalConsumable: 0,
-      capitalUtilizado: 0,
-      fechasVisitas: ['2024-05-14', '2024-05-08', '2024-04-30'],
-      estadoActivo: true
-    },
-  ])
+  const {
+    clientes,
+    reservaciones,
+    guardarCliente: guardarClienteBd,
+    eliminarCliente: eliminarClienteBd,
+    guardarReservacion: guardarReservacionBd,
+    refetch,
+    refetchReservaciones
+  } = useClientes()
 
-  const [reservaciones, setReservaciones] = useState([
-    { id: 1, cliente: 'Cliente VIP 1', fecha: '2024-05-20', hora: '19:30', personas: 4, mesa: 5, telefono: '123-456-7890', estado: 'confirmada' },
-    { id: 2, cliente: 'Cliente VIP 2', fecha: '2024-05-19', hora: '20:00', personas: 6, mesa: 2, telefono: '098-765-4321', estado: 'confirmada' },
-    { id: 3, cliente: 'Cliente Regular', fecha: '2024-05-21', hora: '18:30', personas: 2, mesa: 4, telefono: '555-123-4567', estado: 'pendiente' },
-  ])
+  const [pestana] = useState('reservaciones')
 
   const [mostrarFormulario, setMostrarFormulario] = useState(false)
   const [mostrarReservacion, setMostrarReservacion] = useState(false)
@@ -95,23 +65,7 @@ export const ClientesModule = () => {
       return
     }
 
-    if (editando) {
-      setClientes(clientes.map(c => c.id === editando.id ? {
-        ...editando,
-        ...formData,
-        capitalConsumable: parseInt(formData.capitalConsumable)
-      } : c))
-    } else {
-      const nuevoCliente = {
-        id: Math.max(...clientes.map(c => c.id), 0) + 1,
-        ...formData,
-        capitalConsumable: parseInt(formData.capitalConsumable),
-        capitalUtilizado: 0,
-        fechasVisitas: [],
-        estadoActivo: true
-      }
-      setClientes([...clientes, nuevoCliente])
-    }
+    guardarClienteBd(formData, editando)
 
     setMostrarFormulario(false)
     setFormData({
@@ -125,18 +79,18 @@ export const ClientesModule = () => {
 
   const eliminarCliente = (id) => {
     if (confirm('¿Estás seguro de que deseas eliminar este cliente?')) {
-      setClientes(clientes.filter(c => c.id !== id))
+      eliminarClienteBd(id)
     }
   }
 
-  const registrarVisita = (id) => {
+  const registrarVisita = async (id) => {
     const hoy = new Date().toISOString().split('T')[0]
-    setClientes(clientes.map(c =>
-      c.id === id ? {
-        ...c,
-        fechasVisitas: [hoy, ...c.fechasVisitas]
-      } : c
-    ))
+    await supabase.from('visitas_clientes').insert({
+      id_cliente: id,
+      fecha_visita: hoy,
+      total_gastado: 0
+    })
+    await refetch()
     alert('Visita registrada')
   }
 
@@ -165,41 +119,40 @@ export const ClientesModule = () => {
     setMostrarReservacion(true)
   }
 
-  const guardarReservacion = () => {
+  const guardarReservacion = async () => {
     if (!reservaData.cliente || !reservaData.fecha || !reservaData.hora || !reservaData.personas || !reservaData.mesa) {
       alert('Completa todos los campos')
       return
     }
 
     if (editando) {
-      setReservaciones(reservaciones.map(r => r.id === editando.id ? {
-        ...editando,
-        ...reservaData,
+      await supabase.from('reservaciones').update({
+        nombre_cliente: reservaData.cliente,
+        telefono: reservaData.telefono,
+        fecha: reservaData.fecha,
+        hora: reservaData.hora,
         personas: parseInt(reservaData.personas),
-        mesa: parseInt(reservaData.mesa)
-      } : r))
-    } else {
-      const nuevaReserva = {
-        id: Math.max(...reservaciones.map(r => r.id), 0) + 1,
-        ...reservaData,
-        personas: parseInt(reservaData.personas),
-        mesa: parseInt(reservaData.mesa),
+        id_mesa: parseInt(reservaData.mesa),
         estado: 'pendiente'
-      }
-      setReservaciones([...reservaciones, nuevaReserva])
+      }).eq('id', editando.id)
+    } else {
+      await guardarReservacionBd(reservaData)
     }
 
+    await refetchReservaciones()
     setMostrarReservacion(false)
   }
 
-  const cancelarReservacion = (id) => {
+  const cancelarReservacion = async (id) => {
     if (confirm('¿Cancelar esta reservación?')) {
-      setReservaciones(reservaciones.filter(r => r.id !== id))
+      await supabase.from('reservaciones').update({ estado: 'cancelada' }).eq('id', id)
+      await refetchReservaciones()
     }
   }
 
-  const confirmarReservacion = (id) => {
-    setReservaciones(reservaciones.map(r => r.id === id ? {...r, estado: 'confirmada'} : r))
+  const confirmarReservacion = async (id) => {
+    await supabase.from('reservaciones').update({ estado: 'confirmada' }).eq('id', id)
+    await refetchReservaciones()
   }
 
   return (
@@ -207,47 +160,13 @@ export const ClientesModule = () => {
       {/* Header */}
       <div style={appStyles.pageHeader}>
         <h1 style={appStyles.pageTitle}>
-          {pestana === 'clientes' ? '👤 Gestión de Clientes VIP' : '📅 Reservaciones'}
+          Reservaciones
         </h1>
         <button
-          onClick={() => pestana === 'clientes' ? abrirFormulario() : abrirReservacion()}
+          onClick={() => abrirReservacion()}
           style={{...appStyles.btnPrimary}}
         >
-          {pestana === 'clientes' ? '+ Agregar Cliente' : '+ Nueva Reservación'}
-        </button>
-      </div>
-
-      {/* Tabs */}
-      <div style={{display: 'flex', gap: '1rem', flexWrap: 'wrap'}}>
-        <button
-          onClick={() => setPestana('clientes')}
-          style={{
-            padding: '0.8rem 1.5rem',
-            background: pestana === 'clientes' ? 'linear-gradient(90deg, #FF6F00 0%, #FFB300 50%, #FF9800 100%)' : 'white',
-            color: pestana === 'clientes' ? '#000' : '#333',
-            border: `2px solid ${pestana === 'clientes' ? '#FF6F00' : '#ccc'}`,
-            borderRadius: '6px',
-            fontWeight: 600,
-            cursor: 'pointer',
-            transition: 'all 0.3s'
-          }}
-        >
-          👤 Clientes ({clientes.length})
-        </button>
-        <button
-          onClick={() => setPestana('reservaciones')}
-          style={{
-            padding: '0.8rem 1.5rem',
-            background: pestana === 'reservaciones' ? 'linear-gradient(90deg, #FF6F00 0%, #FFB300 50%, #FF9800 100%)' : 'white',
-            color: pestana === 'reservaciones' ? '#000' : '#333',
-            border: `2px solid ${pestana === 'reservaciones' ? '#FF6F00' : '#ccc'}`,
-            borderRadius: '6px',
-            fontWeight: 600,
-            cursor: 'pointer',
-            transition: 'all 0.3s'
-          }}
-        >
-          📅 Reservaciones ({reservaciones.length})
+          + Nueva Reservación
         </button>
       </div>
 
@@ -294,7 +213,7 @@ export const ClientesModule = () => {
                     gap: '0.5rem'
                   }}>
                     {cliente.nombre}
-                    {cliente.tipoCliente === 'vip' && <span style={{fontSize: '16px'}}>⭐</span>}
+                    {cliente.tipoCliente === 'vip' && <span style={{fontSize: '16px'}}></span>}
                   </div>
                   <div style={{fontSize: '12px', color: '#999', marginTop: '0.3rem'}}>
                     ID: #{cliente.id}
@@ -312,10 +231,10 @@ export const ClientesModule = () => {
                 borderBottom: '1px solid #e0e0e0'
               }}>
                 <div style={{fontSize: '13px', color: '#666'}}>
-                  📧 {cliente.email}
+                   {cliente.email}
                 </div>
                 <div style={{fontSize: '13px', color: '#666'}}>
-                  📱 {cliente.telefono}
+                  {cliente.telefono}
                 </div>
               </div>
 
@@ -402,7 +321,7 @@ export const ClientesModule = () => {
                   onMouseEnter={(e) => e.currentTarget.style.background = '#388E3C'}
                   onMouseLeave={(e) => e.currentTarget.style.background = '#4CAF50'}
                 >
-                  📅 Visita Hoy
+                  Visita Hoy
                 </button>
                 <button
                   onClick={() => setMostrarDetalles(cliente)}
@@ -420,7 +339,7 @@ export const ClientesModule = () => {
                   onMouseEnter={(e) => e.currentTarget.style.background = '#1976D2'}
                   onMouseLeave={(e) => e.currentTarget.style.background = '#2196F3'}
                 >
-                  👁️ Detalles
+                 Detalles
                 </button>
               </div>
 
@@ -442,7 +361,7 @@ export const ClientesModule = () => {
                   onMouseEnter={(e) => e.currentTarget.style.opacity = '0.8'}
                   onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
                 >
-                  ✏️ Editar
+                   Editar
                 </button>
                 <button
                   onClick={() => eliminarCliente(cliente.id)}
@@ -460,7 +379,7 @@ export const ClientesModule = () => {
                   onMouseEnter={(e) => e.currentTarget.style.background = '#DC2626'}
                   onMouseLeave={(e) => e.currentTarget.style.background = '#EF4444'}
                 >
-                  🗑️ Eliminar
+                   Eliminar
                 </button>
               </div>
             </div>
@@ -492,19 +411,19 @@ export const ClientesModule = () => {
               <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem'}}>
                 <div>
                   <div style={{fontSize: '12px', color: '#999', fontWeight: 600}}>FECHA</div>
-                  <div style={{fontSize: '16px', fontWeight: 700, color: '#333'}}>📅 {reserva.fecha}</div>
+                  <div style={{fontSize: '16px', fontWeight: 700, color: '#333'}}> {reserva.fecha}</div>
                 </div>
                 <div>
                   <div style={{fontSize: '12px', color: '#999', fontWeight: 600}}>HORA</div>
-                  <div style={{fontSize: '16px', fontWeight: 700, color: '#333'}}>🕐 {reserva.hora}</div>
+                  <div style={{fontSize: '16px', fontWeight: 700, color: '#333'}}> {reserva.hora}</div>
                 </div>
                 <div>
                   <div style={{fontSize: '12px', color: '#999', fontWeight: 600}}>PERSONAS</div>
-                  <div style={{fontSize: '16px', fontWeight: 700, color: '#333'}}>👥 {reserva.personas}</div>
+                  <div style={{fontSize: '16px', fontWeight: 700, color: '#333'}}> {reserva.personas}</div>
                 </div>
                 <div>
                   <div style={{fontSize: '12px', color: '#999', fontWeight: 600}}>MESA</div>
-                  <div style={{fontSize: '16px', fontWeight: 700, color: '#FF6F00'}}>🪑 #{reserva.mesa}</div>
+                  <div style={{fontSize: '16px', fontWeight: 700, color: '#FF6F00'}}> #{reserva.mesa}</div>
                 </div>
                 <div>
                   <div style={{fontSize: '12px', color: '#999', fontWeight: 600}}>TELÉFONO</div>
@@ -521,7 +440,7 @@ export const ClientesModule = () => {
                     fontSize: '11px',
                     fontWeight: 600
                   }}>
-                    {reserva.estado === 'confirmada' ? '✓ Confirmada' : '⏳ Pendiente'}
+                    {reserva.estado === 'confirmada' ? '✓ Confirmada' : ' Pendiente'}
                   </span>
                 </div>
               </div>
@@ -541,7 +460,7 @@ export const ClientesModule = () => {
                     fontSize: '13px'
                   }}
                 >
-                  ✓ Confirmar
+                  Confirmar
                 </button>
               )}
               <button
@@ -557,7 +476,7 @@ export const ClientesModule = () => {
                   fontSize: '13px'
                 }}
               >
-                ✏️ Editar
+                Editar
               </button>
               <button
                 onClick={() => cancelarReservacion(reserva.id)}
@@ -572,7 +491,7 @@ export const ClientesModule = () => {
                   fontSize: '13px'
                 }}
               >
-                ✗ Cancelar
+                 Cancelar
               </button>
             </div>
           </div>
@@ -796,7 +715,7 @@ export const ClientesModule = () => {
                 onClick={() => setMostrarDetalles(null)}
                 style={{background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', color: '#999'}}
               >
-                ×
+                
               </button>
             </div>
 
@@ -822,7 +741,7 @@ export const ClientesModule = () => {
                   fontWeight: 600,
                   fontSize: '12px'
                 }}>
-                  {mostrarDetalles.tipoCliente === 'vip' ? '⭐ VIP' : '👤 Regular'}
+                  {mostrarDetalles.tipoCliente === 'vip' ? ' VIP' : ' Regular'}
                 </div>
               </div>
 

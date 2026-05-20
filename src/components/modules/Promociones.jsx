@@ -1,55 +1,18 @@
 import { useState } from 'react'
 import { appStyles } from '../../styles/styles'
+import { usePromociones } from '../../hooks/useSupabase'
 
 export const PromocionesModule = () => {
-  const [promociones, setPromociones] = useState([
-    {
-      id: 1,
-      nombre: '2x1 Pizzas',
-      tipo: '2x1',
-      descripcion: 'Compra 1 pizza y lleva 2',
-      descuento: 50,
-      fechaInicio: '2024-05-01',
-      fechaFin: '2024-05-31',
-      estado: 'activa',
-      aplicableTo: ['Pizza Margherita', 'Pizza Pepperoni']
-    },
-    {
-      id: 2,
-      nombre: 'Happy Hour',
-      tipo: 'horario',
-      descripcion: '30% descuento de 5pm a 7pm',
-      descuento: 30,
-      fechaInicio: '2024-05-01',
-      fechaFin: '2024-12-31',
-      estado: 'activa',
-      horarioInicio: '17:00',
-      horarioFin: '19:00',
-      aplicableTo: ['Bebidas', 'Entradas']
-    },
-    {
-      id: 3,
-      nombre: 'Menú del Día',
-      tipo: 'menu',
-      descripcion: 'Menú especial de hoy por $15',
-      descuento: 0,
-      precio: 15,
-      fechaInicio: '2024-05-18',
-      fechaFin: '2024-05-18',
-      estado: 'activa',
-      items: ['Sopa del día', 'Plato principal', 'Bebida']
-    },
-  ])
-
-  const [menuDelDia, setMenuDelDia] = useState([
-    { platillo: 'Sopa de verduras', precio: 45, preparacion: 5 },
-    { platillo: 'Pollo a la mantequilla', precio: 120, preparacion: 15 },
-    { platillo: 'Flan casero', precio: 35, preparacion: 2 },
-  ])
+  const {
+    promociones,
+    menuDelDia,
+    guardarPromocion: guardarPromocionBd,
+    eliminarPromocion: eliminarPromocionBd,
+    cambiarEstadoPromocion: cambiarEstadoPromocionBd
+  } = usePromociones()
 
   const [mostrarFormulario, setMostrarFormulario] = useState(false)
   const [mostrarMenuDia, setMostrarMenuDia] = useState(false)
-  const [tipoPromo, setTipoPromo] = useState('porcentaje')
   const [editando, setEditando] = useState(null)
   const [formData, setFormData] = useState({
     nombre: '',
@@ -71,7 +34,6 @@ export const PromocionesModule = () => {
   const abrirFormulario = (promo = null) => {
     if (promo) {
       setEditando(promo)
-      setTipoPromo(promo.tipo)
       setFormData({
         nombre: promo.nombre,
         tipo: promo.tipo,
@@ -104,27 +66,7 @@ export const PromocionesModule = () => {
       return
     }
 
-    const aplicable = formData.aplicableTo.split(',').map(a => a.trim()).filter(a => a)
-
-    if (editando) {
-      setPromociones(promociones.map(p => p.id === editando.id ? {
-        ...editando,
-        ...formData,
-        descuento: formData.descuento ? parseInt(formData.descuento) : 0,
-        precio: formData.precio ? parseInt(formData.precio) : 0,
-        aplicableTo: aplicable
-      } : p))
-    } else {
-      const nuevoPromo = {
-        id: Math.max(...promociones.map(p => p.id), 0) + 1,
-        ...formData,
-        descuento: formData.descuento ? parseInt(formData.descuento) : 0,
-        precio: formData.precio ? parseInt(formData.precio) : 0,
-        estado: 'activa',
-        aplicableTo: aplicable
-      }
-      setPromociones([...promociones, nuevoPromo])
-    }
+    guardarPromocionBd(formData, editando)
 
     setMostrarFormulario(false)
   }
@@ -135,31 +77,24 @@ export const PromocionesModule = () => {
       return
     }
 
-    const plato = {
-      platillo: nuevoPlato.platillo,
-      precio: parseInt(nuevoPlato.precio),
-      preparacion: parseInt(nuevoPlato.preparacion) || 5
-    }
-
-    setMenuDelDia([...menuDelDia, plato])
+    alert('El menú del día se sincroniza desde Supabase. Si necesitas crear/editar platos, hay que añadir la tabla y el flujo en BD.')
     setNuevoPlato({ platillo: '', precio: '', preparacion: '' })
   }
 
-  const eliminarPlato = (idx) => {
-    setMenuDelDia(menuDelDia.filter((_, i) => i !== idx))
+  const eliminarPlato = () => {
+    alert('El menú del día se sincroniza desde Supabase. Para borrar platos hay que implementar esa tabla en la BD.')
   }
 
   const eliminarPromocion = (id) => {
     if (confirm('¿Eliminar esta promoción?')) {
-      setPromociones(promociones.filter(p => p.id !== id))
+      eliminarPromocionBd(id)
     }
   }
 
   const activarDesactivar = (id) => {
-    setPromociones(promociones.map(p => p.id === id ? {
-      ...p,
-      estado: p.estado === 'activa' ? 'inactiva' : 'activa'
-    } : p))
+    const promo = promociones.find(p => p.id === id)
+    if (!promo) return
+    cambiarEstadoPromocionBd(id, promo.estado === 'activa' ? 'inactiva' : 'activa')
   }
 
   const activas = promociones.filter(p => p.estado === 'activa').length
@@ -168,13 +103,13 @@ export const PromocionesModule = () => {
     <div style={{display: 'flex', flexDirection: 'column', gap: '2rem', padding: '2rem', width: '100%'}}>
       {/* Header */}
       <div style={appStyles.pageHeader}>
-        <h1 style={appStyles.pageTitle}>🎯 Promociones y Descuentos</h1>
+        <h1 style={appStyles.pageTitle}> Promociones y Descuentos</h1>
         <div style={{display: 'flex', gap: '1rem'}}>
           <button
             onClick={() => setMostrarMenuDia(true)}
             style={{...appStyles.btnPrimary, background: '#9C27B0'}}
           >
-            📅 Menú del Día
+             Menú del Día
           </button>
           <button
             onClick={() => abrirFormulario()}
@@ -226,7 +161,7 @@ export const PromocionesModule = () => {
                 </span>
               </div>
               <span style={{fontSize: '26px'}}>
-                {promo.tipo === '2x1' ? '🎁' : promo.tipo === 'horario' ? '⏰' : '📅'}
+                {promo.tipo === '2x1' ? '' : promo.tipo === 'horario' ? '' : ''}
               </span>
             </div>
 
@@ -253,7 +188,7 @@ export const PromocionesModule = () => {
                   fontSize: '13px'
                 }}
               >
-                {promo.estado === 'activa' ? '⏸️ Pausar' : '▶️ Activar'}
+                {promo.estado === 'activa' ? '⏸ Pausar' : '▶ Activar'}
               </button>
               <button
                 onClick={() => abrirFormulario(promo)}
@@ -268,7 +203,7 @@ export const PromocionesModule = () => {
                   fontSize: '13px'
                 }}
               >
-                ✏️ Editar
+                Editar
               </button>
             </div>
 
@@ -287,7 +222,7 @@ export const PromocionesModule = () => {
                 marginTop: '0.8rem'
               }}
             >
-              🗑️ Eliminar
+               Eliminar
             </button>
           </div>
         ))}
@@ -357,7 +292,7 @@ export const PromocionesModule = () => {
       {mostrarMenuDia && (
         <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000}}>
           <div style={{backgroundColor: 'white', borderRadius: '12px', padding: '2rem', maxWidth: '600px', width: '90%', maxHeight: '80vh', overflowY: 'auto', boxShadow: '0 10px 40px rgba(0, 0, 0, 0.3)'}}>
-            <h2 style={{color: '#333', margin: '0 0 1.5rem 0', fontSize: '20px', fontWeight: 700}}>📅 Menú del Día</h2>
+            <h2 style={{color: '#333', margin: '0 0 1.5rem 0', fontSize: '20px', fontWeight: 700}}> Menú del Día</h2>
             
             <div style={{background: '#f5f5f5', padding: '1rem', borderRadius: '8px', marginBottom: '1.5rem'}}>
               <p style={{color: '#666', fontSize: '13px', margin: 0}}>Configura los platillos especiales de hoy</p>

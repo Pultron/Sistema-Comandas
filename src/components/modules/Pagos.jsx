@@ -1,8 +1,12 @@
 import { useState } from 'react'
 import { DollarSignIcon, PrintIcon, XIcon } from '../Icons'
-import { appStyles } from '../../styles/styles'
+import { useComandas } from '../../hooks/useSupabase'
 
-export const Pagos = ({ comandas }) => {
+export const Pagos = ({ comandas: comandasProp = [] }) => {
+  const { comandas: comandasBd, actualizarEstadoComanda } = useComandas()
+  const comandas = comandasProp.length > 0 ? comandasProp : comandasBd
+  const comandasActivas = comandas.filter(c => c.estado !== 'Pagado')
+  const [mensajeAlerta, setMensajeAlerta] = useState('') 
   const [ticketSeleccionado, setTicketSeleccionado] = useState(null)
   const [mostrarTicket, setMostrarTicket] = useState(false)
 
@@ -42,17 +46,23 @@ export const Pagos = ({ comandas }) => {
     }
   }
 
+  const confirmarPago = (comanda) => {
+    actualizarEstadoComanda(comanda.id, 'pagado')
+    setMensajeAlerta(`Pago confirmado para comanda #${comanda.id}`)
+    setTimeout(() => setMensajeAlerta(''), 3000)
+  }
+
   return (
     <div style={{display: 'flex', flexDirection: 'column', height: '100%', width: '100%'}}>
       {/* Mesas disponibles */}
       <div style={{background: '#ECEFF1', borderRadius: '12px', overflow: 'hidden', border: '2px solid #FF6F00', flex: 1, display: 'flex', flexDirection: 'column'}}>
-        {comandas.length === 0 ? (
+        {comandasActivas.length === 0 ? (
           <div style={{padding: '3rem', textAlign: 'center', color: '#999'}}>
             <p style={{fontSize: '16px', fontWeight: 500}}>No hay comandas activas</p>
           </div>
         ) : (
           <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem', padding: '1.5rem'}}>
-            {comandas.map(comanda => (
+            {comandasActivas.map(comanda => (
               <div
                 key={comanda.id}
                 style={{
@@ -102,37 +112,69 @@ export const Pagos = ({ comandas }) => {
                   </div>
                 </div>
 
-                {/* Botón Generar Cuenta */}
-                <button
-                  onClick={() => generarCuenta(comanda)}
-                  style={{
-                    width: '100%',
-                    padding: '0.8rem',
-                    background: 'linear-gradient(90deg, #FF6F00 0%, #FFB300 50%, #FF9800 100%)',
-                    color: '#000',
-                    border: 'none',
-                    borderRadius: '6px',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    fontSize: '14px',
-                    transition: 'all 0.3s ease',
-                    marginTop: '0.5rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '0.5rem'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'linear-gradient(90deg, #E55100 0%, #FF9800 50%, #FF7F3D 100%)'
-                    e.currentTarget.style.transform = 'scale(1.02)'
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'linear-gradient(90deg, #FF6F00 0%, #FFB300 50%, #FF9800 100%)'
-                    e.currentTarget.style.transform = 'scale(1)'
-                  }}
-                >
-                  🧾 Generar Cuenta
-                </button>
+                {/* Botones de Acción */}
+                <div style={{display: 'flex', gap: '0.5rem'}}>
+                  <button
+                    onClick={() => generarCuenta(comanda)}
+                    style={{
+                      flex: 1,
+                      padding: '0.8rem',
+                      background: 'linear-gradient(90deg, #FF6F00 0%, #FFB300 50%, #FF9800 100%)',
+                      color: '#000',
+                      border: 'none',
+                      borderRadius: '6px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      transition: 'all 0.3s ease',
+                      marginTop: '0.5rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.5rem'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'linear-gradient(90deg, #E55100 0%, #FF9800 50%, #FF7F3D 100%)'
+                      e.currentTarget.style.transform = 'scale(1.02)'
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'linear-gradient(90deg, #FF6F00 0%, #FFB300 50%, #FF9800 100%)'
+                      e.currentTarget.style.transform = 'scale(1)'
+                    }}
+                  >
+                     Ver Cuenta
+                  </button>
+                  <button
+                    onClick={() => confirmarPago(comanda)}
+                    style={{
+                      flex: 1,
+                      padding: '0.8rem',
+                      background: 'linear-gradient(90deg, #4CAF50 0%, #66BB6A 50%, #43A047 100%)',
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: '6px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      transition: 'all 0.3s ease',
+                      marginTop: '0.5rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.5rem'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'linear-gradient(90deg, #388E3C 0%, #4CAF50 50%, #2E7D32 100%)'
+                      e.currentTarget.style.transform = 'scale(1.02)'
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'linear-gradient(90deg, #4CAF50 0%, #66BB6A 50%, #43A047 100%)'
+                      e.currentTarget.style.transform = 'scale(1)'
+                    }}
+                  >
+                     Confirmar Pago
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -339,6 +381,26 @@ export const Pagos = ({ comandas }) => {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Alert de Mensaje */}
+      {mensajeAlerta && (
+        <div style={{
+          position: 'fixed',
+          top: '20px',
+          right: '20px',
+          backgroundColor: mensajeAlerta.includes('confirmado') ? '#4CAF50' : '#DC2626',
+          color: '#fff',
+          padding: '1rem 1.5rem',
+          borderRadius: '8px',
+          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+          zIndex: 3000,
+          fontWeight: 700,
+          fontSize: '14px',
+          animation: 'slideIn 0.3s ease-in-out'
+        }}>
+          {mensajeAlerta}
         </div>
       )}
 

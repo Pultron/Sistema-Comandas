@@ -25,7 +25,10 @@ export function useMenu() {
         .select('*, categorias(nombre, icono, color_hex)')
         .eq('disponible', true)
 
-      if (!cats || !prods) return
+      if (!cats || !prods) {
+        setLoading(false)
+        return
+      }
 
       // Armar estructura igual a menuData.js
       const menuObj = {}
@@ -85,6 +88,7 @@ export function useComandas() {
     if (data) {
       const formatted = data.map(c => ({
         id:       c.id,
+        id_mesa:  c.id_mesa,
         mesa:     c.nombre_mesa || `Mesa ${c.mesas?.numero || '?'}`,
         mesero:   c.usuarios?.nombre || 'Sin mesero',
         fecha:    c.created_at,
@@ -184,7 +188,22 @@ export function useComandas() {
   }
 
   async function eliminarComanda(id) {
-    await supabase.from('comandas').update({ estado: 'cancelado' }).eq('id', id)
+    const { data: comanda } = await supabase
+      .from('comandas')
+      .select('id_mesa')
+      .eq('id', id)
+      .single()
+
+    await supabase.from('detalles_comanda').delete().eq('id_comanda', id)
+    await supabase.from('comandas').delete().eq('id', id)
+
+    if (comanda?.id_mesa) {
+      await supabase
+        .from('mesas')
+        .update({ estado: 'disponible' })
+        .eq('id', comanda.id_mesa)
+    }
+
     await fetchComandas()
   }
 
@@ -211,13 +230,11 @@ export function useMesas() {
     if (editando) {
       await supabase.from('mesas').update({
         numero:    parseInt(formData.numero),
-        capacidad: parseInt(formData.capacidad),
         ubicacion: formData.ubicacion
       }).eq('id', editando.id)
     } else {
       await supabase.from('mesas').insert({
         numero:    parseInt(formData.numero),
-        capacidad: parseInt(formData.capacidad),
         ubicacion: formData.ubicacion,
         estado:    'disponible'
       })
@@ -250,7 +267,13 @@ export function usePersonal() {
       .from('usuarios')
       .select('*')
       .order('nombre')
-    if (data) setPersonal(data)
+    if (data) {
+      setPersonal(data.map(u => ({
+        ...u,
+        fechaIngreso: u.fecha_ingreso || u.fechaIngreso || '',
+        asistencia: u.asistencia ?? 0
+      })))
+    }
     setLoading(false)
   }
 
@@ -298,7 +321,22 @@ export function useClientes() {
       .select('*, visitas_clientes(fecha_visita, total_gastado)')
       .eq('estado_activo', true)
       .order('nombre')
-    if (data) setClientes(data)
+    if (data) {
+      setClientes(data.map(cliente => {
+        const visitas = Array.isArray(cliente.visitas_clientes) ? cliente.visitas_clientes : []
+        const capitalUtilizado = visitas.reduce((total, visita) => total + (parseFloat(visita.total_gastado) || 0), 0)
+
+        return {
+          ...cliente,
+          tipoCliente: cliente.tipo_cliente || 'regular',
+          capitalConsumable: parseFloat(cliente.capital_consumable) || 0,
+          capitalConsumible: parseFloat(cliente.capital_consumable) || 0,
+          capitalUtilizado,
+          fechasVisitas: visitas.map(visita => visita.fecha_visita).filter(Boolean),
+          estadoActivo: cliente.estado_activo ?? true
+        }
+      }))
+    }
     setLoading(false)
   }
 
@@ -349,7 +387,16 @@ export function useClientes() {
     await fetchReservaciones()
   }
 
-  return { clientes, reservaciones, loading, guardarCliente, eliminarCliente, guardarReservacion, refetch: fetchClientes }
+  return {
+    clientes,
+    reservaciones,
+    loading,
+    guardarCliente,
+    eliminarCliente,
+    guardarReservacion,
+    refetch: fetchClientes,
+    refetchReservaciones: fetchReservaciones
+  }
 }
 
 // ── INVENTARIO ────────────────────────────────
@@ -367,6 +414,7 @@ export function useInventario() {
       .order('nombre')
     if (data) setIngredientes(data.map(i => ({
       ...i,
+      minimo: i.cantidad_minima,
       proveedor: i.proveedores?.nombre || 'Sin proveedor'
     })))
     setLoading(false)
@@ -410,10 +458,15 @@ export function useInventario() {
     await fetchInventario()
   }
 
+  async function eliminarIngrediente(id) {
+    await supabase.from('inventario').delete().eq('id', id)
+    await fetchInventario()
+  }
+
   async function registrarMovimiento(movData) {
     const { data: ing } = await supabase
       .from('inventario')
-      .select('cantidad, cantidad_minima')
+      .select('id, cantidad, cantidad_minima')
       .eq('nombre', movData.ingrediente)
       .single()
 
@@ -442,7 +495,7 @@ export function useInventario() {
     await fetchMovimientos()
   }
 
-  return { ingredientes, movimientos, loading, guardarIngrediente, registrarMovimiento, refetch: fetchInventario }
+  return { ingredientes, movimientos, loading, guardarIngrediente, eliminarIngrediente, registrarMovimiento, refetch: fetchInventario }
 }
 
 // ── PROVEEDORES ───────────────────────────────
@@ -456,12 +509,16 @@ export function useProveedores() {
   async function fetchProveedores() {
     const { data } = await supabase
       .from('proveedores')
-      .select('*, compras_proveedor(total)')
+      .select('*, compras_proveedor(fecha, total)')
       .eq('estado', 'activo')
       .order('nombre')
     if (data) setProveedores(data.map(p => ({
       ...p,
-      comprasRealizadas: p.compras_proveedor?.length || 0
+      productos: Array.isArray(p.productos)
+        ? p.productos
+        : String(p.productos || '').split(',').map(item => item.trim()).filter(Boolean),
+      comprasRealizadas: p.compras_proveedor?.length || 0,
+      ultimaCompra: p.compras_proveedor?.[0]?.fecha || ''
     })))
     setLoading(false)
   }
@@ -500,6 +557,11 @@ export function useProveedores() {
     await fetchProveedores()
   }
 
+  async function eliminarProveedor(id) {
+    await supabase.from('proveedores').update({ estado: 'inactivo' }).eq('id', id)
+    await fetchProveedores()
+  }
+
   async function registrarCompra(compraData) {
     const { data: prov } = await supabase
       .from('proveedores')
@@ -520,7 +582,7 @@ export function useProveedores() {
     await fetchProveedores()
   }
 
-  return { proveedores, historialCompras, loading, guardarProveedor, registrarCompra, refetch: fetchProveedores }
+  return { proveedores, historialCompras, loading, guardarProveedor, eliminarProveedor, registrarCompra, refetch: fetchProveedores }
 }
 
 // ── PROMOCIONES ───────────────────────────────
@@ -536,7 +598,18 @@ export function usePromociones() {
       .from('promociones')
       .select('*')
       .order('created_at', { ascending: false })
-    if (data) setPromociones(data)
+    if (data) {
+      setPromociones(data.map(p => ({
+        ...p,
+        fechaInicio: p.fecha_inicio || p.fechaInicio || '',
+        fechaFin: p.fecha_fin || p.fechaFin || '',
+        aplicableTo: Array.isArray(p.aplicable_to)
+          ? p.aplicable_to
+          : Array.isArray(p.aplicableTo)
+            ? p.aplicableTo
+            : String(p.aplicable_to || p.aplicableTo || '').split(',').map(item => item.trim()).filter(Boolean)
+      })))
+    }
     setLoading(false)
   }
 
@@ -579,7 +652,17 @@ export function usePromociones() {
     await fetchPromociones()
   }
 
-  return { promociones, menuDelDia, loading, guardarPromocion, refetch: fetchPromociones }
+  async function eliminarPromocion(id) {
+    await supabase.from('promociones').update({ estado: 'inactiva' }).eq('id', id)
+    await fetchPromociones()
+  }
+
+  async function cambiarEstadoPromocion(id, estado) {
+    await supabase.from('promociones').update({ estado }).eq('id', id)
+    await fetchPromociones()
+  }
+
+  return { promociones, menuDelDia, loading, guardarPromocion, eliminarPromocion, cambiarEstadoPromocion, refetch: fetchPromociones }
 }
 
 // ── CAJA ──────────────────────────────────────
@@ -597,7 +680,12 @@ export function useCaja() {
       .limit(20)
     if (data) setHistorial(data.map(c => ({
       ...c,
-      usuario: c.usuarios?.nombre
+      totalVentas: parseFloat(c.total_ventas) || 0,
+      pagosEfectivo: parseFloat(c.pagos_efectivo) || 0,
+      pagosTarjeta: parseFloat(c.pagos_tarjeta) || 0,
+      cancelaciones: parseFloat(c.cancelaciones) || 0,
+      descuentos: parseFloat(c.descuentos) || 0,
+      usuario: c.usuarios?.nombre || 'Sin usuario'
     })))
     setLoading(false)
   }
@@ -658,11 +746,10 @@ export function useReportes() {
 // ── HELPER ────────────────────────────────────
 function formatEstado(estado) {
   const map = {
-    pendiente:   'Pendiente',
-    en_progreso: 'En progreso',
-    servido:     'Servido',
-    pagado:      'Pagado',
-    cancelado:   'Cancelado'
+    pendiente: 'Pendiente',
+    servido:   'Servido',
+    pagado:    'Pagado',
+    cancelado: 'Cancelado'
   }
   return map[estado] || estado
 }

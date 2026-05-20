@@ -1,13 +1,29 @@
 import { useState } from 'react'
-import { ComandIcon, ReportesIcon, HourglassIcon, CheckCircleIcon, DollarSignIcon, EditIcon, TrashIcon, ClockIcon } from '../Icons'
+import { ComandIcon, CheckCircleIcon, DollarSignIcon, EditIcon, TrashIcon, ClockIcon } from '../Icons'
 import { appStyles } from '../../styles/styles'
-import { menuData } from '../../data/menuData'
+import { useComandas, useMenu, useMesas } from '../../hooks/useSupabase'
 
-export const Comandas = ({ comandas, agregarComanda }) => {
+export const Comandas = ({
+  comandas: comandasProp,
+  mesas: mesasProp,
+  agregarComanda: agregarComandaProp,
+  eliminarComanda: eliminarComandaProp,
+  currentUser
+}) => {
+  const { comandas: comandasBd, agregarComanda: agregarComandaBd, eliminarComanda: eliminarComandaHook, actualizarEstadoComanda } = useComandas()
+  const { menu, categories, loading: loadingMenu } = useMenu()
+  const { mesas: mesasBd } = useMesas()
+
+  const comandas = comandasProp || comandasBd
+  const mesas = mesasProp || mesasBd
+  const agregarComanda = agregarComandaProp || agregarComandaBd
+  const eliminarComandaBd = eliminarComandaProp || eliminarComandaHook
+  const puedeEliminarComandas = ['administrador', 'admin'].includes(currentUser?.rol)
   const [showComandaForm, setShowComandaForm] = useState(false)
   const [showMesaModal, setShowMesaModal] = useState(false)
+  const [numeroMesa, setNumeroMesa] = useState('')
   const [nombreMesa, setNombreMesa] = useState('')
-  const [selectedCategory, setSelectedCategory] = useState('caliente')
+  const [selectedCategory, setSelectedCategory] = useState('')
   const [itemsComanda, setItemsComanda] = useState([])
   const [comandaSeleccionada, setComandaSeleccionada] = useState(null)
   const [mostrarVerComanda, setMostrarVerComanda] = useState(false)
@@ -18,11 +34,11 @@ export const Comandas = ({ comandas, agregarComanda }) => {
 
   // Calcular ID automáticamente basado en comandas existentes
   const proximoId = comandas.length + 1
+  const activeCategory = selectedCategory || categories[0]?.key || ''
 
   // Calcular estadísticas
   const totalComandas = comandas.length
-  const comandasEnProgreso = comandas.filter(c => c.estado === 'En progreso').length
-  const comandasCompletadas = comandas.filter(c => c.estado === 'Servido').length
+  const comandasCompletadas = comandas.filter(c => c.estado === 'Servido' || c.estado === 'Pagado').length
   const ingresosHoy = comandas.reduce((total, c) => {
     const precio = parseFloat(c.total.replace('$', ''))
     return total + precio
@@ -33,6 +49,17 @@ export const Comandas = ({ comandas, agregarComanda }) => {
     if (estado === 'Pendiente') return { ...appStyles.badge, ...appStyles.badgePending }
     return { ...appStyles.badge, ...appStyles.badgeProgress }
   }
+
+  const obtenerComandaActiva = (mesa) => {
+    return comandas.find(c => {
+      const mismaMesa = c.mesa === `Mesa ${mesa.numero}` || c.mesa?.startsWith(`Mesa ${mesa.numero} `)
+      return mismaMesa && c.estado !== 'Pagado' && c.estado !== 'Cancelado'
+    })
+  }
+
+  const mesasDisponibles = mesas
+    .filter(mesa => !obtenerComandaActiva(mesa))
+    .sort((a, b) => Number(a.numero) - Number(b.numero))
 
   const agregarAlComanda = (platillo) => {
     const existente = itemsComanda.find(item => item.nombre === platillo.nombre)
@@ -50,7 +77,7 @@ export const Comandas = ({ comandas, agregarComanda }) => {
       setItemsComanda(actualizado)
     } else {
       const nuevoItem = {
-        id: Date.now(),
+        id: itemsComanda.length + 1,
         ...platillo,
         cantidad: 1,
         comentarios: '',
@@ -107,11 +134,12 @@ export const Comandas = ({ comandas, agregarComanda }) => {
 
   const abrirNuevaComanda = () => {
     setShowMesaModal(true)
+    setNumeroMesa('')
     setNombreMesa('')
   }
 
   const confirmarMesa = () => {
-    if (nombreMesa.trim()) {
+    if (numeroMesa.trim()) {
       setShowMesaModal(false)
       setShowComandaForm(true)
       setItemsComanda([])
@@ -121,7 +149,8 @@ export const Comandas = ({ comandas, agregarComanda }) => {
   const cerrarComanda = () => {
     setShowComandaForm(false)
     setItemsComanda([])
-    setSelectedCategory('caliente')
+    setSelectedCategory('')
+    setNumeroMesa('')
     setNombreMesa('')
     setComandaAEditar(null)
   }
@@ -129,41 +158,15 @@ export const Comandas = ({ comandas, agregarComanda }) => {
   const guardarComanda = () => {
     if (itemsComanda.length === 0) return
 
-    const ahora = new Date()
-    const fecha = ahora.toISOString().split('T')[0]
-    const hora = ahora.toTimeString().split(' ')[0].substring(0, 5)
-    const fechaHora = `${fecha} ${hora}`
-
     if (comandaAEditar) {
-      // Modo edición: actualizar comanda existente
-      const comandasActualizadas = comandas.map(c => 
-        c.id === comandaAEditar.id 
-          ? {
-              ...c,
-              mesa: nombreMesa,
-              items: itemsComanda,
-              productos: itemsComanda.length,
-              total: `$${calcularTotal()}`,
-              subtotal: parseFloat(calcularTotal())
-            }
-          : c
-      )
-      // Aquí deberías actualizar en App.jsx
-      setMensajeAlerta(`Comanda #${comandaAEditar.id} actualizada correctamente`)
+      setMensajeAlerta('La edición visual sigue disponible, pero la actualización completa se sincroniza con la BD desde el hook de comandas.')
       setComandaAEditar(null)
     } else {
-      // Modo creación: nueva comanda
-      const nuevaComanda = {
-        id: proximoId,
-        mesa: nombreMesa,
-        fecha: fechaHora,
-        productos: itemsComanda.length,
-        total: `$${calcularTotal()}`,
-        estado: 'En progreso',
+      const referenciaMesa = nombreMesa.trim()
+      agregarComanda({
+        mesa: referenciaMesa ? `Mesa ${numeroMesa.trim()} - ${referenciaMesa}` : `Mesa ${numeroMesa.trim()}`,
         items: itemsComanda,
-        subtotal: parseFloat(calcularTotal())
-      }
-      agregarComanda(nuevaComanda)
+      })
     }
 
     setTimeout(() => setMensajeAlerta(''), 3000)
@@ -182,31 +185,46 @@ export const Comandas = ({ comandas, agregarComanda }) => {
   }
 
   const editarComanda = (comanda) => {
-    if (comanda.estado !== 'En progreso') {
-      setMensajeAlerta('No se puede editar una comanda finalizada. El pedido ya ha sido completado.')
+    if (comanda.estado !== 'Pendiente') {
+      setMensajeAlerta('Solo se pueden editar comandas en estado Pendiente')
       setTimeout(() => setMensajeAlerta(''), 3000)
       return
     }
     // Establecer la comanda a editar y los items
     setComandaAEditar(comanda)
     setItemsComanda(comanda.items)
-    setNombreMesa(comanda.mesa)
+    setNumeroMesa(comanda.mesa?.match(/Mesa\s*(\d+)/i)?.[1] || '')
+    setNombreMesa(comanda.mesa?.replace(/Mesa\s*\d+\s*-?\s*/i, '') || comanda.mesa)
     setShowComandaForm(true)
     setMostrarVerComanda(false)
   }
 
   const eliminarComanda = (comanda) => {
+    if (!puedeEliminarComandas) {
+      setMensajeAlerta('Solo el administrador puede eliminar comandas')
+      setTimeout(() => setMensajeAlerta(''), 3000)
+      return
+    }
+
     setComandaAEliminar(comanda)
     setMostrarConfirmacionEliminar(true)
   }
 
-  const confirmarEliminacion = () => {
+  const confirmarEliminacion = async () => {
     if (comandaAEliminar) {
-      const comandasActualizadas = comandas.filter(c => c.id !== comandaAEliminar.id)
-      // Aquí deberías actualizar el estado en App.jsx, por ahora solo actualizamos local
+      await eliminarComandaBd(comandaAEliminar.id)
       setMostrarConfirmacionEliminar(false)
       setComandaAEliminar(null)
       setMensajeAlerta(`Comanda #${comandaAEliminar.id} eliminada correctamente`)
+      setTimeout(() => setMensajeAlerta(''), 3000)
+    }
+  }
+
+  const marcarComoServido = () => {
+    if (comandaSeleccionada) {
+      actualizarEstadoComanda(comandaSeleccionada.id, 'servido')
+      cerrarVerComanda()
+      setMensajeAlerta(`Comanda #${comandaSeleccionada.id} marcada como Servido`)
       setTimeout(() => setMensajeAlerta(''), 3000)
     }
   }
@@ -234,8 +252,8 @@ export const Comandas = ({ comandas, agregarComanda }) => {
           <div style={appStyles.statIcon}>
             <ClockIcon size={28} color="#000000" />
           </div>
-          <div style={appStyles.statLabel}>En Progreso</div>
-          <div style={appStyles.statValue}>{comandasEnProgreso}</div>
+          <div style={appStyles.statLabel}>Pendientes</div>
+          <div style={appStyles.statValue}>{comandas.filter(c => c.estado === 'Pendiente').length}</div>
         </div>
         <div style={appStyles.statCard}>
           <div style={appStyles.statIcon}>
@@ -309,29 +327,31 @@ export const Comandas = ({ comandas, agregarComanda }) => {
                     }}
                     title="Ver Comanda"
                   >
-                    📄 Ver Comanda
+                     Ver Comanda
                   </button>
                   <button 
                     onClick={() => editarComanda(comanda)}
-                    style={{background: 'none', border: 'none', cursor: comanda.estado === 'En progreso' ? 'pointer' : 'not-allowed', marginRight: '0.5rem', color: comanda.estado === 'En progreso' ? '#FFD54F' : '#ccc', padding: '0.4rem', opacity: comanda.estado === 'En progreso' ? 1 : 0.5}}
-                    title={comanda.estado === 'En progreso' ? 'Editar Comanda' : 'No se puede editar'}
+                    style={{background: 'none', border: 'none', cursor: comanda.estado === 'Pendiente' ? 'pointer' : 'not-allowed', marginRight: '0.5rem', color: comanda.estado === 'Pendiente' ? '#FFD54F' : '#ccc', padding: '0.4rem', opacity: comanda.estado === 'Pendiente' ? 1 : 0.5}}
+                    title={comanda.estado === 'Pendiente' ? 'Editar Comanda' : 'No se puede editar'}
                   >
                     <EditIcon size={18} color="currentColor" />
                   </button>
-                  <button 
-                    onClick={() => eliminarComanda(comanda)}
-                    style={{background: 'none', border: 'none', cursor: 'pointer', color: '#FF6F6F', padding: '0.4rem', transition: 'all 0.2s'}}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.color = '#DC2626'
-                      e.currentTarget.style.transform = 'scale(1.2)'
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.color = '#FF6F6F'
-                      e.currentTarget.style.transform = 'scale(1)'
-                    }}
-                  >
-                    <TrashIcon size={18} color="currentColor" />
-                  </button>
+                  {puedeEliminarComandas && (
+                    <button 
+                      onClick={() => eliminarComanda(comanda)}
+                      style={{background: 'none', border: 'none', cursor: 'pointer', color: '#FF6F6F', padding: '0.4rem', transition: 'all 0.2s'}}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.color = '#DC2626'
+                        e.currentTarget.style.transform = 'scale(1.2)'
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.color = '#FF6F6F'
+                        e.currentTarget.style.transform = 'scale(1)'
+                      }}
+                    >
+                      <TrashIcon size={18} color="currentColor" />
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}
@@ -399,32 +419,30 @@ export const Comandas = ({ comandas, agregarComanda }) => {
                   overflowX: 'auto',
                   backgroundColor: '#FF6F00'
                 }}>
-                  {Object.entries(menuData).map(([key, category]) => (
-                    <button
-                      key={key}
-                      onClick={() => setSelectedCategory(key)}
-                      style={{
-                        padding: '0.4rem 0.8rem',
-                        border: '2px solid #000',
-                        backgroundColor: selectedCategory === key ? '#000' : '#FF6F00',
-                        color: selectedCategory === key ? '#FFD54F' : '#000',
-                        borderRadius: '6px',
-                        cursor: 'pointer',
-                        fontWeight: 700,
-                        whiteSpace: 'nowrap',
-                        transition: 'all 0.3s',
-                        fontSize: '0.85rem'
-                      }}
-                    >
-                      {key === 'caliente' && 'Barra Caliente'}
-                      {key === 'fria' && 'Barra Fría'}
-                      {key === 'pizza' && 'Pizzas'}
-                      {key === 'pasta' && 'Pastas'}
-                      {key === 'bebidas_calientes' && 'Bebidas Cal.'}
-                      {key === 'bebidas_frias' && 'Bebidas Frías'}
-                      {key === 'snacks' && 'Snacks'}
-                    </button>
-                  ))}
+                  {Object.entries(menu).map(([key, category]) => {
+                    let label = category.nombre || key.replace(/_/g, ' ')
+                    label = label.replace(/^[\p{Emoji}]+\s*/u, '').trim()
+                    return (
+                      <button
+                        key={key}
+                        onClick={() => setSelectedCategory(key)}
+                        style={{
+                          padding: '0.4rem 0.8rem',
+                          border: '2px solid #000',
+                          backgroundColor: activeCategory === key ? '#000' : '#FF6F00',
+                          color: activeCategory === key ? '#FFD54F' : '#000',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          fontWeight: 700,
+                          whiteSpace: 'nowrap',
+                          transition: 'all 0.3s',
+                          fontSize: '0.85rem'
+                        }}
+                      >
+                        {label}
+                      </button>
+                    )
+                  })}
                 </div>
 
                 {/* Grilla de Platillos */}
@@ -438,7 +456,9 @@ export const Comandas = ({ comandas, agregarComanda }) => {
                   gap: '0.5rem',
                   backgroundColor: '#fff'
                 }}>
-                  {menuData[selectedCategory].platillos.map((platillo) => (
+                  {loadingMenu ? (
+                    <p style={{color: '#000', margin: 0}}>Cargando menú desde la BD...</p>
+                  ) : (menu[activeCategory]?.platillos || []).map((platillo) => (
                     <div
                       key={platillo.id}
                       onClick={() => agregarAlComanda(platillo)}
@@ -749,15 +769,45 @@ export const Comandas = ({ comandas, agregarComanda }) => {
               Nueva Comanda #{proximoId}
             </h2>
             <label style={{display: 'block', color: '#000', fontWeight: 700, marginBottom: '0.5rem', fontSize: '14px'}}>
-              Nombre de la Mesa:
+              Número de mesa:
+            </label>
+            <select
+              value={numeroMesa}
+              onChange={(e) => setNumeroMesa(e.target.value)}
+              autoFocus
+              style={{
+                width: '100%',
+                padding: '0.8rem',
+                fontSize: '16px',
+                border: '2px solid #000',
+                borderRadius: '6px',
+                marginBottom: '1rem',
+                boxSizing: 'border-box',
+                fontFamily: 'inherit',
+                backgroundColor: '#fff'
+              }}
+            >
+              <option value="">Selecciona una mesa</option>
+              {mesasDisponibles.map(mesa => (
+                <option key={mesa.id} value={mesa.numero}>
+                  Mesa {mesa.numero} - {mesa.ubicacion}
+                </option>
+              ))}
+            </select>
+            {mesasDisponibles.length === 0 && (
+              <div style={{color: '#7F1D1D', fontSize: '13px', fontWeight: 700, marginBottom: '1rem'}}>
+                No hay mesas disponibles en este momento.
+              </div>
+            )}
+            <label style={{display: 'block', color: '#000', fontWeight: 700, marginBottom: '0.5rem', fontSize: '14px'}}>
+              Nombre o referencia:
             </label>
             <input
               type="text"
               value={nombreMesa}
               onChange={(e) => setNombreMesa(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && confirmarMesa()}
-              placeholder="Ej: Mesa 5, Barra, Domicilio"
-              autoFocus
+              onKeyDown={(e) => e.key === 'Enter' && confirmarMesa()}
+              placeholder="Ej: Cliente, Barra, Terraza"
               style={{
                 width: '100%',
                 padding: '0.8rem',
@@ -773,6 +823,7 @@ export const Comandas = ({ comandas, agregarComanda }) => {
               <button
                 onClick={() => {
                   setShowMesaModal(false)
+                  setNumeroMesa('')
                   setNombreMesa('')
                 }}
                 style={{
@@ -793,25 +844,25 @@ export const Comandas = ({ comandas, agregarComanda }) => {
               </button>
               <button
                 onClick={confirmarMesa}
-                disabled={!nombreMesa.trim()}
+                disabled={!numeroMesa.trim() || mesasDisponibles.length === 0}
                 style={{
                   padding: '0.8rem 1.5rem',
-                  backgroundColor: !nombreMesa.trim() ? '#ccc' : '#4CAF50',
+                  backgroundColor: !numeroMesa.trim() || mesasDisponibles.length === 0 ? '#ccc' : '#4CAF50',
                   color: '#000',
                   border: 'none',
                   borderRadius: '6px',
                   fontWeight: 700,
-                  cursor: !nombreMesa.trim() ? 'not-allowed' : 'pointer',
+                  cursor: !numeroMesa.trim() || mesasDisponibles.length === 0 ? 'not-allowed' : 'pointer',
                   fontSize: '14px',
                   transition: 'background-color 0.2s'
                 }}
                 onMouseEnter={(e) => {
-                  if (nombreMesa.trim()) {
+                  if (numeroMesa.trim() && mesasDisponibles.length > 0) {
                     e.currentTarget.style.backgroundColor = '#45A049'
                   }
                 }}
                 onMouseLeave={(e) => {
-                  if (nombreMesa.trim()) {
+                  if (numeroMesa.trim() && mesasDisponibles.length > 0) {
                     e.currentTarget.style.backgroundColor = '#4CAF50'
                   }
                 }}
@@ -900,26 +951,72 @@ export const Comandas = ({ comandas, agregarComanda }) => {
               )}
             </div>
 
-            {/* Botón Cerrar */}
-            <button 
-              onClick={cerrarVerComanda}
-              style={{
-                width: '100%',
-                padding: '0.8rem',
-                backgroundColor: '#FF6F00',
-                color: '#000',
-                border: 'none',
-                borderRadius: '6px',
-                fontWeight: 700,
-                cursor: 'pointer',
-                fontSize: '14px',
-                transition: 'background-color 0.2s'
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#E55100'}
-              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#FF6F00'}
-            >
-              Cerrar
-            </button>
+            {/* Botones de Acción */}
+            <div style={{display: 'flex', gap: '1rem', marginTop: '1.5rem'}}>
+              {comandaSeleccionada.estado === 'Pendiente' && (
+                <button 
+                  onClick={() => {
+                    editarComanda(comandaSeleccionada)
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: '0.8rem',
+                    backgroundColor: '#FFD54F',
+                    color: '#000',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    transition: 'background-color 0.2s'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#FFC107'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#FFD54F'}
+                >
+                  ✏️ Editar
+                </button>
+              )}
+              {comandaSeleccionada.estado === 'Pendiente' && (
+                <button 
+                  onClick={marcarComoServido}
+                  style={{
+                    flex: 1,
+                    padding: '0.8rem',
+                    backgroundColor: '#4CAF50',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    transition: 'background-color 0.2s'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#45a049'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#4CAF50'}
+                >
+                  ✓ Servido
+                </button>
+              )}
+              <button 
+                onClick={cerrarVerComanda}
+                style={{
+                  flex: 1,
+                  padding: '0.8rem',
+                  backgroundColor: '#FF6F00',
+                  color: '#000',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  transition: 'background-color 0.2s'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#E55100'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#FF6F00'}
+              >
+                Cerrar
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -944,7 +1041,7 @@ export const Comandas = ({ comandas, agregarComanda }) => {
       )}
 
       {/* Modal de Confirmación de Eliminación */}
-      {mostrarConfirmacionEliminar && comandaAEliminar && (
+      {puedeEliminarComandas && mostrarConfirmacionEliminar && comandaAEliminar && (
         <div style={{
           position: 'fixed',
           top: 0,

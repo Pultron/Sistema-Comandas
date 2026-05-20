@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { appStyles } from '../../styles/styles'
+import { useComandas } from '../../hooks/useSupabase'
 
-export const ReportesModule = ({ comandas }) => {
+export const ReportesModule = () => {
+  const { comandas } = useComandas()
   const [filtroFecha, setFiltroFecha] = useState('mes')
-  const [mostrarDetalles, setMostrarDetalles] = useState(false)
 
   const calcularReportes = () => {
     const totalVentas = comandas.reduce((sum, c) => sum + parseFloat(c.total || 0), 0)
@@ -12,7 +13,7 @@ export const ReportesModule = ({ comandas }) => {
 
     // Productos más vendidos (simulado)
     const productosVendidos = {}
-    comandas.forEach(comanda => {
+    comandas.forEach(() => {
       productosVendidos['Pizza'] = (productosVendidos['Pizza'] || 0) + 3
       productosVendidos['Hamburguesa'] = (productosVendidos['Hamburguesa'] || 0) + 2
       productosVendidos['Bebida'] = (productosVendidos['Bebida'] || 0) + 4
@@ -45,7 +46,7 @@ export const ReportesModule = ({ comandas }) => {
       {/* Header */}
       <div style={appStyles.pageHeader}>
         <h1 style={appStyles.pageTitle}>
-          📈 Reportes y Ventas
+           Reportes y Ventas
         </h1>
       </div>
 
@@ -64,7 +65,7 @@ export const ReportesModule = ({ comandas }) => {
             transition: 'all 0.3s'
           }}
         >
-          📅 Hoy
+          Hoy
         </button>
         <button
           onClick={() => setFiltroFecha('semana')}
@@ -79,7 +80,7 @@ export const ReportesModule = ({ comandas }) => {
             transition: 'all 0.3s'
           }}
         >
-          📊 Esta Semana
+           Esta Semana
         </button>
         <button
           onClick={() => setFiltroFecha('mes')}
@@ -94,7 +95,7 @@ export const ReportesModule = ({ comandas }) => {
             transition: 'all 0.3s'
           }}
         >
-          📈 Este Mes
+           Este Mes
         </button>
       </div>
 
@@ -114,7 +115,7 @@ export const ReportesModule = ({ comandas }) => {
           <div style={{fontSize: '2.5rem', fontWeight: 700, marginBottom: '0.5rem'}}>
             ${reportes.totalVentas}
           </div>
-          <div style={{fontSize: '12px', opacity: 0.8}}>📊 Período: {
+          <div style={{fontSize: '12px', opacity: 0.8}}> Período: {
             filtroFecha === 'dia' ? 'Hoy' : 
             filtroFecha === 'semana' ? 'Esta Semana' : 
             'Este Mes'
@@ -134,7 +135,7 @@ export const ReportesModule = ({ comandas }) => {
           <div style={{fontSize: '2.5rem', fontWeight: 700, marginBottom: '0.5rem'}}>
             {reportes.tickets}
           </div>
-          <div style={{fontSize: '12px', opacity: 0.8}}>🧾 Órdenes procesadas</div>
+          <div style={{fontSize: '12px', opacity: 0.8}}>Órdenes procesadas</div>
         </div>
 
         {/* Promedio Ticket */}
@@ -150,7 +151,7 @@ export const ReportesModule = ({ comandas }) => {
           <div style={{fontSize: '2.5rem', fontWeight: 700, marginBottom: '0.5rem'}}>
             ${reportes.promedioTicket}
           </div>
-          <div style={{fontSize: '12px', opacity: 0.8}}>💰 Venta por comanda</div>
+          <div style={{fontSize: '12px', opacity: 0.8}}> Venta por comanda</div>
         </div>
 
       </div>
@@ -210,7 +211,7 @@ export const ReportesModule = ({ comandas }) => {
         boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
       }}>
         <h2 style={{color: '#333', fontWeight: 700, marginBottom: '1.5rem', fontSize: '18px'}}>
-          🧑‍💼 Rendimiento por Mesero
+           Rendimiento por Mesero
         </h2>
         
         <div style={{overflowX: 'auto'}}>
@@ -265,7 +266,7 @@ export const ReportesModule = ({ comandas }) => {
         boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
       }}>
         <h2 style={{color: '#333', fontWeight: 700, marginBottom: '1.5rem', fontSize: '18px'}}>
-          📊 Tendencia de Ventas
+           Tendencia de Ventas
         </h2>
         
         <div style={{display: 'flex', alignItems: 'flex-end', justifyContent: 'space-around', height: '200px', gap: '1rem'}}>

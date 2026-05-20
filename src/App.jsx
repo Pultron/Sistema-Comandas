@@ -3,7 +3,6 @@ import { LoginScreen } from './components/LoginScreen'
 import { Header } from './components/Header'
 import { Dashboard } from './components/Dashboard'
 import { modulesData } from './data/modulesData'
-import { appStyles } from './styles/styles'
 import { supabase } from './supabase'
 
 

@@ -1,7 +1,22 @@
+import { useEffect, useState } from 'react'
 import { MenuIcon } from '../Icons'
 import { appStyles } from '../../styles/styles'
+import { useMenu } from '../../hooks/useSupabase'
 
 export const MenuModule = ({ menu, categories, selectedCategory, setSelectedCategory, selectedDish, setSelectedDish }) => {
+  const { menu: menuBd, categories: categoriesBd, loading } = useMenu()
+  const menuActual = menu && Object.keys(menu).length > 0 ? menu : menuBd
+  const categoriesActual = categories && categories.length > 0 ? categories : categoriesBd
+  const [dishSeleccionadoLocal, setDishSeleccionadoLocal] = useState(null)
+  const dishSeleccionado = selectedDish ?? dishSeleccionadoLocal
+  const setDishSeleccionado = setSelectedDish || setDishSeleccionadoLocal
+
+  useEffect(() => {
+    if (!selectedCategory && categoriesActual.length > 0) {
+      setSelectedCategory?.(categoriesActual[0].key)
+    }
+  }, [categoriesActual, selectedCategory, setSelectedCategory])
+
   return (
     <>
       <div>
@@ -15,7 +30,7 @@ export const MenuModule = ({ menu, categories, selectedCategory, setSelectedCate
         
         {/* Botones de Categorías */}
         <div style={appStyles.categoryButtons}>
-          {categories.map((cat) => (
+          {categoriesActual.map((cat) => (
             <button
               key={cat.key}
               style={{
@@ -49,10 +64,17 @@ export const MenuModule = ({ menu, categories, selectedCategory, setSelectedCate
           ))}
         </div>
 
-        {/* Platillos de la Categoría (cuadrícula tipo POS) */}
+        {/* Platillos de la Categoría (cuadrícula tipo POS con placeholders) */}
         <div style={appStyles.dishGrid}>
           {(() => {
-            const items = menu[selectedCategory].platillos || []
+            if (loading && (!selectedCategory || !menuActual[selectedCategory])) {
+              return <div style={{padding: '1rem', color: '#666'}}>Cargando menú...</div>
+            }
+
+            const items = menuActual[selectedCategory]?.platillos || []
+            const columns = 5
+            const remainder = items.length % columns
+            const placeholders = remainder === 0 ? 0 : columns - remainder
 
             return (
               <>
@@ -61,9 +83,9 @@ export const MenuModule = ({ menu, categories, selectedCategory, setSelectedCate
                     key={platillo.id}
                     style={{
                       ...appStyles.dishCard,
-                      ...(selectedDish?.id === platillo.id ? appStyles.dishCardHover : {})
+                      ...(dishSeleccionado?.id === platillo.id ? appStyles.dishCardHover : {})
                     }}
-                    onClick={() => setSelectedDish(platillo)}
+                    onClick={() => setDishSeleccionado(platillo)}
                     onMouseEnter={(e) => {
                       Object.assign(e.currentTarget.style, appStyles.dishCardHover)
                       const img = e.currentTarget.querySelector('img')
@@ -81,14 +103,19 @@ export const MenuModule = ({ menu, categories, selectedCategory, setSelectedCate
                     <div style={appStyles.dishName}>{platillo.nombre}</div>
                   </div>
                 ))}
+
+                {/* Placeholders para mantener la cuadrícula uniforme */}
+                {Array.from({ length: placeholders }).map((_, idx) => (
+                  <div key={`ph-${idx}`} style={appStyles.placeholderCard} />
+                ))}
               </>
             )
           })()}
         </div>
       </div>
 
-      {selectedDish && (
-        <div style={appStyles.modal} onClick={() => setSelectedDish(null)}>
+      {dishSeleccionado && (
+        <div style={appStyles.modal} onClick={() => setDishSeleccionado(null)}>
           <div
             style={{
               ...appStyles.modalContent,
@@ -106,15 +133,15 @@ export const MenuModule = ({ menu, categories, selectedCategory, setSelectedCate
                 right: '530px',
                 fontSize: '3.5rem',
               }}
-              onClick={() => setSelectedDish(null)}
+              onClick={() => setDishSeleccionado(null)}
             >
               ×
             </button>
 
-            {selectedDish.imagen.startsWith('/') ? (
+            {dishSeleccionado.imagen.startsWith('/') ? (
               <img
-                src={selectedDish.imagen}
-                alt={selectedDish.nombre}
+                src={dishSeleccionado.imagen}
+                alt={dishSeleccionado.nombre}
                 style={{
                   width: 'calc(100% + 2.4rem)',
                   marginLeft: '-1.2rem',
@@ -126,19 +153,19 @@ export const MenuModule = ({ menu, categories, selectedCategory, setSelectedCate
                 }}
               />
             ) : (
-              <div style={appStyles.dishImage}>{selectedDish.imagen}</div>
+              <div style={appStyles.dishImage}>{dishSeleccionado.imagen}</div>
             )}
 
             <h2 style={{color: '#000000', marginBottom: '0.8rem', textAlign: 'center', fontSize: '1.3rem'}}>
-              {selectedDish.nombre}
+              {dishSeleccionado.nombre}
             </h2>
             <div style={{color: '#4CAF50', fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '1rem', textAlign: 'center'}}>
-              {selectedDish.precio}
+              {dishSeleccionado.precio}
             </div>
             
             <h3 style={{color: '#000000', marginBottom: '0.8rem', fontSize: '1.1rem'}}>Ingredientes:</h3>
             <ul style={appStyles.ingredientsList}>
-              {selectedDish.ingredientes.map((ingrediente, index) => (
+              {dishSeleccionado.ingredientes.map((ingrediente, index) => (
                 <li key={index} style={appStyles.ingredientItem}>
                   <span style={appStyles.bullet}>●</span>
                   {ingrediente}

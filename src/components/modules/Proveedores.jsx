@@ -1,49 +1,15 @@
 import { useState } from 'react'
 import { appStyles } from '../../styles/styles'
+import { useProveedores } from '../../hooks/useSupabase'
 
 export const ProveedoresModule = () => {
-  const [proveedores, setProveedores] = useState([
-    {
-      id: 1,
-      nombre: 'GreenSupply',
-      contacto: 'Carlos Flores',
-      telefono: '555-0101',
-      email: 'info@greensupply.mx',
-      productos: ['Tomate', 'Champiñones', 'Lechuga'],
-      comprasRealizadas: 12,
-      ultimaCompra: '2024-05-15',
-      estado: 'activo'
-    },
-    {
-      id: 2,
-      nombre: 'LácteosGourmet',
-      contacto: 'María López',
-      telefono: '555-0102',
-      email: 'ventas@lactesgourmet.mx',
-      productos: ['Queso Mozzarella', 'Ricotta', 'Crema'],
-      comprasRealizadas: 8,
-      ultimaCompra: '2024-05-14',
-      estado: 'activo'
-    },
-    {
-      id: 3,
-      nombre: 'GranosMX',
-      contacto: 'Juan Rodríguez',
-      telefono: '555-0103',
-      email: 'contacto@granosmx.mx',
-      productos: ['Harina Premium', 'Arroz', 'Maíz'],
-      comprasRealizadas: 15,
-      ultimaCompra: '2024-05-13',
-      estado: 'activo'
-    },
-  ])
-
-  const [historialCompras, setHistorialCompras] = useState([
-    { id: 1, proveedor: 'GreenSupply', fecha: '2024-05-15', total: 1500, items: 5 },
-    { id: 2, proveedor: 'LácteosGourmet', fecha: '2024-05-14', total: 3200, items: 3 },
-    { id: 3, proveedor: 'GranosMX', fecha: '2024-05-13', total: 2800, items: 4 },
-    { id: 4, proveedor: 'GreenSupply', fecha: '2024-05-10', total: 1200, items: 3 },
-  ])
+  const {
+    proveedores,
+    historialCompras,
+    guardarProveedor: guardarProveedorBd,
+    eliminarProveedor: eliminarProveedorBd,
+    registrarCompra: registrarCompraBd
+  } = useProveedores()
 
   const [mostrarFormulario, setMostrarFormulario] = useState(false)
   const [mostrarCompra, setMostrarCompra] = useState(false)
@@ -85,25 +51,7 @@ export const ProveedoresModule = () => {
       return
     }
 
-    const productos = formData.productos.split(',').map(p => p.trim()).filter(p => p)
-
-    if (editando) {
-      setProveedores(proveedores.map(p => p.id === editando.id ? {
-        ...editando,
-        ...formData,
-        productos
-      } : p))
-    } else {
-      const nuevoProveedor = {
-        id: Math.max(...proveedores.map(p => p.id), 0) + 1,
-        ...formData,
-        productos,
-        comprasRealizadas: 0,
-        ultimaCompra: new Date().toISOString().split('T')[0],
-        estado: 'activo'
-      }
-      setProveedores([...proveedores, nuevoProveedor])
-    }
+    guardarProveedorBd(formData, editando)
 
     setMostrarFormulario(false)
   }
@@ -114,21 +62,7 @@ export const ProveedoresModule = () => {
       return
     }
 
-    const nuevaCompra = {
-      id: Math.max(...historialCompras.map(c => c.id), 0) + 1,
-      proveedor: compraData.proveedor,
-      fecha: new Date().toISOString().split('T')[0],
-      total: parseInt(compraData.total),
-      items: parseInt(compraData.items)
-    }
-
-    setHistorialCompras([nuevaCompra, ...historialCompras])
-
-    setProveedores(proveedores.map(p => p.nombre === compraData.proveedor ? {
-      ...p,
-      comprasRealizadas: p.comprasRealizadas + 1,
-      ultimaCompra: nuevaCompra.fecha
-    } : p))
+    registrarCompraBd(compraData)
 
     setCompraData({ proveedor: '', total: '', items: '' })
     setMostrarCompra(false)
@@ -136,7 +70,7 @@ export const ProveedoresModule = () => {
 
   const eliminarProveedor = (id) => {
     if (confirm('¿Eliminar este proveedor?')) {
-      setProveedores(proveedores.filter(p => p.id !== id))
+      eliminarProveedorBd(id)
     }
   }
 
@@ -144,7 +78,7 @@ export const ProveedoresModule = () => {
     <div style={{display: 'flex', flexDirection: 'column', gap: '2rem', padding: '2rem', width: '100%'}}>
       {/* Header */}
       <div style={appStyles.pageHeader}>
-        <h1 style={appStyles.pageTitle}>🏢 Gestión de Proveedores</h1>
+        <h1 style={appStyles.pageTitle}>Gestión de Proveedores</h1>
         <div style={{display: 'flex', gap: '1rem'}}>
           <button
             onClick={() => setMostrarCompra(true)}
@@ -187,7 +121,7 @@ export const ProveedoresModule = () => {
                   ✓ {prov.estado.toUpperCase()}
                 </span>
               </div>
-              <span style={{fontSize: '28px'}}>🏢</span>
+              <span style={{fontSize: '28px'}}></span>
             </div>
 
             <div style={{display: 'flex', flexDirection: 'column', gap: '0.8rem', marginBottom: '1rem', fontSize: '13px', color: '#666'}}>
@@ -237,7 +171,7 @@ export const ProveedoresModule = () => {
                   fontSize: '13px'
                 }}
               >
-                ✏️ Editar
+                 Editar
               </button>
               <button
                 onClick={() => eliminarProveedor(prov.id)}
@@ -252,7 +186,7 @@ export const ProveedoresModule = () => {
                   fontSize: '13px'
                 }}
               >
-                🗑️ Eliminar
+               Eliminar
               </button>
             </div>
           </div>

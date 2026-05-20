@@ -1,20 +1,15 @@
 import { useState } from 'react'
 import { appStyles } from '../../styles/styles'
+import { useInventario } from '../../hooks/useSupabase'
 
 export const InventarioModule = () => {
-  const [ingredientes, setIngredientes] = useState([
-    { id: 1, nombre: 'Tomate', unidad: 'kg', cantidad: 25, minimo: 10, proveedor: 'GreenSupply', estado: 'normal' },
-    { id: 2, nombre: 'Queso Mozzarella', unidad: 'kg', cantidad: 8, minimo: 15, proveedor: 'LácteosGourmet', estado: 'bajo' },
-    { id: 3, nombre: 'Harina Premium', unidad: 'kg', cantidad: 50, minimo: 20, proveedor: 'GranosMX', estado: 'normal' },
-    { id: 4, nombre: 'Aceite de Oliva', unidad: 'litros', cantidad: 3, minimo: 5, proveedor: 'Importados SA', estado: 'bajo' },
-    { id: 5, nombre: 'Champiñones', unidad: 'kg', cantidad: 12, minimo: 8, proveedor: 'GreenSupply', estado: 'normal' },
-  ])
-
-  const [movimientos, setMovimientos] = useState([
-    { id: 1, ingrediente: 'Tomate', tipo: 'entrada', cantidad: 20, fecha: '2024-05-16', motivo: 'Compra' },
-    { id: 2, ingrediente: 'Queso Mozzarella', tipo: 'salida', cantidad: 5, fecha: '2024-05-15', motivo: 'Uso en cocina' },
-    { id: 3, ingrediente: 'Harina Premium', tipo: 'entrada', cantidad: 30, fecha: '2024-05-14', motivo: 'Compra' },
-  ])
+  const {
+    ingredientes,
+    movimientos,
+    guardarIngrediente: guardarIngredienteBd,
+    eliminarIngrediente: eliminarIngredienteBd,
+    registrarMovimiento: registrarMovimientoBd
+  } = useInventario()
 
   const [mostrarFormulario, setMostrarFormulario] = useState(false)
   const [mostrarMovimiento, setMostrarMovimiento] = useState(false)
@@ -56,31 +51,14 @@ export const InventarioModule = () => {
       return
     }
 
-    if (editando) {
-      setIngredientes(ingredientes.map(i => i.id === editando.id ? {
-        ...editando,
-        ...formData,
-        cantidad: parseInt(formData.cantidad),
-        minimo: parseInt(formData.minimo),
-        estado: parseInt(formData.cantidad) <= parseInt(formData.minimo) ? 'bajo' : 'normal'
-      } : i))
-    } else {
-      const nuevoIng = {
-        id: Math.max(...ingredientes.map(i => i.id), 0) + 1,
-        ...formData,
-        cantidad: parseInt(formData.cantidad),
-        minimo: parseInt(formData.minimo),
-        estado: parseInt(formData.cantidad) <= parseInt(formData.minimo) ? 'bajo' : 'normal'
-      }
-      setIngredientes([...ingredientes, nuevoIng])
-    }
+    guardarIngredienteBd(formData, editando)
 
     setMostrarFormulario(false)
   }
 
   const eliminarIngrediente = (id) => {
     if (confirm('¿Eliminar este ingrediente?')) {
-      setIngredientes(ingredientes.filter(i => i.id !== id))
+      eliminarIngredienteBd(id)
     }
   }
 
@@ -90,29 +68,7 @@ export const InventarioModule = () => {
       return
     }
 
-    const nuevoMov = {
-      id: Math.max(...movimientos.map(m => m.id), 0) + 1,
-      ingrediente: movData.ingrediente,
-      tipo: movData.tipo,
-      cantidad: parseInt(movData.cantidad),
-      fecha: new Date().toISOString().split('T')[0],
-      motivo: movData.motivo
-    }
-
-    setMovimientos([nuevoMov, ...movimientos])
-
-    const ing = ingredientes.find(i => i.nombre === movData.ingrediente)
-    if (ing) {
-      const newCant = movData.tipo === 'entrada' 
-        ? ing.cantidad + parseInt(movData.cantidad)
-        : ing.cantidad - parseInt(movData.cantidad)
-      
-      setIngredientes(ingredientes.map(i => i.id === ing.id ? {
-        ...i,
-        cantidad: newCant,
-        estado: newCant <= i.minimo ? 'bajo' : 'normal'
-      } : i))
-    }
+    registrarMovimientoBd(movData)
 
     setMovData({ ingrediente: '', tipo: 'entrada', cantidad: '', motivo: '' })
     setMostrarMovimiento(false)
@@ -199,7 +155,7 @@ export const InventarioModule = () => {
                       background: ing.estado === 'bajo' ? '#FFE0E0' : '#E0F0E0',
                       color: ing.estado === 'bajo' ? '#D32F2F' : '#2E7D32'
                     }}>
-                      {ing.estado === 'bajo' ? '⚠️ Bajo' : '✓ Normal'}
+                      {ing.estado === 'bajo' ? 'Bajo' : 'Normal'}
                     </span>
                   </td>
                   <td style={{padding: '1rem', textAlign: 'center'}}>
@@ -207,13 +163,13 @@ export const InventarioModule = () => {
                       onClick={() => abrirFormulario(ing)}
                       style={{background: '#2196F3', color: 'white', border: 'none', padding: '0.5rem 0.8rem', borderRadius: '4px', cursor: 'pointer', marginRight: '0.5rem'}}
                     >
-                      ✏️
+                      Editar
                     </button>
                     <button
                       onClick={() => eliminarIngrediente(ing.id)}
                       style={{background: '#EF4444', color: 'white', border: 'none', padding: '0.5rem 0.8rem', borderRadius: '4px', cursor: 'pointer'}}
                     >
-                      🗑️
+                      Eliminar
                     </button>
                   </td>
                 </tr>
@@ -250,7 +206,7 @@ export const InventarioModule = () => {
                       background: mov.tipo === 'entrada' ? '#E0F0E0' : '#FFE0E0',
                       color: mov.tipo === 'entrada' ? '#2E7D32' : '#D32F2F'
                     }}>
-                      {mov.tipo === 'entrada' ? '📥 Entrada' : '📤 Salida'}
+                      {mov.tipo === 'entrada' ? 'Entrada' : 'Salida'}
                     </span>
                   </td>
                   <td style={{padding: '1rem'}}>{mov.cantidad}</td>

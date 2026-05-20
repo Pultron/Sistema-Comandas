@@ -13,6 +13,7 @@ import { ProveedoresModule } from './modules/Proveedores'
 import { PromocionesModule } from './modules/Promociones'
 import { DefaultModule } from './modules/DefaultModule'
 import { appStyles, moduleBackgrounds } from '../styles/styles'
+import { useComandas, useMesas } from '../hooks/useSupabase'
 
 export const Dashboard = ({ 
   activeModule, 
@@ -24,8 +25,21 @@ export const Dashboard = ({
   setSelectedDish,
   comandas,
   agregarComanda,
-  modules
+  eliminarComanda,
+  modules,
+  currentUser
 }) => {
+  const {
+    comandas: comandasBd,
+    agregarComanda: agregarComandaBd,
+    eliminarComanda: eliminarComandaBd
+  } = useComandas()
+  const { mesas } = useMesas()
+
+  const comandasActivas = comandas || comandasBd
+  const guardarComandaActiva = agregarComanda || agregarComandaBd
+  const eliminarComandaActiva = eliminarComanda || eliminarComandaBd
+
   // Determinar el fondo según el módulo activo usando colores configurables
   const getPageContentStyle = () => {
     const baseStyle = {...appStyles.pageContent}
@@ -39,11 +53,17 @@ export const Dashboard = ({
   return (
     <main style={getPageContentStyle()}>
       {activeModule === 'dashboard' && (
-        <DashboardModule comandas={comandas} />
+        <DashboardModule comandas={comandasActivas} />
       )}
 
       {activeModule === 'comandas' && (
-        <Comandas comandas={comandas} agregarComanda={agregarComanda} />
+        <Comandas
+          comandas={comandasActivas}
+          mesas={mesas}
+          agregarComanda={guardarComandaActiva}
+          eliminarComanda={eliminarComandaActiva}
+          currentUser={currentUser}
+        />
       )}
 
       {activeModule === 'menu' && (
@@ -58,7 +78,7 @@ export const Dashboard = ({
       )}
 
       {activeModule === 'mesas' && (
-        <MesasModule comandas={comandas} />
+        <MesasModule comandas={comandasActivas} />
       )}
 
       {activeModule === 'personal' && (
@@ -66,7 +86,7 @@ export const Dashboard = ({
       )}
 
       {activeModule === 'reportes' && (
-        <ReportesModule comandas={comandas} />
+        <ReportesModule comandas={comandasActivas} />
       )}
 
       {activeModule === 'clientes' && (
@@ -86,7 +106,7 @@ export const Dashboard = ({
       )}
 
       {activeModule === 'caja' && (
-        <CajaModule comandas={comandas} />
+        <CajaModule comandas={comandasActivas} />
       )}
 
       {activeModule === 'configuracion' && (

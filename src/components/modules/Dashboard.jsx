@@ -87,6 +87,7 @@ export const DashboardModule = ({
         loadingComandas ? <Loader /> :
         <Comandas
           comandas={comandas}
+          mesas={mesas}
           agregarComanda={agregarComanda}
           actualizarEstado={actualizarEstadoComanda}
           eliminarComanda={eliminarComanda}
