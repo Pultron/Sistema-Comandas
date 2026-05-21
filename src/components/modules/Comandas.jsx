@@ -807,7 +807,7 @@ export const Comandas = ({
               value={nombreMesa}
               onChange={(e) => setNombreMesa(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && confirmarMesa()}
-              placeholder="Ej: Cliente, Barra, Terraza"
+              placeholder="Ej: Juan, Mesa VIP, etc. (opcional)"
               style={{
                 width: '100%',
                 padding: '0.8rem',

@@ -28,9 +28,18 @@ export const Pagos = ({ comandas: comandasProp = [] }) => {
     return (subtotal * 0.1).toFixed(2) // 10% de propina
   }
 
-  const calcularTotal = (subtotal) => {
+  const calcularIva = (comanda, subtotal) => {
+    const impuestoGuardado = parseFloat(comanda?.impuesto)
+    if (!Number.isNaN(impuestoGuardado) && impuestoGuardado > 0) {
+      return impuestoGuardado.toFixed(2)
+    }
+    return (subtotal * 0.15).toFixed(2)
+  }
+
+  const calcularTotal = (comanda, subtotal) => {
     const propina = parseFloat(calcularPropina(subtotal))
-    return (subtotal + propina).toFixed(2)
+    const iva = parseFloat(calcularIva(comanda, subtotal))
+    return (subtotal + iva + propina).toFixed(2)
   }
 
   const formatearFecha = (fechaStr) => {
@@ -303,22 +312,35 @@ export const Pagos = ({ comandas: comandasProp = [] }) => {
 
                 {/* Separador */}
                 <div style={{borderTop: '2px solid #000', borderBottom: '2px solid #000', padding: '1rem 0', margin: '1rem 0'}}>
+                  {(() => {
+                    const subtotalTicket = ticketSeleccionado.subtotal || parseFloat(ticketSeleccionado.total.replace('$', ''))
+                    return (
+                      <>
                   <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '0.6rem'}}>
                     <span>Subtotal:</span>
-                    <span style={{fontWeight: 700}}>${ticketSeleccionado.subtotal ? ticketSeleccionado.subtotal.toFixed(2) : parseFloat(ticketSeleccionado.total.replace('$', '')).toFixed(2)}</span>
+                    <span style={{fontWeight: 700}}>${subtotalTicket.toFixed(2)}</span>
+                  </div>
+                  <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '0.6rem'}}>
+                    <span>IVA:</span>
+                    <span style={{fontWeight: 700}}>
+                      ${calcularIva(ticketSeleccionado, subtotalTicket)}
+                    </span>
                   </div>
                   <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '0.6rem'}}>
                     <span>Costo Servicio (10%):</span>
                     <span style={{fontWeight: 700}}>
-                      ${calcularPropina(ticketSeleccionado.subtotal || parseFloat(ticketSeleccionado.total.replace('$', '')))}
+                      ${calcularPropina(subtotalTicket)}
                     </span>
                   </div>
                   <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '14px', fontWeight: 700, color: '#4CAF50'}}>
                     <span>TOTAL:</span>
                     <span style={{fontSize: '16px'}}>
-                      ${calcularTotal(ticketSeleccionado.subtotal || parseFloat(ticketSeleccionado.total.replace('$', '')))}
+                      ${calcularTotal(ticketSeleccionado, subtotalTicket)}
                     </span>
                   </div>
+                      </>
+                    )
+                  })()}
                 </div>
 
                 {/* Footer */}

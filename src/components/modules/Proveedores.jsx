@@ -8,12 +8,16 @@ export const ProveedoresModule = () => {
     historialCompras,
     guardarProveedor: guardarProveedorBd,
     eliminarProveedor: eliminarProveedorBd,
-    registrarCompra: registrarCompraBd
+    registrarCompra: registrarCompraBd,
+    actualizarPreciosProveedor: actualizarPreciosProveedorBd
   } = useProveedores()
 
   const [mostrarFormulario, setMostrarFormulario] = useState(false)
   const [mostrarCompra, setMostrarCompra] = useState(false)
+  const [mostrarPrecios, setMostrarPrecios] = useState(false)
   const [editando, setEditando] = useState(null)
+  const [proveedorPrecios, setProveedorPrecios] = useState(null)
+  const [preciosForm, setPreciosForm] = useState([])
   const [formData, setFormData] = useState({
     nombre: '',
     contacto: '',
@@ -64,6 +68,32 @@ export const ProveedoresModule = () => {
     setMostrarFormulario(true)
   }
 
+  const abrirPrecios = (prov) => {
+    setProveedorPrecios(prov)
+    setPreciosForm((prov.productosProveedor || []).map(producto => ({
+      id: producto.id,
+      nombre: producto.nombre,
+      unidadesPermitidas: producto.unidadesPermitidas || [],
+      preciosPorUnidad: { ...(producto.preciosPorUnidad || {}) }
+    })))
+    setMostrarPrecios(true)
+  }
+
+  const cambiarPrecioProveedor = (productoId, unidad, valor) => {
+    const precio = valor.replace(',', '.').replace(/[^0-9.]/g, '')
+    setPreciosForm(prev => prev.map(producto => (
+      producto.id === productoId
+        ? {
+            ...producto,
+            preciosPorUnidad: {
+              ...producto.preciosPorUnidad,
+              [unidad]: precio
+            }
+          }
+        : producto
+    )))
+  }
+
   const guardarProveedor = () => {
     if (!formData.nombre || !formData.contacto || !formData.telefono || !formData.email) {
       mostrarToast('Completa todos los campos')
@@ -71,6 +101,30 @@ export const ProveedoresModule = () => {
     }
     guardarProveedorBd(formData, editando)
     setMostrarFormulario(false)
+  }
+
+  const guardarPreciosProveedor = async () => {
+    const tienePrecioInvalido = preciosForm.some(producto =>
+      producto.unidadesPermitidas.some(unidad => {
+        const precio = parseFloat(producto.preciosPorUnidad?.[unidad])
+        return !precio || precio <= 0
+      })
+    )
+
+    if (tienePrecioInvalido) {
+      mostrarToast('Todos los precios deben ser mayores a cero')
+      return
+    }
+
+    try {
+      await actualizarPreciosProveedorBd(preciosForm)
+      setMostrarPrecios(false)
+      setProveedorPrecios(null)
+      setPreciosForm([])
+      mostrarToast('Precios actualizados', 'success')
+    } catch (error) {
+      mostrarToast(`No se pudieron actualizar los precios: ${error.message}`)
+    }
   }
 
   const seleccionarProveedorCompra = (nombreProveedor) => {
@@ -157,8 +211,8 @@ export const ProveedoresModule = () => {
     <div style={{display: 'flex', flexDirection: 'column', gap: '2rem', padding: '2rem', width: '100%'}}>
       {/* Header */}
       <div style={appStyles.pageHeader}>
-        <h1 style={appStyles.pageTitle}>Gestión de Proveedores</h1>
-        <div style={{display: 'flex', gap: '1rem'}}>
+        
+        <div style={{display: 'flex', gap: '1rem', marginLeft: 'auto'}}>
           <button onClick={() => setMostrarCompra(true)} style={{...appStyles.btnPrimary, background: '#4CAF50'}}>
             + Registrar Compra
           </button>
@@ -203,6 +257,7 @@ export const ProveedoresModule = () => {
             <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.8rem'}}>
               <button onClick={() => abrirFormulario(prov)} style={{padding: '0.7rem', background: '#2196F3', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 600, cursor: 'pointer', fontSize: '13px'}}>Editar</button>
               <button onClick={() => eliminarProveedor(prov.id)} style={{padding: '0.7rem', background: '#EF4444', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 600, cursor: 'pointer', fontSize: '13px'}}>Eliminar</button>
+              <button onClick={() => abrirPrecios(prov)} style={{gridColumn: '1 / -1', padding: '0.7rem', background: '#4CAF50', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 600, cursor: 'pointer', fontSize: '13px'}}>Actualizar precios</button>
             </div>
           </div>
         ))}
@@ -269,6 +324,51 @@ export const ProveedoresModule = () => {
                 <button onClick={() => setMostrarFormulario(false)} style={{padding: '0.8rem', background: '#e0e0e0', color: '#333', border: 'none', borderRadius: '6px', fontWeight: 600, cursor: 'pointer'}}>Cancelar</button>
                 <button onClick={guardarProveedor} style={{padding: '0.8rem', background: 'linear-gradient(90deg, #FF6F00 0%, #FFB300 50%, #FF9800 100%)', color: '#000', border: 'none', borderRadius: '6px', fontWeight: 600, cursor: 'pointer'}}>Guardar</button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Precios */}
+      {mostrarPrecios && (
+        <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000}}>
+          <div style={{backgroundColor: 'white', borderRadius: '12px', padding: '2rem', maxWidth: '720px', width: '92%', maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 10px 40px rgba(0,0,0,0.3)'}}>
+            <h2 style={{color: '#333', margin: '0 0 0.4rem 0', fontSize: '20px', fontWeight: 700}}>Actualizar precios</h2>
+            <div style={{color: '#666', fontSize: '13px', marginBottom: '1.5rem'}}>{proveedorPrecios?.nombre}</div>
+
+            {preciosForm.length === 0 ? (
+              <div style={{padding: '1rem', background: '#FFF3E0', color: '#8A4B00', borderRadius: '6px', fontSize: '13px'}}>
+                Este proveedor no tiene productos configurados en productos_proveedor.
+              </div>
+            ) : (
+              <div style={{display: 'flex', flexDirection: 'column', gap: '1rem'}}>
+                {preciosForm.map(producto => (
+                  <div key={producto.id} style={{border: '1px solid #e5e5e5', borderRadius: '8px', padding: '1rem'}}>
+                    <div style={{fontWeight: 700, color: '#333', marginBottom: '0.8rem'}}>{producto.nombre}</div>
+                    <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '0.8rem'}}>
+                      {producto.unidadesPermitidas.map(unidad => (
+                        <div key={unidad}>
+                          <label style={{display: 'block', fontWeight: 600, marginBottom: '0.4rem', color: '#333', fontSize: '13px'}}>{formatUnidad(unidad)}</label>
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            value={producto.preciosPorUnidad?.[unidad] ?? ''}
+                            onChange={(e) => cambiarPrecioProveedor(producto.id, unidad, e.target.value)}
+                            style={{width: '100%', padding: '0.75rem', border: '2px solid #e0e0e0', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box'}}
+                            onFocus={(e) => e.target.style.borderColor = '#FF6F00'}
+                            onBlur={(e) => e.target.style.borderColor = '#e0e0e0'}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1.5rem'}}>
+              <button onClick={() => setMostrarPrecios(false)} style={{padding: '0.8rem', background: '#e0e0e0', color: '#333', border: 'none', borderRadius: '6px', fontWeight: 600, cursor: 'pointer'}}>Cancelar</button>
+              <button onClick={guardarPreciosProveedor} disabled={preciosForm.length === 0} style={{padding: '0.8rem', background: preciosForm.length === 0 ? '#bdbdbd' : 'linear-gradient(90deg, #4CAF50 0%, #66BB6A 100%)', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 600, cursor: preciosForm.length === 0 ? 'not-allowed' : 'pointer'}}>Guardar precios</button>
             </div>
           </div>
         </div>
@@ -415,7 +515,7 @@ export const ProveedoresModule = () => {
 
       {toast && (
         <div style={{
-          position: 'fixed', bottom: '2rem', left: '50%', transform: 'translateX(-50%)',
+          position: 'fixed', top: '5.5rem', left: '50%', transform: 'translateX(-50%)',
           background: toast.tipo === 'error' ? '#EF4444' : '#4CAF50',
           color: 'white', padding: '1rem 2rem', borderRadius: '10px',
           boxShadow: '0 4px 20px rgba(0,0,0,0.3)', fontWeight: 600,

@@ -85,6 +85,7 @@ function App() {
         onModuleChange={setActiveModule}
         onLogout={handleLogout}
         currentUser={currentUser}
+        onUserUpdate={setCurrentUser}
       />
 
       <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>

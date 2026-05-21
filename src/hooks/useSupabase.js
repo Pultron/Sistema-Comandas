@@ -267,11 +267,25 @@ export function usePersonal() {
       .from('usuarios')
       .select('*')
       .order('nombre')
+
+    const { data: asistenciasData, error: asistenciasError } = await supabase
+      .from('asistencia')
+      .select('id_usuario')
+
+    if (asistenciasError) {
+      console.error('No se pudieron cargar asistencia:', asistenciasError.message)
+    }
+
+    const asistenciasPorUsuario = (asistenciasData || []).reduce((acc, asistencia) => {
+      acc[asistencia.id_usuario] = (acc[asistencia.id_usuario] || 0) + 1
+      return acc
+    }, {})
+
     if (data) {
       setPersonal(data.map(u => ({
         ...u,
         fechaIngreso: u.fecha_ingreso || u.fechaIngreso || '',
-        asistencia: u.asistencia ?? 0
+        asistencia: asistenciasPorUsuario[u.id] ?? u.asistencia ?? 0
       })))
     }
     setLoading(false)
@@ -605,7 +619,39 @@ export function useProveedores() {
     await fetchProveedores()
   }
 
-  return { proveedores, historialCompras, loading, guardarProveedor, eliminarProveedor, registrarCompra, refetch: fetchProveedores }
+  async function actualizarPreciosProveedor(productos) {
+    const updates = productos.map(producto => {
+      const preciosPorUnidad = Object.fromEntries(
+        Object.entries(producto.preciosPorUnidad || {}).map(([unidad, precio]) => [
+          unidad,
+          parseFloat(precio) || 0
+        ])
+      )
+
+      return supabase
+        .from('productos_proveedor')
+        .update({ precio_por_unidad: preciosPorUnidad })
+        .eq('id', producto.id)
+    })
+
+    const results = await Promise.all(updates)
+    const error = results.find(result => result.error)?.error
+
+    if (error) throw error
+
+    await fetchProveedores()
+  }
+
+  return {
+    proveedores,
+    historialCompras,
+    loading,
+    guardarProveedor,
+    eliminarProveedor,
+    registrarCompra,
+    actualizarPreciosProveedor,
+    refetch: fetchProveedores
+  }
 }
 
 // ── PROMOCIONES ───────────────────────────────

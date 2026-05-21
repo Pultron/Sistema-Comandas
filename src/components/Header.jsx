@@ -2,9 +2,13 @@ import { useState, useEffect } from 'react'
 import { UserIcon, LogoutIcon } from './Icons'
 import { appStyles } from '../styles/styles'
 import '../styles/Header.css'
+import { supabase } from '../supabase'
 
-export const Header = ({ modules, activeModule, onModuleChange, onLogout }) => {
+export const Header = ({ modules, activeModule, onModuleChange, onLogout, currentUser, onUserUpdate }) => {
   const [currentTime, setCurrentTime] = useState(new Date())
+  const [mostrarPerfil, setMostrarPerfil] = useState(false)
+  const [guardandoFoto, setGuardandoFoto] = useState(false)
+  const [mensajePerfil, setMensajePerfil] = useState(null)
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -19,6 +23,48 @@ export const Header = ({ modules, activeModule, onModuleChange, onLogout }) => {
       minute: '2-digit',
       second: '2-digit'
     })
+  }
+
+  const inicialUsuario = currentUser?.nombre?.charAt(0)?.toUpperCase() || 'U'
+  const activeModuleName = modules.find(module => module.id === activeModule)?.name || 'GastroSoft'
+
+  const cambiarFotoPerfil = (event) => {
+    const file = event.target.files?.[0]
+    if (!file || !currentUser?.id) return
+
+    if (!file.type.startsWith('image/')) {
+      setMensajePerfil({ tipo: 'error', texto: 'Selecciona una imagen valida' })
+      return
+    }
+
+    if (file.size > 900 * 1024) {
+      setMensajePerfil({ tipo: 'error', texto: 'La imagen debe pesar menos de 900 KB' })
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onload = async () => {
+      const fotoPerfil = reader.result
+      setGuardandoFoto(true)
+      setMensajePerfil(null)
+
+      const { error } = await supabase
+        .from('usuarios')
+        .update({ foto_perfil: fotoPerfil })
+        .eq('id', currentUser.id)
+
+      if (error) {
+        setMensajePerfil({ tipo: 'error', texto: error.message })
+      } else {
+        onUserUpdate?.({ ...currentUser, foto_perfil: fotoPerfil })
+        setMensajePerfil({ tipo: 'success', texto: 'Foto de perfil actualizada' })
+      }
+
+      setGuardandoFoto(false)
+      event.target.value = ''
+    }
+
+    reader.readAsDataURL(file)
   }
 
   return (
@@ -37,14 +83,35 @@ export const Header = ({ modules, activeModule, onModuleChange, onLogout }) => {
         top: 0,
         zIndex: 100,
       }}>
-        {/* Hora */}
+        {/* Identidad y modulo actual */}
         <div style={{
-          color: '#000000',
-          fontSize: '0.85rem',
-          fontWeight: 600,
-          minWidth: '80px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '1rem',
+          minWidth: 0,
         }}>
-          {formatTime(currentTime)}
+          <div style={{
+            fontSize: '1.35rem',
+            fontWeight: 800,
+            color: '#000000',
+            textShadow: '0 2px 4px rgba(0,0,0,0.22)',
+            whiteSpace: 'nowrap',
+          }}>
+            GastroSoft
+          </div>
+          <div style={{
+            height: '28px',
+            width: '1px',
+            background: 'rgba(0,0,0,0.22)',
+          }} />
+          <div style={{
+            color: '#2b2b2b',
+            fontSize: '0.95rem',
+            fontWeight: 700,
+            whiteSpace: 'nowrap',
+          }}>
+            {activeModuleName}
+          </div>
         </div>
 
         {/* Usuario y Salir */}
@@ -54,6 +121,17 @@ export const Header = ({ modules, activeModule, onModuleChange, onLogout }) => {
           gap: '1rem',
           marginLeft: 'auto',
         }}>
+          {/* Hora */}
+          <div style={{
+            color: '#000000',
+            fontSize: '1.08rem',
+            fontWeight: 800,
+            minWidth: '92px',
+            textAlign: 'right',
+          }}>
+            {formatTime(currentTime)}
+          </div>
+
           {/* Usuario */}
           <button style={{
             background: 'rgba(255, 255, 255, 0.1)',
@@ -69,6 +147,10 @@ export const Header = ({ modules, activeModule, onModuleChange, onLogout }) => {
             transition: 'all 0.3s ease',
             fontWeight: 500,
           }}
+          onClick={() => {
+            setMostrarPerfil(true)
+            setMensajePerfil(null)
+          }}
           onMouseEnter={(e) => {
             e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)'
             e.currentTarget.style.transform = 'scale(1.08)'
@@ -80,8 +162,12 @@ export const Header = ({ modules, activeModule, onModuleChange, onLogout }) => {
             e.currentTarget.style.boxShadow = 'none'
           }}
           >
-            <UserIcon size={16} color="#000000" />
-            Usuario
+            {currentUser?.foto_perfil ? (
+              <img src={currentUser.foto_perfil} alt="Perfil" style={{width: '18px', height: '18px', borderRadius: '50%', objectFit: 'cover'}} />
+            ) : (
+              <UserIcon size={16} color="#000000" />
+            )}
+            {currentUser?.nombre || 'Usuario'}
           </button>
 
           {/* Salir */}
@@ -127,10 +213,10 @@ export const Header = ({ modules, activeModule, onModuleChange, onLogout }) => {
         padding: '0.8rem 2rem',
         display: 'flex',
         alignItems: 'center',
-        gap: '2rem',
+        gap: '0.8rem',
         boxShadow: '0 4px 12px rgba(255, 111, 0, 0.2)',
         overflowX: 'auto',
-        overflowY: 'hidden',
+        overflowY: 'visible',
         position: 'sticky',
         top: '42px',
         zIndex: 99,
@@ -138,11 +224,11 @@ export const Header = ({ modules, activeModule, onModuleChange, onLogout }) => {
       }}>
         {/* Logo y Título */}
         <div style={{
+          display: 'none',
           fontSize: '1.3rem',
           fontWeight: 'bold',
           color: '#000000',
           textShadow: '0 2px 4px rgba(0,0,0,0.3)',
-          display: 'flex',
           alignItems: 'center',
           gap: '0.5rem',
           whiteSpace: 'nowrap',
@@ -157,10 +243,10 @@ export const Header = ({ modules, activeModule, onModuleChange, onLogout }) => {
           gap: '0.8rem',
           flex: 1,
           overflowX: 'auto',
-          overflowY: 'hidden',
+          overflowY: 'visible',
           msOverflowStyle: 'none',
           scrollbarWidth: 'none',
-          paddingBottom: '0.5rem',
+          padding: '0 1.25rem 0.5rem 0',
         }}>
           {modules.map((module) => (
             <button
@@ -180,7 +266,6 @@ export const Header = ({ modules, activeModule, onModuleChange, onLogout }) => {
                 alignItems: 'center',
                 gap: '0.5rem',
                 transition: 'all 0.3s ease',
-                transform: activeModule === module.id ? 'scale(1.05)' : 'scale(1)',
                 boxShadow: activeModule === module.id ? '0 4px 12px rgba(255, 111, 0, 0.3)' : 'none',
                 whiteSpace: 'nowrap',
                 flexShrink: 0,
@@ -188,17 +273,14 @@ export const Header = ({ modules, activeModule, onModuleChange, onLogout }) => {
               onClick={() => onModuleChange(module.id)}
               onMouseEnter={(e) => {
                 e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)'
-                e.currentTarget.style.transform = 'scale(1.08)'
                 e.currentTarget.style.boxShadow = '0 4px 12px rgba(255, 111, 0, 0.3)'
               }}
               onMouseLeave={(e) => {
                 if (activeModule === module.id) {
                   e.currentTarget.style.background = 'rgba(255, 255, 255, 0.25)'
-                  e.currentTarget.style.transform = 'scale(1.05)'
                   e.currentTarget.style.boxShadow = '0 4px 12px rgba(255, 111, 0, 0.3)'
                 } else {
                   e.currentTarget.style.background = 'rgba(255, 255, 255, 0.12)'
-                  e.currentTarget.style.transform = 'scale(1)'
                   e.currentTarget.style.boxShadow = 'none'
                 }
               }}
@@ -209,8 +291,72 @@ export const Header = ({ modules, activeModule, onModuleChange, onLogout }) => {
               {module.name}
             </button>
           ))}
+          <span style={{flex: '0 0 1.25rem'}} />
         </nav>
       </header>
+
+      {mostrarPerfil && (
+        <div style={{position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3000}}>
+          <div style={{background: 'white', borderRadius: '12px', padding: '2rem', width: '90%', maxWidth: '460px', boxShadow: '0 10px 40px rgba(0,0,0,0.35)'}}>
+            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: '1rem', marginBottom: '1.5rem'}}>
+              <div>
+                <h2 style={{margin: 0, color: '#111', fontSize: '20px', fontWeight: 700}}>Perfil de usuario</h2>
+                <div style={{color: '#666', fontSize: '13px', marginTop: '0.3rem'}}>Informacion de la sesion actual</div>
+              </div>
+              <button onClick={() => setMostrarPerfil(false)} style={{background: 'transparent', border: 'none', color: '#777', fontSize: '24px', cursor: 'pointer', lineHeight: 1}}>x</button>
+            </div>
+
+            <div style={{display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem'}}>
+              <div style={{width: '82px', height: '82px', borderRadius: '50%', background: '#FFE0CC', color: '#D32F2F', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '30px', fontWeight: 800, overflow: 'hidden', border: '3px solid #FFB300'}}>
+                {currentUser?.foto_perfil ? (
+                  <img src={currentUser.foto_perfil} alt="Foto de perfil" style={{width: '100%', height: '100%', objectFit: 'cover'}} />
+                ) : inicialUsuario}
+              </div>
+              <div>
+                <label style={{display: 'inline-block', padding: '0.65rem 0.9rem', background: '#2196F3', color: 'white', borderRadius: '6px', fontWeight: 700, cursor: guardandoFoto ? 'not-allowed' : 'pointer', fontSize: '13px'}}>
+                  {guardandoFoto ? 'Guardando...' : 'Cambiar foto'}
+                  <input type="file" accept="image/*" onChange={cambiarFotoPerfil} disabled={guardandoFoto} style={{display: 'none'}} />
+                </label>
+                <div style={{fontSize: '12px', color: '#777', marginTop: '0.5rem'}}>JPG o PNG menor a 900 KB</div>
+              </div>
+            </div>
+
+            <div style={{display: 'grid', gap: '0.8rem', marginBottom: '1rem'}}>
+              <div style={{padding: '0.8rem', background: '#f7f7f7', borderRadius: '6px'}}>
+                <div style={{fontSize: '11px', color: '#777', fontWeight: 700}}>NOMBRE</div>
+                <div style={{color: '#222', fontWeight: 700}}>{currentUser?.nombre || 'Sin nombre'}</div>
+              </div>
+              <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.8rem'}}>
+                <div style={{padding: '0.8rem', background: '#f7f7f7', borderRadius: '6px'}}>
+                  <div style={{fontSize: '11px', color: '#777', fontWeight: 700}}>USUARIO</div>
+                  <div style={{color: '#222', fontWeight: 700}}>{currentUser?.usuario || '-'}</div>
+                </div>
+                <div style={{padding: '0.8rem', background: '#f7f7f7', borderRadius: '6px'}}>
+                  <div style={{fontSize: '11px', color: '#777', fontWeight: 700}}>ROL</div>
+                  <div style={{color: '#222', fontWeight: 700}}>{currentUser?.rol || '-'}</div>
+                </div>
+              </div>
+              <div style={{padding: '0.8rem', background: '#f7f7f7', borderRadius: '6px'}}>
+                <div style={{fontSize: '11px', color: '#777', fontWeight: 700}}>CORREO</div>
+                <div style={{color: '#222', fontWeight: 700}}>{currentUser?.correo || 'Sin correo'}</div>
+              </div>
+            </div>
+
+            {mensajePerfil && (
+              <div style={{
+                padding: '0.8rem',
+                borderRadius: '6px',
+                background: mensajePerfil.tipo === 'success' ? '#DCFCE7' : '#FEE2E2',
+                color: mensajePerfil.tipo === 'success' ? '#166534' : '#991B1B',
+                fontSize: '13px',
+                fontWeight: 600
+              }}>
+                {mensajePerfil.texto}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </>
   )
 }
