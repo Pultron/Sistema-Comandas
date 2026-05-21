@@ -507,19 +507,41 @@ export function useProveedores() {
   useEffect(() => { fetchProveedores(); fetchHistorial() }, [])
 
   async function fetchProveedores() {
-    const { data } = await supabase
+    const { data: proveedoresData } = await supabase
       .from('proveedores')
       .select('*, compras_proveedor(fecha, total)')
       .eq('estado', 'activo')
       .order('nombre')
-    if (data) setProveedores(data.map(p => ({
-      ...p,
-      productos: Array.isArray(p.productos)
-        ? p.productos
-        : String(p.productos || '').split(',').map(item => item.trim()).filter(Boolean),
-      comprasRealizadas: p.compras_proveedor?.length || 0,
-      ultimaCompra: p.compras_proveedor?.[0]?.fecha || ''
-    })))
+
+    const { data: productosProveedorData, error: productosProveedorError } = await supabase
+      .from('productos_proveedor')
+      .select('*')
+      .eq('estado', 'activo')
+      .order('nombre')
+
+    if (productosProveedorError) {
+      console.error('No se pudieron cargar productos_proveedor:', productosProveedorError.message)
+    }
+
+    if (proveedoresData) setProveedores(proveedoresData.map(p => {
+      const productosProveedor = (productosProveedorData || [])
+        .filter(producto => String(producto.id_proveedor) === String(p.id))
+        .map(formatProductoProveedor)
+
+      const productos = productosProveedor.length > 0
+        ? productosProveedor.map(producto => producto.nombre)
+        : Array.isArray(p.productos)
+          ? p.productos
+          : String(p.productos || '').split(',').map(item => item.trim()).filter(Boolean)
+
+      return {
+        ...p,
+        productos,
+        productosProveedor,
+        comprasRealizadas: p.compras_proveedor?.length || 0,
+        ultimaCompra: p.compras_proveedor?.[0]?.fecha || ''
+      }
+    }))
     setLoading(false)
   }
 
@@ -531,7 +553,8 @@ export function useProveedores() {
       .limit(30)
     if (data) setHistorial(data.map(c => ({
       ...c,
-      proveedor: c.proveedores?.nombre
+      proveedor: c.proveedores?.nombre,
+      items: formatItemsCompra(c)
     })))
   }
 
@@ -575,8 +598,8 @@ export function useProveedores() {
       id_proveedor: prov.id,
       fecha:        new Date().toISOString().split('T')[0],
       total:        parseFloat(compraData.total),
-      num_items:    parseInt(compraData.items) || 0,
-      observaciones: compraData.observaciones || ''
+      num_items:    compraData.items?.length || 0,
+      observaciones: JSON.stringify({ items: compraData.items || [] })
     })
     await fetchHistorial()
     await fetchProveedores()
@@ -752,4 +775,52 @@ function formatEstado(estado) {
     cancelado: 'Cancelado'
   }
   return map[estado] || estado
+}
+
+function formatItemsCompra(compra) {
+  try {
+    const detalle = JSON.parse(compra.observaciones || '{}')
+    if (Array.isArray(detalle.items) && detalle.items.length > 0) {
+      return detalle.items
+        .map(item => `${item.cantidad} ${item.unidad} ${item.producto}`)
+        .join(', ')
+    }
+  } catch {
+    // Las compras anteriores pueden tener observaciones como texto libre.
+  }
+
+  return compra.num_items ? `${compra.num_items} items` : 'Sin detalle'
+}
+
+function formatProductoProveedor(producto) {
+  return {
+    id: producto.id,
+    nombre: producto.nombre,
+    unidadesPermitidas: parseArrayField(producto.unidades_permitidas),
+    preciosPorUnidad: parseJsonField(producto.precio_por_unidad)
+  }
+}
+
+function parseArrayField(value) {
+  if (Array.isArray(value)) return value
+
+  try {
+    const parsed = JSON.parse(value || '[]')
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return String(value || '')
+      .split(',')
+      .map(item => item.replace(/[\[\]"]/g, '').trim())
+      .filter(Boolean)
+  }
+}
+
+function parseJsonField(value) {
+  if (value && typeof value === 'object' && !Array.isArray(value)) return value
+
+  try {
+    return JSON.parse(value || '{}')
+  } catch {
+    return {}
+  }
 }
