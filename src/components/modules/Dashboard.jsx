@@ -1,210 +1,178 @@
-import { Comandas } from './Comandas'
-import { MenuModule} from './Menu'
-import { Pagos } from './Pagos'
-import { MesasModule } from './Mesas'
-import { PersonalModule } from './Personal'
-import { ReportesModule } from './Reportes'
-import { ClientesModule } from './Clientes'
-import { CajaModule } from './Caja'
-import { ConfiguracionModule } from './Configuracion'
-import { InventarioModule} from './Inventario'
-import { ProveedoresModule } from './Proveedores'
-import { PromocionesModule } from './Promociones'
-import { DefaultModule } from './DefaultModule'
-import { appStyles, moduleBackgrounds } from '../../styles/styles'
+import { appStyles } from '../../styles/styles'
 
+export const DashboardModule = ({ comandas = [] }) => {
+  const calcularEstadisticas = () => {
+    const comandasActivas = comandas.filter(c => {
+      const estado = String(c.estado || '').toLowerCase()
+      return estado !== 'pagada' && estado !== 'pagado'
+    })
 
-import {
-  useMenu,
-  useComandas,
-  useMesas,
-  usePersonal,
-  useClientes,
-  useInventario,
-  useProveedores,
-  usePromociones,
-  useCaja,
-  useReportes
-} from '../../hooks/useSupabase'
+    const totalVentas = comandas.reduce((sum, c) => sum + parseFloat(c.total || 0), 0)
+    const mesasOcupadas = new Set(comandasActivas.map(c => c.mesa).filter(Boolean)).size
 
-export const DashboardModule = ({
-  activeModule,
-  selectedCategory,
-  setSelectedCategory,
-  selectedDish,
-  setSelectedDish,
-  modules,
-  currentUser
-}) => {
-  // ── Datos desde Supabase ──────────────────
-  const { menu, categories, loading: loadingMenu }         = useMenu()
-  const { comandas, agregarComanda, actualizarEstadoComanda,
-          eliminarComanda, loading: loadingComandas }       = useComandas()
-  const { mesas, guardarMesa, eliminarMesa,
-          cambiarEstadoMesa, loading: loadingMesas }        = useMesas()
-  const { personal, guardarEmpleado, eliminarEmpleado,
-          loading: loadingPersonal }                        = usePersonal()
-  const { clientes, reservaciones, guardarCliente,
-          eliminarCliente, guardarReservacion,
-          loading: loadingClientes }                        = useClientes()
-  const { ingredientes, movimientos, guardarIngrediente,
-          registrarMovimiento, loading: loadingInv }        = useInventario()
-  const { proveedores, historialCompras, guardarProveedor,
-          registrarCompra, loading: loadingProv }           = useProveedores()
-  const { promociones, menuDelDia, guardarPromocion,
-          loading: loadingPromo }                           = usePromociones()
-  const { historialCortes, realizarCorte,
-          loading: loadingCaja }                            = useCaja()
-  const { ventas, topProductos, loading: loadingReportes } = useReportes()
+    const productosVendidos = {}
+    comandas.forEach(comanda => {
+      const productos = Array.isArray(comanda.productos) ? comanda.productos : []
 
-  // Primer categoría disponible si no hay seleccionada
-  const catActiva = selectedCategory || (categories.length > 0 ? categories[0].key : null)
+      if (productos.length === 0) {
+        productosVendidos['N/A'] = productosVendidos['N/A'] || 0
+        return
+      }
 
-  const getPageContentStyle = () => {
-    const baseStyle = { ...appStyles.pageContent }
-    baseStyle.background = moduleBackgrounds[activeModule] || appStyles.pageContent.background
-    baseStyle.minHeight  = '100%'
-    baseStyle.width      = '100%'
-    return baseStyle
+      productos.forEach(producto => {
+        const nombre = producto.nombre || producto.platillo || producto.producto || 'Producto'
+        const cantidad = Number(producto.cantidad || 1)
+        productosVendidos[nombre] = (productosVendidos[nombre] || 0) + cantidad
+      })
+    })
+
+    const productoMasVendido =
+      Object.entries(productosVendidos).sort((a, b) => b[1] - a[1])[0]?.[0] || 'N/A'
+
+    return {
+      totalVentas: totalVentas.toFixed(2),
+      comandasActivas: comandasActivas.length,
+      mesasOcupadas,
+      productoMasVendido
+    }
   }
 
-  // Spinner simple mientras cargan datos
-  const Loader = () => (
-    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '200px' }}>
-      <p style={{ color: '#FF6F00', fontSize: '1.1rem' }}>Cargando datos...</p>
-    </div>
-  )
+  const stats = calcularEstadisticas()
 
   return (
-    <main style={getPageContentStyle()}>
+    <div style={{display: 'flex', flexDirection: 'column', gap: '2rem', padding: '2rem', width: '100%'}}>
+      <div style={appStyles.pageHeader}>
+        <h1 style={appStyles.pageTitle}>
+          Dashboard / Resumen del Dia
+        </h1>
+      </div>
 
-      {activeModule === 'dashboard' && (
-        loadingComandas ? <Loader /> :
-        <DashboardModule comandas={comandas} />
-      )}
+      <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.5rem'}}>
+        <div style={{
+          background: 'linear-gradient(135deg, #FF6F00 0%, #FFB300 100%)',
+          borderRadius: '12px',
+          padding: '2rem',
+          color: '#000',
+          boxShadow: '0 4px 15px rgba(255, 111, 0, 0.3)',
+          border: '2px solid #FFB300'
+        }}>
+          <div style={{fontSize: '14px', fontWeight: 600, opacity: 0.9, marginBottom: '0.5rem'}}>TOTAL VENTAS</div>
+          <div style={{fontSize: '2.5rem', fontWeight: 700, marginBottom: '1rem'}}>
+            ${stats.totalVentas}
+          </div>
+          <div style={{fontSize: '12px', opacity: 0.8}}>Ingresos del dia</div>
+        </div>
 
-      {activeModule === 'comandas' && (
-        loadingComandas ? <Loader /> :
-        <Comandas
-          comandas={comandas}
-          mesas={mesas}
-          agregarComanda={agregarComanda}
-          actualizarEstado={actualizarEstadoComanda}
-          eliminarComanda={eliminarComanda}
-          menu={menu}
-          categories={categories}
-          currentUser={currentUser}
-        />
-      )}
+        <div style={{
+          background: 'linear-gradient(135deg, #4CAF50 0%, #66BB6A 100%)',
+          borderRadius: '12px',
+          padding: '2rem',
+          color: 'white',
+          boxShadow: '0 4px 15px rgba(76, 175, 80, 0.3)',
+          border: '2px solid #66BB6A'
+        }}>
+          <div style={{fontSize: '14px', fontWeight: 600, opacity: 0.9, marginBottom: '0.5rem'}}>COMANDAS ACTIVAS</div>
+          <div style={{fontSize: '2.5rem', fontWeight: 700, marginBottom: '1rem'}}>
+            {stats.comandasActivas}
+          </div>
+          <div style={{fontSize: '12px', opacity: 0.8}}>Ordenes en proceso</div>
+        </div>
 
-      {activeModule === 'menu' && (
-        loadingMenu ? <Loader /> :
-        <MenuModule
-          menu={menu}
-          categories={categories}
-          selectedCategory={catActiva}
-          setSelectedCategory={setSelectedCategory}
-          selectedDish={selectedDish}
-          setSelectedDish={setSelectedDish}
-        />
-      )}
+        <div style={{
+          background: 'linear-gradient(135deg, #2196F3 0%, #42A5F5 100%)',
+          borderRadius: '12px',
+          padding: '2rem',
+          color: 'white',
+          boxShadow: '0 4px 15px rgba(33, 150, 243, 0.3)',
+          border: '2px solid #42A5F5'
+        }}>
+          <div style={{fontSize: '14px', fontWeight: 600, opacity: 0.9, marginBottom: '0.5rem'}}>MESAS OCUPADAS</div>
+          <div style={{fontSize: '2.5rem', fontWeight: 700, marginBottom: '1rem'}}>
+            {stats.mesasOcupadas}
+          </div>
+          <div style={{fontSize: '12px', opacity: 0.8}}>De 10 disponibles</div>
+        </div>
 
-      {activeModule === 'mesas' && (
-        loadingMesas ? <Loader /> :
-        <MesasModule
-          mesas={mesas}
-          comandas={comandas}
-          guardarMesa={guardarMesa}
-          eliminarMesa={eliminarMesa}
-          cambiarEstado={cambiarEstadoMesa}
-        />
-      )}
+        <div style={{
+          background: 'linear-gradient(135deg, #9C27B0 0%, #BA68C8 100%)',
+          borderRadius: '12px',
+          padding: '2rem',
+          color: 'white',
+          boxShadow: '0 4px 15px rgba(156, 39, 176, 0.3)',
+          border: '2px solid #BA68C8'
+        }}>
+          <div style={{fontSize: '14px', fontWeight: 600, opacity: 0.9, marginBottom: '0.5rem'}}>PRODUCTO MAS VENDIDO</div>
+          <div style={{fontSize: '2rem', fontWeight: 700, marginBottom: '1rem'}}>
+            {stats.productoMasVendido}
+          </div>
+          <div style={{fontSize: '12px', opacity: 0.8}}>Favorito del dia</div>
+        </div>
+      </div>
 
-      {activeModule === 'personal' && (
-        loadingPersonal ? <Loader /> :
-        <PersonalModule
-          personal={personal}
-          guardarEmpleado={guardarEmpleado}
-          eliminarEmpleado={eliminarEmpleado}
-        />
-      )}
+      <div style={{
+        background: 'white',
+        borderRadius: '12px',
+        padding: '2rem',
+        border: '2px solid #e8dcc8',
+        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
+      }}>
+        <h2 style={{color: '#333', fontWeight: 700, marginBottom: '1.5rem', fontSize: '18px'}}>
+          Resumen de Actividad
+        </h2>
 
-      {activeModule === 'clientes' && (
-        loadingClientes ? <Loader /> :
-        <ClientesModule
-          clientes={clientes}
-          reservaciones={reservaciones}
-          guardarCliente={guardarCliente}
-          eliminarCliente={eliminarCliente}
-          guardarReservacion={guardarReservacion}
-        />
-      )}
+        <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '2rem'}}>
+          <div>
+            <div style={{color: '#999', fontSize: '12px', fontWeight: 600, marginBottom: '0.5rem'}}>TICKETS EMITIDOS</div>
+            <div style={{fontSize: '28px', fontWeight: 700, color: '#FF6F00'}}>
+              {comandas.length}
+            </div>
+          </div>
+          <div>
+            <div style={{color: '#999', fontSize: '12px', fontWeight: 600, marginBottom: '0.5rem'}}>TICKET PROMEDIO</div>
+            <div style={{fontSize: '28px', fontWeight: 700, color: '#4CAF50'}}>
+              ${(Number(stats.totalVentas) / (comandas.length || 1)).toFixed(2)}
+            </div>
+          </div>
+        </div>
+      </div>
 
-      {activeModule === 'inventario' && (
-        loadingInv ? <Loader /> :
-        <InventarioModule
-          ingredientes={ingredientes}
-          movimientos={movimientos}
-          guardarIngrediente={guardarIngrediente}
-          registrarMovimiento={registrarMovimiento}
-        />
-      )}
+      <div style={{
+        background: 'white',
+        borderRadius: '12px',
+        padding: '2rem',
+        border: '2px solid #e8dcc8',
+        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
+      }}>
+        <h2 style={{color: '#333', fontWeight: 700, marginBottom: '1.5rem', fontSize: '18px'}}>
+          Ultimas Comandas
+        </h2>
 
-      {activeModule === 'proveedores' && (
-        loadingProv ? <Loader /> :
-        <ProveedoresModule
-          proveedores={proveedores}
-          historialCompras={historialCompras}
-          guardarProveedor={guardarProveedor}
-          registrarCompra={registrarCompra}
-        />
-      )}
-
-      {activeModule === 'promociones' && (
-        loadingPromo ? <Loader /> :
-        <PromocionesModule
-          promociones={promociones}
-          menuDelDia={menuDelDia}
-          guardarPromocion={guardarPromocion}
-        />
-      )}
-
-      {activeModule === 'caja' && (
-        loadingCaja ? <Loader /> :
-        <CajaModule
-          comandas={comandas}
-          historialCortes={historialCortes}
-          realizarCorte={realizarCorte}
-        />
-      )}
-
-      {activeModule === 'reportes' && (
-        loadingReportes ? <Loader /> :
-        <ReportesModule
-          comandas={comandas}
-          ventas={ventas}
-          topProductos={topProductos}
-        />
-      )}
-
-      {activeModule === 'pagos' && (
-        loadingComandas ? <Loader /> :
-        <Pagos comandas={comandas} />
-      )}
-
-      {activeModule === 'configuracion' && (
-        <ConfiguracionModule currentUser={currentUser} />
-      )}
-
-      {activeModule !== 'dashboard'     && activeModule !== 'comandas'   &&
-       activeModule !== 'menu'          && activeModule !== 'mesas'      &&
-       activeModule !== 'personal'      && activeModule !== 'reportes'   &&
-       activeModule !== 'clientes'      && activeModule !== 'caja'       &&
-       activeModule !== 'configuracion' && activeModule !== 'pagos'      &&
-       activeModule !== 'inventario'    && activeModule !== 'proveedores' &&
-       activeModule !== 'promociones'   && (
-        <DefaultModule module={activeModule} modules={modules} />
-      )}
-    </main>
+        {comandas.length === 0 ? (
+          <div style={{padding: '1rem', color: '#999', fontSize: '14px'}}>
+            No hay comandas registradas.
+          </div>
+        ) : (
+          comandas.slice(-5).reverse().map((comanda, idx) => (
+            <div key={comanda.id || idx} style={{
+              padding: '1rem',
+              borderBottom: idx === Math.min(comandas.length, 5) - 1 ? 'none' : '1px solid #eee',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              gap: '1rem'
+            }}>
+              <div>
+                <div style={{fontWeight: 700, color: '#333'}}>Comanda #{comanda.id}</div>
+                <div style={{fontSize: '12px', color: '#999'}}>Mesa: {comanda.mesa || 'N/A'}</div>
+              </div>
+              <div style={{textAlign: 'right'}}>
+                <div style={{fontWeight: 700, color: '#FF6F00'}}>${comanda.total || '0.00'}</div>
+                <div style={{fontSize: '12px', color: '#999'}}>{comanda.fecha || ''}</div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
   )
 }
