@@ -72,7 +72,6 @@ export const Header = ({ modules, activeModule, onModuleChange, onLogout, curren
       {/* SECCIÓN SUPERIOR - FIJA */}
       <div style={{
         background: 'linear-gradient(90deg, #FF6F00 0%, #FFB300 50%, #FF9800 100%)',
-        borderBottom: '2px solid #FF6F00',
         padding: '0.7rem 2rem',
         display: 'flex',
         alignItems: 'center',
@@ -83,6 +82,32 @@ export const Header = ({ modules, activeModule, onModuleChange, onLogout, curren
         top: 0,
         zIndex: 100,
       }}>
+        <img
+          src="/LogoGastroSoftHeader.png"
+          alt="GastroSoft"
+          style={{
+            position: 'absolute',
+            left: '2rem',
+            top: '0.3rem',
+            width: '132px',
+            height: '120px',
+            objectFit: 'contain',
+            display: 'block',
+            zIndex: 2,
+            pointerEvents: 'none',
+          }}
+        />
+
+        <div style={{
+          position: 'absolute',
+          left: 'calc(2rem + 132px + 1rem)',
+          right: 0,
+          bottom: 0,
+          height: '2px',
+          background: '#FF6F00',
+          pointerEvents: 'none',
+        }} />
+
         {/* Identidad y modulo actual */}
         <div style={{
           display: 'flex',
@@ -91,13 +116,13 @@ export const Header = ({ modules, activeModule, onModuleChange, onLogout, curren
           minWidth: 0,
         }}>
           <div style={{
-            fontSize: '1.35rem',
-            fontWeight: 800,
-            color: '#000000',
-            textShadow: '0 2px 4px rgba(0,0,0,0.22)',
-            whiteSpace: 'nowrap',
+            width: '132px',
+            height: '42px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'flex-start',
+            flexShrink: 0,
           }}>
-            GastroSoft
           </div>
           <div style={{
             height: '28px',
@@ -210,10 +235,10 @@ export const Header = ({ modules, activeModule, onModuleChange, onLogout, curren
       <header style={{
         background: 'linear-gradient(90deg, #FF6F00 0%, #FFB300 50%, #FF9800 100%)',
         borderBottom: '3px solid #FF6F00',
-        padding: '0.8rem 2rem',
+        padding: '0.55rem 2rem',
         display: 'flex',
         alignItems: 'center',
-        gap: '0.8rem',
+        gap: '1rem',
         boxShadow: '0 4px 12px rgba(255, 111, 0, 0.2)',
         overflowX: 'auto',
         overflowY: 'visible',
@@ -222,20 +247,24 @@ export const Header = ({ modules, activeModule, onModuleChange, onLogout, curren
         zIndex: 99,
         scrollBehavior: 'smooth',
       }}>
-        {/* Logo y Título */}
+        {/* Espacio reservado para el logo */}
         <div style={{
-          display: 'none',
-          fontSize: '1.3rem',
-          fontWeight: 'bold',
-          color: '#000000',
-          textShadow: '0 2px 4px rgba(0,0,0,0.3)',
+          width: '132px',
+          height: '56px',
+          display: 'flex',
           alignItems: 'center',
-          gap: '0.5rem',
-          whiteSpace: 'nowrap',
+          justifyContent: 'flex-start',
+          overflow: 'hidden',
           flexShrink: 0,
         }}>
-          🍴 GastroSoft
         </div>
+
+        <div style={{
+          height: '42px',
+          width: '1px',
+          background: 'rgba(0,0,0,0.22)',
+          flexShrink: 0,
+        }} />
 
         {/* Módulos horizontales - DESPLAZABLES */}
         <nav style={{
