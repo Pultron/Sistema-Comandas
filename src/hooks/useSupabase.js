@@ -5,6 +5,18 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 
+const avisarCambioComandas = () => {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('comandas:changed'))
+  }
+}
+
+const avisarCambioMesas = () => {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('mesas:changed'))
+  }
+}
+
 // ── PRODUCTOS / MENÚ ──────────────────────────
 export function useMenu() {
   const [menu, setMenu]         = useState({})
@@ -71,7 +83,14 @@ export function useComandas() {
   const [comandas, setComandas] = useState([])
   const [loading, setLoading]   = useState(true)
 
-  useEffect(() => { fetchComandas() }, [])
+  useEffect(() => {
+    fetchComandas()
+
+    const recargarComandas = () => fetchComandas()
+    window.addEventListener('comandas:changed', recargarComandas)
+
+    return () => window.removeEventListener('comandas:changed', recargarComandas)
+  }, [])
 
   async function fetchComandas() {
     const { data } = await supabase
@@ -97,6 +116,7 @@ export function useComandas() {
         estado:   formatEstado(c.estado),
         items:    c.detalles_comanda?.map(d => ({
           id:         d.id,
+          productoId: d.id_producto,
           nombre:     d.nombre_producto,
           precio:     `$${parseFloat(d.precio_unitario).toFixed(2)}`,
           cantidad:   d.cantidad,
@@ -108,6 +128,11 @@ export function useComandas() {
         descuento: c.descuento,
         impuesto:  c.impuesto,
         rawTotal:  c.total,
+        cuentaSeparada: c.cuenta_separada || false,
+        nombreCuenta: c.nombre_cuenta || '',
+        idReservacion: c.id_reservacion || null,
+        limiteCuentas: c.limite_cuentas || null,
+        esReservacion: !!c.id_reservacion && !c.cuenta_separada,
         observaciones: c.observaciones
       }))
       setComandas(formatted)
@@ -120,8 +145,8 @@ export function useComandas() {
     const numero = `COM-${Date.now()}`
 
     // Buscar id_mesa si existe
-    let id_mesa = null
-    if (comanda.mesa && comanda.mesa.startsWith('Mesa')) {
+    let id_mesa = comanda.id_mesa || null
+    if (!id_mesa && comanda.mesa && comanda.mesa.startsWith('Mesa')) {
       const num = parseInt(comanda.mesa.replace('Mesa', '').trim())
       const { data: mesaData } = await supabase
         .from('mesas')
@@ -137,18 +162,30 @@ export function useComandas() {
     const total     = parseFloat((subtotal + impuesto).toFixed(2))
 
     // Insertar comanda
+    const comandaPayload = {
+      numero_comanda: numero,
+      id_mesa,
+      nombre_mesa:  comanda.mesa,
+      id_mesero:    1, // Cambia esto por el ID del usuario logueado
+      estado:       'pendiente',
+      subtotal,
+      impuesto,
+      total,
+      cuenta_separada: comanda.cuentaSeparada || false,
+      nombre_cuenta: comanda.nombreCuenta || null
+    }
+
+    if (comanda.idReservacion) {
+      comandaPayload.id_reservacion = comanda.idReservacion
+    }
+
+    if (comanda.limiteCuentas) {
+      comandaPayload.limite_cuentas = comanda.limiteCuentas
+    }
+
     const { data: nuevaComanda, error } = await supabase
       .from('comandas')
-      .insert({
-        numero_comanda: numero,
-        id_mesa,
-        nombre_mesa:  comanda.mesa,
-        id_mesero:    1, // Cambia esto por el ID del usuario logueado
-        estado:       'pendiente',
-        subtotal,
-        impuesto,
-        total
-      })
+      .insert(comandaPayload)
       .select()
       .single()
 
@@ -157,7 +194,7 @@ export function useComandas() {
     // Insertar detalles
     const detalles = comanda.items.map(item => ({
       id_comanda:      nuevaComanda.id,
-      id_producto:     item.id,
+      id_producto:     item.productoId || item.id,
       nombre_producto: item.nombre,
       cantidad:        item.cantidad,
       precio_unitario: parseFloat(item.precio.replace('$', '')),
@@ -174,23 +211,41 @@ export function useComandas() {
         .from('mesas')
         .update({ estado: 'ocupada' })
         .eq('id', id_mesa)
+      avisarCambioMesas()
     }
 
     await fetchComandas()
+    avisarCambioComandas()
   }
 
   async function actualizarEstadoComanda(id, nuevoEstado) {
+    const { data: comanda } = await supabase
+      .from('comandas')
+      .select('id_mesa, id_reservacion')
+      .eq('id', id)
+      .single()
+
     await supabase
       .from('comandas')
       .update({ estado: nuevoEstado, updated_at: new Date().toISOString() })
       .eq('id', id)
+
+    if (nuevoEstado === 'pagado' && comanda?.id_mesa) {
+      await liberarMesaSiNoTieneCuentasActivas(comanda.id_mesa)
+    }
+
+    if (nuevoEstado === 'pagado' && comanda?.id_reservacion) {
+      await cerrarReservacionSiNoTieneCuentasActivas(comanda.id_reservacion, comanda.id_mesa)
+    }
+
     await fetchComandas()
+    avisarCambioComandas()
   }
 
   async function eliminarComanda(id) {
     const { data: comanda } = await supabase
       .from('comandas')
-      .select('id_mesa')
+      .select('id_mesa, id_reservacion')
       .eq('id', id)
       .single()
 
@@ -198,16 +253,106 @@ export function useComandas() {
     await supabase.from('comandas').delete().eq('id', id)
 
     if (comanda?.id_mesa) {
-      await supabase
-        .from('mesas')
-        .update({ estado: 'disponible' })
-        .eq('id', comanda.id_mesa)
+      await liberarMesaSiNoTieneCuentasActivas(comanda.id_mesa)
+    }
+
+    if (comanda?.id_reservacion) {
+      await cerrarReservacionSiNoTieneCuentasActivas(comanda.id_reservacion, comanda.id_mesa)
     }
 
     await fetchComandas()
+    avisarCambioComandas()
   }
 
-  return { comandas, loading, agregarComanda, actualizarEstadoComanda, eliminarComanda, refetch: fetchComandas }
+  async function actualizarComanda(id, comanda) {
+    const subtotal = comanda.items.reduce((s, i) => s + i.subtotal, 0)
+    const impuesto = parseFloat((subtotal * 0.15).toFixed(2))
+    const total = parseFloat((subtotal + impuesto).toFixed(2))
+
+    const { error: updateError } = await supabase
+      .from('comandas')
+      .update({
+        subtotal,
+        impuesto,
+        total,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+
+    if (updateError) throw updateError
+
+    const { error: deleteError } = await supabase
+      .from('detalles_comanda')
+      .delete()
+      .eq('id_comanda', id)
+
+    if (deleteError) throw deleteError
+
+    const detalles = comanda.items.map(item => ({
+      id_comanda:      id,
+      id_producto:     item.productoId || item.id,
+      nombre_producto: item.nombre,
+      cantidad:        item.cantidad,
+      precio_unitario: parseFloat(item.precio.replace('$', '')),
+      subtotal:        item.subtotal,
+      comentarios:     item.comentarios || '',
+      estado:          'pendiente'
+    }))
+
+    const { error: insertError } = await supabase.from('detalles_comanda').insert(detalles)
+    if (insertError) throw insertError
+
+    await fetchComandas()
+    avisarCambioComandas()
+  }
+
+  async function liberarMesaSiNoTieneCuentasActivas(id_mesa) {
+    const { data: activas } = await supabase
+      .from('comandas')
+      .select('id')
+      .eq('id_mesa', id_mesa)
+      .not('estado', 'in', '(pagado,cancelado)')
+      .limit(1)
+
+    if (!activas || activas.length === 0) {
+      await supabase
+        .from('mesas')
+        .update({ estado: 'disponible' })
+        .eq('id', id_mesa)
+      avisarCambioMesas()
+    }
+  }
+
+  async function cerrarReservacionSiNoTieneCuentasActivas(id_reservacion, id_mesa) {
+    const { data: activas } = await supabase
+      .from('comandas')
+      .select('id')
+      .eq('id_reservacion', id_reservacion)
+      .not('estado', 'in', '(pagado,cancelado)')
+      .limit(1)
+
+    if (activas && activas.length > 0) return
+
+    await supabase
+      .from('comandas')
+      .update({ id_reservacion: null })
+      .eq('id_reservacion', id_reservacion)
+
+    await supabase
+      .from('reservaciones')
+      .delete()
+      .eq('id', id_reservacion)
+
+    if (id_mesa) {
+      await supabase
+        .from('mesas')
+        .update({ estado: 'disponible' })
+        .eq('id', id_mesa)
+      avisarCambioMesas()
+    }
+  }
+
+  return { comandas, loading, agregarComanda, actualizarComanda, actualizarEstadoComanda, eliminarComanda, refetch: fetchComandas }
 }
 
 // ── MESAS ─────────────────────────────────────
@@ -215,7 +360,14 @@ export function useMesas() {
   const [mesas, setMesas]     = useState([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => { fetchMesas() }, [])
+  useEffect(() => {
+    fetchMesas()
+
+    const recargarMesas = () => fetchMesas()
+    window.addEventListener('mesas:changed', recargarMesas)
+
+    return () => window.removeEventListener('mesas:changed', recargarMesas)
+  }, [])
 
   async function fetchMesas() {
     const { data } = await supabase
@@ -240,16 +392,19 @@ export function useMesas() {
       })
     }
     await fetchMesas()
+    avisarCambioMesas()
   }
 
   async function eliminarMesa(id) {
     await supabase.from('mesas').delete().eq('id', id)
     await fetchMesas()
+    avisarCambioMesas()
   }
 
   async function cambiarEstadoMesa(id, estado) {
     await supabase.from('mesas').update({ estado }).eq('id', id)
     await fetchMesas()
+    avisarCambioMesas()
   }
 
   return { mesas, loading, guardarMesa, eliminarMesa, cambiarEstadoMesa, refetch: fetchMesas }
@@ -323,92 +478,118 @@ export function usePersonal() {
 
 // ── CLIENTES ──────────────────────────────────
 export function useClientes() {
-  const [clientes, setClientes]         = useState([])
   const [reservaciones, setReservaciones] = useState([])
   const [loading, setLoading]           = useState(true)
 
-  useEffect(() => { fetchClientes(); fetchReservaciones() }, [])
+  useEffect(() => { fetchReservaciones() }, [])
 
-  async function fetchClientes() {
-    const { data } = await supabase
-      .from('clientes')
-      .select('*, visitas_clientes(fecha_visita, total_gastado)')
-      .eq('estado_activo', true)
-      .order('nombre')
+  async function fetchReservaciones() {
+    const { data, error } = await supabase
+      .from('reservaciones')
+      .select('*')
+      .order('fecha', { ascending: true })
+
+    if (error) {
+      console.error('No se pudieron cargar reservaciones:', error.message)
+      setReservaciones([])
+      setLoading(false)
+      return
+    }
+
+    const { data: mesasData } = await supabase
+      .from('mesas')
+      .select('id, numero')
+
+    const mesasPorId = (mesasData || []).reduce((acc, mesa) => {
+      acc[mesa.id] = mesa.numero
+      return acc
+    }, {})
+
     if (data) {
-      setClientes(data.map(cliente => {
-        const visitas = Array.isArray(cliente.visitas_clientes) ? cliente.visitas_clientes : []
-        const capitalUtilizado = visitas.reduce((total, visita) => total + (parseFloat(visita.total_gastado) || 0), 0)
-
-        return {
-          ...cliente,
-          tipoCliente: cliente.tipo_cliente || 'regular',
-          capitalConsumable: parseFloat(cliente.capital_consumable) || 0,
-          capitalConsumible: parseFloat(cliente.capital_consumable) || 0,
-          capitalUtilizado,
-          fechasVisitas: visitas.map(visita => visita.fecha_visita).filter(Boolean),
-          estadoActivo: cliente.estado_activo ?? true
-        }
-      }))
+      setReservaciones(data.map(reservacion => ({
+        ...reservacion,
+        cliente: reservacion.cliente || '',
+        mesa: mesasPorId[reservacion.id_mesa] || reservacion.id_mesa || '',
+        idMesa: reservacion.id_mesa
+      })))
     }
     setLoading(false)
   }
 
-  async function fetchReservaciones() {
-    const { data } = await supabase
-      .from('reservaciones')
-      .select('*, clientes(nombre), mesas(numero)')
-      .order('fecha', { ascending: true })
-    if (data) setReservaciones(data)
-  }
+  async function guardarCliente() {}
 
-  async function guardarCliente(formData, editando) {
-    if (editando) {
-      await supabase.from('clientes').update({
-        nombre:            formData.nombre,
-        email:             formData.email,
-        telefono:          formData.telefono,
-        tipo_cliente:      formData.tipoCliente,
-        capital_consumable: parseFloat(formData.capitalConsumable) || 0
-      }).eq('id', editando.id)
-    } else {
-      await supabase.from('clientes').insert({
-        nombre:       formData.nombre,
-        email:        formData.email,
-        telefono:     formData.telefono,
-        tipo_cliente: formData.tipoCliente || 'regular',
-        capital_consumable: parseFloat(formData.capitalConsumable) || 0
-      })
-    }
-    await fetchClientes()
-  }
-
-  async function eliminarCliente(id) {
-    await supabase.from('clientes').update({ estado_activo: false }).eq('id', id)
-    await fetchClientes()
-  }
+  async function eliminarCliente() {}
 
   async function guardarReservacion(formData) {
-    await supabase.from('reservaciones').insert({
-      nombre_cliente: formData.cliente,
-      telefono:       formData.telefono,
-      fecha:          formData.fecha,
-      hora:           formData.hora,
-      personas:       parseInt(formData.personas),
-      id_mesa:        formData.mesa ? parseInt(formData.mesa) : null,
-      estado:         'pendiente'
-    })
+    const idMesa = formData.mesa ? parseInt(formData.mesa) : null
+    const personas = parseInt(formData.personas)
+
+    const { data: nuevaReservacion, error: insertError } = await supabase.from('reservaciones').insert({
+      cliente:  formData.cliente?.trim(),
+      fecha:    formData.fecha,
+      hora:     formData.hora,
+      personas,
+      id_mesa:  idMesa,
+      telefono: formData.telefono
+    }).select().single()
+
+    if (insertError) {
+      console.error('No se pudo guardar la reservacion:', insertError.message)
+      throw insertError
+    }
+
+    if (idMesa) {
+      const { data: mesaData } = await supabase
+        .from('mesas')
+        .select('numero')
+        .eq('id', idMesa)
+        .single()
+
+      const { error: mesaError } = await supabase
+        .from('mesas')
+        .update({ estado: 'reservada' })
+        .eq('id', idMesa)
+
+      if (mesaError) {
+        console.error('No se pudo reservar la mesa:', mesaError.message)
+        throw mesaError
+      }
+      avisarCambioMesas()
+
+      const nombreMesa = `Reservacion - Mesa ${mesaData?.numero || idMesa} - ${formData.cliente?.trim()}`
+      const { error: comandaError } = await supabase.from('comandas').insert({
+        numero_comanda: `RES-${Date.now()}`,
+        id_mesa: idMesa,
+        nombre_mesa: nombreMesa,
+        id_mesero: 1,
+        estado: 'pendiente',
+        subtotal: 0,
+        descuento: 0,
+        impuesto: 0,
+        total: 0,
+        id_reservacion: nuevaReservacion.id,
+        limite_cuentas: personas
+      })
+
+      if (comandaError) {
+        console.error('No se pudo crear la comanda de reservacion:', comandaError.message)
+        throw comandaError
+      }
+
+      avisarCambioComandas()
+    }
+
     await fetchReservaciones()
   }
 
   return {
-    clientes,
+    clientes: [],
     reservaciones,
     loading,
     guardarCliente,
     eliminarCliente,
     guardarReservacion,
-    refetch: fetchClientes,
+    refetch: fetchReservaciones,
     refetchReservaciones: fetchReservaciones
   }
 }
@@ -816,7 +997,7 @@ export function useReportes() {
 function formatEstado(estado) {
   const map = {
     pendiente: 'Pendiente',
-    servido:   'Servido',
+    servido:   'Pendiente',
     pagado:    'Pagado',
     cancelado: 'Cancelado'
   }

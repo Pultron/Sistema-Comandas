@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { appStyles } from '../../styles/styles'
-import { useClientes } from '../../hooks/useSupabase'
+import { supabase } from '../../supabase'
+import { useClientes, useComandas, useMesas } from '../../hooks/useSupabase'
 
 export const ClientesModule = () => {
   const {
@@ -9,9 +10,10 @@ export const ClientesModule = () => {
     guardarCliente: guardarClienteBd,
     eliminarCliente: eliminarClienteBd,
     guardarReservacion: guardarReservacionBd,
-    refetch,
     refetchReservaciones
   } = useClientes()
+  const { mesas, refetch: refetchMesas } = useMesas()
+  const { comandas } = useComandas()
 
   const [pestana] = useState('reservaciones')
 
@@ -35,6 +37,79 @@ export const ClientesModule = () => {
     mesa: '',
     telefono: ''
   })
+
+  const obtenerComandaActiva = (mesa) => {
+    return comandas.find(c => {
+      const mismaMesa = c.mesa === `Mesa ${mesa.numero}` || c.mesa?.startsWith(`Mesa ${mesa.numero} `)
+      return mismaMesa && c.estado !== 'Pagado' && c.estado !== 'Cancelado'
+    })
+  }
+
+  const mesasDisponibles = mesas
+    .filter(mesa => {
+      const esMesaActual = String(mesa.id) === String(reservaData.mesa)
+      const estadoMesa = String(mesa.estado || '').trim().toLowerCase()
+      const estadoDisponible = !['ocupada', 'reservada'].includes(estadoMesa) || esMesaActual
+      return !obtenerComandaActiva(mesa) && estadoDisponible
+    })
+    .sort((a, b) => Number(a.numero) - Number(b.numero))
+
+  const avisarCambioComandas = () => {
+    window.dispatchEvent(new Event('comandas:changed'))
+    window.dispatchEvent(new Event('mesas:changed'))
+  }
+
+  const sincronizarComandaReservacion = async (idReservacion, reserva) => {
+    const idMesa = parseInt(reserva.mesa)
+    const personas = parseInt(reserva.personas)
+    const cliente = reserva.cliente.trim()
+
+    const { data: mesaData } = await supabase
+      .from('mesas')
+      .select('numero')
+      .eq('id', idMesa)
+      .single()
+
+    const nombreMesa = `Reservacion - Mesa ${mesaData?.numero || idMesa} - ${cliente}`
+
+    const { data: comandaExistente } = await supabase
+      .from('comandas')
+      .select('id')
+      .eq('id_reservacion', idReservacion)
+      .maybeSingle()
+
+    if (comandaExistente?.id) {
+      const { error } = await supabase
+        .from('comandas')
+        .update({
+          id_mesa: idMesa,
+          nombre_mesa: nombreMesa,
+          limite_cuentas: personas,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', comandaExistente.id)
+
+      if (error) throw error
+    } else {
+      const { error } = await supabase.from('comandas').insert({
+        numero_comanda: `RES-${Date.now()}`,
+        id_mesa: idMesa,
+        nombre_mesa: nombreMesa,
+        id_mesero: 1,
+        estado: 'pendiente',
+        subtotal: 0,
+        descuento: 0,
+        impuesto: 0,
+        total: 0,
+        id_reservacion: idReservacion,
+        limite_cuentas: personas
+      })
+
+      if (error) throw error
+    }
+
+    avisarCambioComandas()
+  }
 
   const abrirFormulario = (cliente = null) => {
     if (cliente) {
@@ -83,15 +158,8 @@ export const ClientesModule = () => {
     }
   }
 
-  const registrarVisita = async (id) => {
-    const hoy = new Date().toISOString().split('T')[0]
-    await supabase.from('visitas_clientes').insert({
-      id_cliente: id,
-      fecha_visita: hoy,
-      total_gastado: 0
-    })
-    await refetch()
-    alert('Visita registrada')
+  const registrarVisita = async () => {
+    alert('El historial de visitas ya no esta activo')
   }
 
   const abrirReservacion = (reserva = null) => {
@@ -102,7 +170,7 @@ export const ClientesModule = () => {
         fecha: reserva.fecha,
         hora: reserva.hora,
         personas: reserva.personas,
-        mesa: reserva.mesa,
+        mesa: reserva.idMesa || reserva.id_mesa || '',
         telefono: reserva.telefono
       })
     } else {
@@ -125,34 +193,73 @@ export const ClientesModule = () => {
       return
     }
 
-    if (editando) {
-      await supabase.from('reservaciones').update({
-        nombre_cliente: reservaData.cliente,
-        telefono: reservaData.telefono,
-        fecha: reservaData.fecha,
-        hora: reservaData.hora,
-        personas: parseInt(reservaData.personas),
-        id_mesa: parseInt(reservaData.mesa),
-        estado: 'pendiente'
-      }).eq('id', editando.id)
-    } else {
-      await guardarReservacionBd(reservaData)
-    }
+    try {
+      if (editando) {
+        const mesaAnterior = editando.idMesa || editando.id_mesa
 
-    await refetchReservaciones()
-    setMostrarReservacion(false)
-  }
+        if (mesaAnterior && String(mesaAnterior) !== String(reservaData.mesa)) {
+          const { error: liberarError } = await supabase
+            .from('mesas')
+            .update({ estado: 'disponible' })
+            .eq('id', mesaAnterior)
 
-  const cancelarReservacion = async (id) => {
-    if (confirm('¿Cancelar esta reservación?')) {
-      await supabase.from('reservaciones').update({ estado: 'cancelada' }).eq('id', id)
+          if (liberarError) throw liberarError
+        }
+
+        const { error: reservaError } = await supabase.from('reservaciones').update({
+          cliente: reservaData.cliente.trim(),
+          fecha: reservaData.fecha,
+          hora: reservaData.hora,
+          personas: parseInt(reservaData.personas),
+          id_mesa: parseInt(reservaData.mesa),
+          telefono: reservaData.telefono
+        }).eq('id', editando.id)
+
+        if (reservaError) throw reservaError
+
+        const { error: mesaError } = await supabase
+          .from('mesas')
+          .update({ estado: 'reservada' })
+          .eq('id', parseInt(reservaData.mesa))
+
+        if (mesaError) throw mesaError
+        await sincronizarComandaReservacion(editando.id, reservaData)
+      } else {
+        await guardarReservacionBd(reservaData)
+      }
+
       await refetchReservaciones()
+      await refetchMesas()
+      setMostrarReservacion(false)
+    } catch (error) {
+      alert(`No se pudo guardar la reservacion: ${error.message}`)
     }
   }
 
-  const confirmarReservacion = async (id) => {
-    await supabase.from('reservaciones').update({ estado: 'confirmada' }).eq('id', id)
-    await refetchReservaciones()
+  const cancelarReservacion = async (reserva) => {
+    if (confirm('¿Cancelar esta reservación?')) {
+      const { data: comandasReserva } = await supabase
+        .from('comandas')
+        .select('id')
+        .eq('id_reservacion', reserva.id)
+
+      const idsComandas = (comandasReserva || []).map(comanda => comanda.id)
+      if (idsComandas.length > 0) {
+        await supabase.from('detalles_comanda').delete().in('id_comanda', idsComandas)
+        await supabase.from('comandas').delete().in('id', idsComandas)
+      }
+
+      await supabase.from('reservaciones').delete().eq('id', reserva.id)
+      if (reserva.idMesa || reserva.id_mesa) {
+        await supabase
+          .from('mesas')
+          .update({ estado: 'disponible' })
+          .eq('id', reserva.idMesa || reserva.id_mesa)
+      }
+      await refetchReservaciones()
+      await refetchMesas()
+      avisarCambioComandas()
+    }
   }
 
   return (
@@ -397,7 +504,7 @@ export const ClientesModule = () => {
             background: 'white',
             borderRadius: '12px',
             padding: '1.5rem',
-            border: `2px solid ${reserva.estado === 'confirmada' ? '#4CAF50' : '#FFC107'}`,
+            border: '2px solid #FFC107',
             boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
             display: 'grid',
             gridTemplateColumns: '1fr auto',
@@ -429,40 +536,9 @@ export const ClientesModule = () => {
                   <div style={{fontSize: '12px', color: '#999', fontWeight: 600}}>TELÉFONO</div>
                   <div style={{fontSize: '14px', color: '#333'}}>{reserva.telefono}</div>
                 </div>
-                <div>
-                  <div style={{fontSize: '12px', color: '#999', fontWeight: 600}}>ESTADO</div>
-                  <span style={{
-                    display: 'inline-block',
-                    padding: '0.3rem 0.8rem',
-                    background: reserva.estado === 'confirmada' ? '#E0F0E0' : '#FFF3E0',
-                    color: reserva.estado === 'confirmada' ? '#2E7D32' : '#E65100',
-                    borderRadius: '12px',
-                    fontSize: '11px',
-                    fontWeight: 600
-                  }}>
-                    {reserva.estado === 'confirmada' ? '✓ Confirmada' : ' Pendiente'}
-                  </span>
-                </div>
               </div>
             </div>
             <div style={{display: 'flex', flexDirection: 'column', gap: '0.8rem', minWidth: '120px'}}>
-              {reserva.estado === 'pendiente' && (
-                <button
-                  onClick={() => confirmarReservacion(reserva.id)}
-                  style={{
-                    padding: '0.7rem 1rem',
-                    background: '#4CAF50',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '6px',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    fontSize: '13px'
-                  }}
-                >
-                  Confirmar
-                </button>
-              )}
               <button
                 onClick={() => abrirReservacion(reserva)}
                 style={{
@@ -479,7 +555,7 @@ export const ClientesModule = () => {
                 Editar
               </button>
               <button
-                onClick={() => cancelarReservacion(reserva.id)}
+                onClick={() => cancelarReservacion(reserva)}
                 style={{
                   padding: '0.7rem 1rem',
                   background: '#EF4444',
@@ -821,16 +897,15 @@ export const ClientesModule = () => {
             <div style={{display: 'flex', flexDirection: 'column', gap: '1rem'}}>
               <div>
                 <label style={{display: 'block', fontWeight: 600, marginBottom: '0.5rem', color: '#333'}}>Cliente</label>
-                <select 
+                <input
+                  type="text"
                   value={reservaData.cliente} 
                   onChange={(e) => setReservaData({...reservaData, cliente: e.target.value})} 
+                  placeholder="Nombre del cliente"
                   style={{width: '100%', padding: '0.8rem', border: '2px solid #e0e0e0', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box'}} 
                   onFocus={(e) => e.target.style.borderColor = '#FF6F00'} 
                   onBlur={(e) => e.target.style.borderColor = '#e0e0e0'}
-                >
-                  <option value="">Selecciona un cliente...</option>
-                  {clientes.map(c => <option key={c.id} value={c.nombre}>{c.nombre}</option>)}
-                </select>
+                />
               </div>
               <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem'}}>
                 <div>
@@ -870,14 +945,26 @@ export const ClientesModule = () => {
                 </div>
                 <div>
                   <label style={{display: 'block', fontWeight: 600, marginBottom: '0.5rem', color: '#333'}}>Mesa</label>
-                  <input 
-                    type="number" 
+                  <select
                     value={reservaData.mesa} 
                     onChange={(e) => setReservaData({...reservaData, mesa: e.target.value})} 
+                    disabled={mesasDisponibles.length === 0}
                     style={{width: '100%', padding: '0.8rem', border: '2px solid #e0e0e0', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box'}} 
                     onFocus={(e) => e.target.style.borderColor = '#FF6F00'} 
                     onBlur={(e) => e.target.style.borderColor = '#e0e0e0'}
-                  />
+                  >
+                    <option value="">Selecciona una mesa</option>
+                    {mesasDisponibles.map(mesa => (
+                      <option key={mesa.id} value={mesa.id}>
+                        Mesa {mesa.numero} - {mesa.ubicacion}
+                      </option>
+                    ))}
+                  </select>
+                  {mesasDisponibles.length === 0 && (
+                    <div style={{color: '#7F1D1D', fontSize: '13px', fontWeight: 700, marginTop: '0.5rem'}}>
+                      No hay mesas disponibles en este momento.
+                    </div>
+                  )}
                 </div>
               </div>
               <div>

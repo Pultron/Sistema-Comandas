@@ -8,9 +8,17 @@ import { supabase } from './supabase'
 
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [currentUser, setCurrentUser]         = useState(null)
-  const [userRole, setUserRole]               = useState(null)
+  const savedUser = (() => {
+    try {
+      return JSON.parse(localStorage.getItem('gastrosoft_user') || 'null')
+    } catch {
+      return null
+    }
+  })()
+
+  const [isAuthenticated, setIsAuthenticated] = useState(!!savedUser)
+  const [currentUser, setCurrentUser]         = useState(savedUser)
+  const [userRole, setUserRole]               = useState(savedUser?.rol || null)
   const [username, setUsername]               = useState('')
   const [password, setPassword]               = useState('')
   const [loginError, setLoginError]           = useState('')
@@ -38,6 +46,7 @@ function App() {
     setCurrentUser(data)
     setIsAuthenticated(true)
     setUserRole(data.rol)
+    localStorage.setItem('gastrosoft_user', JSON.stringify(data))
     setActiveModule(data.rol === 'administrador' || data.rol === 'gerente' ? 'dashboard' : 'comandas')
     setUsername('')
     setPassword('')
@@ -47,6 +56,7 @@ function App() {
     setIsAuthenticated(false)
     setCurrentUser(null)
     setUserRole(null)
+    localStorage.removeItem('gastrosoft_user')
     setUsername('')
     setPassword('')
     setActiveModule('comandas')
@@ -85,7 +95,10 @@ function App() {
         onModuleChange={setActiveModule}
         onLogout={handleLogout}
         currentUser={currentUser}
-        onUserUpdate={setCurrentUser}
+        onUserUpdate={(usuarioActualizado) => {
+          setCurrentUser(usuarioActualizado)
+          localStorage.setItem('gastrosoft_user', JSON.stringify(usuarioActualizado))
+        }}
       />
 
       <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>

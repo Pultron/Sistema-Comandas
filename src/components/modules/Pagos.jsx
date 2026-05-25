@@ -9,6 +9,37 @@ export const Pagos = ({ comandas: comandasProp = [] }) => {
   const [mensajeAlerta, setMensajeAlerta] = useState('') 
   const [ticketSeleccionado, setTicketSeleccionado] = useState(null)
   const [mostrarTicket, setMostrarTicket] = useState(false)
+  const [mesaSeleccionada, setMesaSeleccionada] = useState(null)
+
+  const obtenerNumeroMesa = (comanda) => {
+    return comanda.id_mesa || comanda.mesa?.match(/Mesa\s*(\d+)/i)?.[1] || comanda.mesa || 'sin-mesa'
+  }
+
+  const obtenerNombreMesa = (comanda) => {
+    const numero = comanda.mesa?.match(/Mesa\s*(\d+)/i)?.[1]
+    return numero ? `Mesa ${numero}` : comanda.mesa || 'Sin mesa'
+  }
+
+  const parseMonto = (monto) => {
+    return parseFloat(String(monto || '0').replace('$', '')) || 0
+  }
+
+  const gruposMesa = Object.values(comandasActivas.reduce((acc, comanda) => {
+    const key = obtenerNumeroMesa(comanda)
+    if (!acc[key]) {
+      acc[key] = {
+        key,
+        mesa: obtenerNombreMesa(comanda),
+        cuentas: [],
+        total: 0,
+        productos: 0
+      }
+    }
+    acc[key].cuentas.push(comanda)
+    acc[key].total += parseMonto(comanda.total)
+    acc[key].productos += Number(comanda.productos) || 0
+    return acc
+  }, {}))
 
   const generarCuenta = (comanda) => {
     setTicketSeleccionado(comanda)
@@ -55,9 +86,14 @@ export const Pagos = ({ comandas: comandasProp = [] }) => {
     }
   }
 
-  const confirmarPago = (comanda) => {
-    actualizarEstadoComanda(comanda.id, 'pagado')
+  const confirmarPago = async (comanda) => {
+    await actualizarEstadoComanda(comanda.id, 'pagado')
     setMensajeAlerta(`Pago confirmado para comanda #${comanda.id}`)
+    setMesaSeleccionada(prev => {
+      if (!prev) return prev
+      const cuentas = prev.cuentas.filter(cuenta => cuenta.id !== comanda.id)
+      return cuentas.length > 0 ? { ...prev, cuentas } : null
+    })
     setTimeout(() => setMensajeAlerta(''), 3000)
   }
 
@@ -71,9 +107,9 @@ export const Pagos = ({ comandas: comandasProp = [] }) => {
           </div>
         ) : (
           <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem', padding: '1.5rem'}}>
-            {comandasActivas.map(comanda => (
+            {gruposMesa.map(grupo => (
               <div
-                key={comanda.id}
+                key={grupo.key}
                 style={{
                   border: '2px solid #FF6F00',
                   borderRadius: '8px',
@@ -97,34 +133,30 @@ export const Pagos = ({ comandas: comandasProp = [] }) => {
               >
                 {/* Encabezado */}
                 <div style={{display: 'flex', justifyContent: 'center', alignItems: 'center', borderBottom: '2px solid #FF6F00', paddingBottom: '1rem', flexDirection: 'column'}}>
-                  <div style={{color: '#FF6F00', fontWeight: 700, fontSize: '14px'}}>Comanda #{comanda.id}</div>
-                  <div style={{color: '#000', fontWeight: 700, fontSize: '18px', marginTop: '0.3rem'}}>{comanda.mesa}</div>
+                  <div style={{color: '#FF6F00', fontWeight: 700, fontSize: '14px'}}>{grupo.cuentas.length} cuenta{grupo.cuentas.length === 1 ? '' : 's'}</div>
+                  <div style={{color: '#000', fontWeight: 700, fontSize: '18px', marginTop: '0.3rem'}}>{grupo.mesa}</div>
                 </div>
 
                 {/* Detalles */}
                 <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', fontSize: '13px', color: '#666'}}>
                   <div>
-                    <div style={{color: '#999', fontSize: '11px', fontWeight: 500}}>FECHA</div>
-                    <div style={{color: '#000', fontWeight: 600, marginTop: '0.3rem'}}>{formatearFecha(comanda.fecha)}</div>
-                  </div>
-                  <div>
-                    <div style={{color: '#999', fontSize: '11px', fontWeight: 500}}>HORA</div>
-                    <div style={{color: '#000', fontWeight: 600, marginTop: '0.3rem'}}>{comanda.fecha.split(' ')[1]}</div>
+                    <div style={{color: '#999', fontSize: '11px', fontWeight: 500}}>CUENTAS</div>
+                    <div style={{color: '#000', fontWeight: 600, marginTop: '0.3rem'}}>{grupo.cuentas.length}</div>
                   </div>
                   <div>
                     <div style={{color: '#999', fontSize: '11px', fontWeight: 500}}>PRODUCTOS</div>
-                    <div style={{color: '#000', fontWeight: 600, marginTop: '0.3rem'}}>{comanda.productos}</div>
+                    <div style={{color: '#000', fontWeight: 600, marginTop: '0.3rem'}}>{grupo.productos}</div>
                   </div>
                   <div>
-                    <div style={{color: '#999', fontSize: '11px', fontWeight: 500}}>TOTAL</div>
-                    <div style={{color: '#4CAF50', fontWeight: 700, fontSize: '14px', marginTop: '0.3rem'}}>{comanda.total}</div>
+                    <div style={{color: '#999', fontSize: '11px', fontWeight: 500}}>TOTAL MESA</div>
+                    <div style={{color: '#4CAF50', fontWeight: 700, fontSize: '14px', marginTop: '0.3rem'}}>${grupo.total.toFixed(2)}</div>
                   </div>
                 </div>
 
                 {/* Botones de Acción */}
                 <div style={{display: 'flex', gap: '0.5rem'}}>
                   <button
-                    onClick={() => generarCuenta(comanda)}
+                    onClick={() => setMesaSeleccionada(grupo)}
                     style={{
                       flex: 1,
                       padding: '0.8rem',
@@ -151,37 +183,7 @@ export const Pagos = ({ comandas: comandasProp = [] }) => {
                       e.currentTarget.style.transform = 'scale(1)'
                     }}
                   >
-                     Ver Cuenta
-                  </button>
-                  <button
-                    onClick={() => confirmarPago(comanda)}
-                    style={{
-                      flex: 1,
-                      padding: '0.8rem',
-                      background: 'linear-gradient(90deg, #4CAF50 0%, #66BB6A 50%, #43A047 100%)',
-                      color: '#fff',
-                      border: 'none',
-                      borderRadius: '6px',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      fontSize: '14px',
-                      transition: 'all 0.3s ease',
-                      marginTop: '0.5rem',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '0.5rem'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = 'linear-gradient(90deg, #388E3C 0%, #4CAF50 50%, #2E7D32 100%)'
-                      e.currentTarget.style.transform = 'scale(1.02)'
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = 'linear-gradient(90deg, #4CAF50 0%, #66BB6A 50%, #43A047 100%)'
-                      e.currentTarget.style.transform = 'scale(1)'
-                    }}
-                  >
-                     Confirmar Pago
+                     Ver cuenta
                   </button>
                 </div>
               </div>
@@ -189,6 +191,116 @@ export const Pagos = ({ comandas: comandasProp = [] }) => {
           </div>
         )}
       </div>
+
+      {/* Modal de cuentas por mesa */}
+      {mesaSeleccionada && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1900,
+          padding: '1rem'
+        }}>
+          <div style={{
+            backgroundColor: '#fff',
+            borderRadius: '12px',
+            width: 'min(720px, 96vw)',
+            maxHeight: '90vh',
+            overflow: 'auto',
+            border: '3px solid #FF6F00'
+          }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '1.2rem 1.5rem',
+              backgroundColor: '#FF6F00',
+              borderBottom: '2px solid #111827'
+            }}>
+              <div>
+                <h2 style={{margin: 0, color: '#111827', fontSize: '20px', fontWeight: 800}}>
+                  {mesaSeleccionada.mesa}
+                </h2>
+                <div style={{fontSize: '13px', color: '#111827', fontWeight: 700, marginTop: '0.25rem'}}>
+                  {mesaSeleccionada.cuentas.length} cuenta{mesaSeleccionada.cuentas.length === 1 ? '' : 's'}
+                </div>
+              </div>
+              <button
+                onClick={() => setMesaSeleccionada(null)}
+                style={{background: 'none', border: 'none', cursor: 'pointer', color: '#111827'}}
+                title="Cerrar"
+              >
+                <XIcon size={24} color="currentColor" />
+              </button>
+            </div>
+            <div style={{display: 'flex', flexDirection: 'column', gap: '1rem', padding: '1.5rem'}}>
+              {mesaSeleccionada.cuentas.map(cuenta => (
+                <div
+                  key={cuenta.id}
+                  style={{
+                    border: '2px solid #FFB300',
+                    borderRadius: '8px',
+                    padding: '1rem',
+                    background: '#fff8f0',
+                    display: 'grid',
+                    gridTemplateColumns: '1fr auto',
+                    gap: '1rem',
+                    alignItems: 'center'
+                  }}
+                >
+                  <div>
+                    <div style={{color: '#FF6F00', fontWeight: 800, fontSize: '13px'}}>Comanda #{cuenta.id}</div>
+                    <div style={{color: '#111827', fontWeight: 800, fontSize: '17px', marginTop: '0.25rem'}}>{cuenta.mesa}</div>
+                    <div style={{display: 'flex', gap: '1rem', flexWrap: 'wrap', marginTop: '0.6rem', color: '#555', fontSize: '13px'}}>
+                      <span>{cuenta.productos} productos</span>
+                      <span>{formatearFecha(cuenta.fecha)}</span>
+                      <span style={{fontWeight: 800, color: '#4CAF50'}}>{cuenta.total}</span>
+                    </div>
+                  </div>
+                  <div style={{display: 'flex', gap: '0.6rem', flexWrap: 'wrap', justifyContent: 'flex-end'}}>
+                    <button
+                      onClick={() => generarCuenta(cuenta)}
+                      style={{
+                        padding: '0.75rem 1rem',
+                        background: 'linear-gradient(90deg, #FF6F00 0%, #FFB300 100%)',
+                        color: '#000',
+                        border: 'none',
+                        borderRadius: '6px',
+                        fontWeight: 800,
+                        cursor: 'pointer',
+                        fontSize: '13px'
+                      }}
+                    >
+                      Ver ticket
+                    </button>
+                    <button
+                      onClick={() => confirmarPago(cuenta)}
+                      style={{
+                        padding: '0.75rem 1rem',
+                        background: 'linear-gradient(90deg, #4CAF50 0%, #43A047 100%)',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: '6px',
+                        fontWeight: 800,
+                        cursor: 'pointer',
+                        fontSize: '13px'
+                      }}
+                    >
+                      Confirmar pago
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal del Ticket */}
       {mostrarTicket && ticketSeleccionado && (

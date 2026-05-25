@@ -21,16 +21,21 @@ export const MesasModule = ({ comandas = [] }) => {
   const mesasConEstado = mesas
     .map((mesa) => {
       const comanda = obtenerComandaActiva(mesa)
+      const estadoMesa = String(mesa.estado || '').trim().toLowerCase()
+      const reservada = !comanda && estadoMesa === 'reservada'
       return {
         ...mesa,
         comanda,
-        ocupada: !!comanda
+        ocupada: !!comanda,
+        reservada,
+        estadoVisual: comanda ? 'ocupada' : reservada ? 'reservada' : 'disponible'
       }
     })
     .sort((a, b) => Number(a.numero) - Number(b.numero))
 
   const totalOcupadas = mesasConEstado.filter(mesa => mesa.ocupada).length
-  const totalDisponibles = mesasConEstado.length - totalOcupadas
+  const totalReservadas = mesasConEstado.filter(mesa => mesa.reservada).length
+  const totalDisponibles = mesasConEstado.length - totalOcupadas - totalReservadas
 
   const getMesaMapPosition = (index) => {
     const posicionesPrincipales = [
@@ -127,6 +132,9 @@ export const MesasModule = ({ comandas = [] }) => {
         {mesasConEstado.map(mesa => {
           const comanda = mesa.comanda
           const mesaOcupada = mesa.ocupada
+          const mesaReservada = mesa.reservada
+          const colorEstado = mesaOcupada ? '#FF6F00' : mesaReservada ? '#F59E0B' : '#4CAF50'
+          const textoEstado = mesaOcupada ? 'OCUPADA' : mesaReservada ? 'RESERVADA' : 'DISPONIBLE'
           
           return (
             <div
@@ -135,7 +143,7 @@ export const MesasModule = ({ comandas = [] }) => {
                 background: 'white',
                 borderRadius: '12px',
                 padding: '1.5rem',
-                border: `2px solid ${mesaOcupada ? '#FF6F00' : '#4CAF50'}`,
+                border: `2px solid ${colorEstado}`,
                 boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
                 transition: 'all 0.3s ease'
               }}
@@ -162,10 +170,10 @@ export const MesasModule = ({ comandas = [] }) => {
                   <div style={{
                     fontSize: '12px',
                     fontWeight: 600,
-                    color: mesaOcupada ? '#FF6F00' : '#4CAF50',
+                    color: colorEstado,
                     marginTop: '0.3rem'
                   }}>
-                    {mesaOcupada ? 'OCUPADA' : 'DISPONIBLE'}
+                    {textoEstado}
                   </div>
                 </div>
                 <div style={{fontSize: '28px'}}></div>
@@ -269,7 +277,7 @@ export const MesasModule = ({ comandas = [] }) => {
                   Mapa de Mesas
                 </h2>
                 <div style={{fontSize: '13px', color: '#111827', fontWeight: 700, marginTop: '0.25rem'}}>
-                  {totalDisponibles} disponibles / {totalOcupadas} ocupadas
+                  {totalDisponibles} disponibles / {totalOcupadas} ocupadas / {totalReservadas} reservadas
                 </div>
               </div>
               <div style={{display: 'flex', alignItems: 'center', gap: '0.8rem', flexWrap: 'wrap', justifyContent: 'flex-end'}}>
@@ -280,6 +288,10 @@ export const MesasModule = ({ comandas = [] }) => {
                 <div style={{display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700, color: '#111827', fontSize: '13px'}}>
                   <span style={{width: '14px', height: '14px', borderRadius: '50%', background: '#EF4444', display: 'inline-block', border: '2px solid #7F1D1D'}}></span>
                   Ocupada
+                </div>
+                <div style={{display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700, color: '#111827', fontSize: '13px'}}>
+                  <span style={{width: '14px', height: '14px', borderRadius: '50%', background: '#F59E0B', display: 'inline-block', border: '2px solid #92400E'}}></span>
+                  Reservada
                 </div>
                 <button
                   onClick={() => setMostrarMapa(false)}
@@ -350,13 +362,15 @@ export const MesasModule = ({ comandas = [] }) => {
                   </div>
                 ) : mesasConEstado.map((mesa, index) => {
                   const posicion = getMesaMapPosition(index)
-                  const colorMesa = mesa.ocupada ? '#EF4444' : '#22C55E'
-                  const bordeMesa = mesa.ocupada ? '#7F1D1D' : '#14532D'
+                  const colorMesa = mesa.ocupada ? '#EF4444' : mesa.reservada ? '#F59E0B' : '#22C55E'
+                  const bordeMesa = mesa.ocupada ? '#7F1D1D' : mesa.reservada ? '#92400E' : '#14532D'
+                  const textoMesa = mesa.ocupada ? 'Ocupada' : mesa.reservada ? 'Reservada' : 'Disponible'
+                  const textoColor = mesa.ocupada ? '#FCA5A5' : mesa.reservada ? '#FDE68A' : '#86EFAC'
 
                   return (
                     <button
                       key={mesa.id}
-                      title={`Mesa ${mesa.numero} - ${mesa.ocupada ? 'Ocupada' : 'Disponible'}`}
+                      title={`Mesa ${mesa.numero} - ${textoMesa}`}
                       style={{
                         position: 'absolute',
                         left: posicion.left,
@@ -369,7 +383,7 @@ export const MesasModule = ({ comandas = [] }) => {
                         color: '#fff',
                         borderRadius: '8px',
                         cursor: 'default',
-                        boxShadow: `0 6px 14px ${mesa.ocupada ? 'rgba(239, 68, 68, 0.35)' : 'rgba(34, 197, 94, 0.3)'}`,
+                        boxShadow: `0 6px 14px ${mesa.ocupada ? 'rgba(239, 68, 68, 0.35)' : mesa.reservada ? 'rgba(245, 158, 11, 0.35)' : 'rgba(34, 197, 94, 0.3)'}`,
                         display: 'flex',
                         flexDirection: 'column',
                         alignItems: 'center',
@@ -388,8 +402,8 @@ export const MesasModule = ({ comandas = [] }) => {
                         boxShadow: '0 0 0 4px rgba(255, 255, 255, 0.12)'
                       }}></span>
                       <span>Mesa {mesa.numero}</span>
-                      <span style={{fontSize: '10px', color: mesa.ocupada ? '#FCA5A5' : '#86EFAC'}}>
-                        {mesa.ocupada ? 'Ocupada' : 'Disponible'}
+                      <span style={{fontSize: '10px', color: textoColor}}>
+                        {textoMesa}
                       </span>
                     </button>
                   )

@@ -387,6 +387,7 @@ export const appStyles = {
   table: {
     width: '100%',
     borderCollapse: 'collapse',
+    tableLayout: 'fixed',
     fontSize: '0.95rem',
     color: 'white',
   },
@@ -402,12 +403,15 @@ export const appStyles = {
     fontSize: '0.9rem',
     letterSpacing: '0.3px',
     textShadow: '0 2px 4px rgba(0,0,0,0.3)',
+    verticalAlign: 'middle',
   },
   tableTd: {
     padding: '1rem',
     borderBottom: '1px solid #333333',
     color: '#000000',
     textShadow: '0 2px 4px rgba(0,0,0,0.3)',
+    verticalAlign: 'middle',
+    overflowWrap: 'anywhere',
   },
   // Badge
   badge: {

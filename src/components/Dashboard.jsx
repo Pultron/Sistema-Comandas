@@ -32,6 +32,7 @@ export const Dashboard = ({
   const {
     comandas: comandasBd,
     agregarComanda: agregarComandaBd,
+    actualizarComanda: actualizarComandaBd,
     eliminarComanda: eliminarComandaBd
   } = useComandas()
   const { mesas } = useMesas()
@@ -61,6 +62,7 @@ export const Dashboard = ({
           comandas={comandasActivas}
           mesas={mesas}
           agregarComanda={guardarComandaActiva}
+          actualizarComanda={actualizarComandaBd}
           eliminarComanda={eliminarComandaActiva}
           currentUser={currentUser}
         />
