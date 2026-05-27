@@ -38,6 +38,9 @@ export const ClientesModule = () => {
     telefono: ''
   })
 
+  const reservacionesTerminadas = reservaciones.filter(reserva => reserva.estado === 'terminada')
+  const reservacionesActivas = reservaciones.filter(reserva => reserva.estado !== 'terminada')
+
   const obtenerComandaActiva = (mesa) => {
     return comandas.find(c => {
       const mismaMesa = c.mesa === `Mesa ${mesa.numero}` || c.mesa?.startsWith(`Mesa ${mesa.numero} `)
@@ -57,6 +60,7 @@ export const ClientesModule = () => {
   const avisarCambioComandas = () => {
     window.dispatchEvent(new Event('comandas:changed'))
     window.dispatchEvent(new Event('mesas:changed'))
+    window.dispatchEvent(new Event('reservaciones:changed'))
   }
 
   const sincronizarComandaReservacion = async (idReservacion, reserva) => {
@@ -261,6 +265,97 @@ export const ClientesModule = () => {
       avisarCambioComandas()
     }
   }
+
+  const renderTarjetaReservacion = (reserva, terminada = false) => (
+    <div key={reserva.id} style={{
+      background: terminada ? '#F8FAFC' : 'white',
+      borderRadius: '12px',
+      padding: '1.5rem',
+      border: `2px solid ${terminada ? '#22C55E' : '#FFC107'}`,
+      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+      display: 'grid',
+      gridTemplateColumns: terminada ? '1fr' : '1fr auto',
+      gap: '1.5rem',
+      alignItems: 'center'
+    }}>
+      <div>
+        <div style={{display: 'flex', alignItems: 'center', gap: '0.8rem', flexWrap: 'wrap', marginBottom: '1rem'}}>
+          <div style={{fontSize: '18px', fontWeight: 700, color: '#333'}}>
+            {reserva.cliente}
+          </div>
+          {terminada && (
+            <span style={{
+              display: 'inline-block',
+              padding: '0.35rem 0.7rem',
+              background: '#DCFCE7',
+              color: '#166534',
+              borderRadius: '999px',
+              fontWeight: 700,
+              fontSize: '12px'
+            }}>
+              Terminada
+            </span>
+          )}
+        </div>
+        <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem'}}>
+          <div>
+            <div style={{fontSize: '12px', color: '#999', fontWeight: 600}}>FECHA</div>
+            <div style={{fontSize: '16px', fontWeight: 700, color: '#333'}}> {reserva.fecha}</div>
+          </div>
+          <div>
+            <div style={{fontSize: '12px', color: '#999', fontWeight: 600}}>HORA</div>
+            <div style={{fontSize: '16px', fontWeight: 700, color: '#333'}}> {reserva.hora}</div>
+          </div>
+          <div>
+            <div style={{fontSize: '12px', color: '#999', fontWeight: 600}}>PERSONAS</div>
+            <div style={{fontSize: '16px', fontWeight: 700, color: '#333'}}> {reserva.personas}</div>
+          </div>
+          <div>
+            <div style={{fontSize: '12px', color: '#999', fontWeight: 600}}>MESA</div>
+            <div style={{fontSize: '16px', fontWeight: 700, color: terminada ? '#166534' : '#FF6F00'}}> #{reserva.mesa}</div>
+          </div>
+          <div>
+            <div style={{fontSize: '12px', color: '#999', fontWeight: 600}}>TELEFONO</div>
+            <div style={{fontSize: '14px', color: '#333'}}>{reserva.telefono}</div>
+          </div>
+        </div>
+      </div>
+      {!terminada && (
+        <div style={{display: 'flex', flexDirection: 'column', gap: '0.8rem', minWidth: '120px'}}>
+          <button
+            onClick={() => abrirReservacion(reserva)}
+            style={{
+              padding: '0.7rem 1rem',
+              background: '#2196F3',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              fontSize: '13px'
+            }}
+          >
+            Editar
+          </button>
+          <button
+            onClick={() => cancelarReservacion(reserva)}
+            style={{
+              padding: '0.7rem 1rem',
+              background: '#EF4444',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              fontSize: '13px'
+            }}
+          >
+             Cancelar
+          </button>
+        </div>
+      )}
+    </div>
+  )
 
   return (
     <div style={{display: 'flex', flexDirection: 'column', gap: '2rem', padding: '2rem', width: '100%'}}>
@@ -499,7 +594,16 @@ export const ClientesModule = () => {
       {/* SECCIÓN RESERVACIONES */}
       {pestana === 'reservaciones' && (
       <div style={{display: 'grid', gridTemplateColumns: '1fr', gap: '1.5rem'}}>
-        {reservaciones.map(reserva => (
+        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap'}}>
+          <h2 style={{margin: 0, color: '#333', fontSize: '20px', fontWeight: 800}}>Reservaciones activas</h2>
+          <span style={{fontSize: '13px', fontWeight: 700, color: '#666'}}>{reservacionesActivas.length} activas</span>
+        </div>
+        {reservacionesActivas.length === 0 && (
+          <div style={{padding: '2rem', background: 'white', borderRadius: '12px', border: '2px dashed #D1D5DB', color: '#777', textAlign: 'center'}}>
+            No hay reservaciones activas
+          </div>
+        )}
+        {reservacionesActivas.map(reserva => (
           <div key={reserva.id} style={{
             background: 'white',
             borderRadius: '12px',
@@ -572,6 +676,20 @@ export const ClientesModule = () => {
             </div>
           </div>
         ))}
+
+        <div style={{height: '1px', background: '#E5E7EB', margin: '0.5rem 0'}} />
+
+        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap'}}>
+          <h2 style={{margin: 0, color: '#333', fontSize: '20px', fontWeight: 800}}>Reservaciones terminadas</h2>
+          <span style={{fontSize: '13px', fontWeight: 700, color: '#166534'}}>{reservacionesTerminadas.length} terminadas</span>
+        </div>
+        {reservacionesTerminadas.length === 0 ? (
+          <div style={{padding: '2rem', background: '#F8FAFC', borderRadius: '12px', border: '2px dashed #BBF7D0', color: '#166534', textAlign: 'center'}}>
+            Las reservaciones pagadas apareceran aqui
+          </div>
+        ) : (
+          reservacionesTerminadas.map(reserva => renderTarjetaReservacion(reserva, true))
+        )}
       </div>
       )}
 

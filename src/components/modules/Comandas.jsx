@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { ComandIcon, CheckCircleIcon, DollarSignIcon, ClockIcon } from '../Icons'
 import { appStyles } from '../../styles/styles'
-import { useComandas, useMenu, useMesas } from '../../hooks/useSupabase'
+import { useComandas, useMenu, useMesas, usePromociones } from '../../hooks/useSupabase'
 
 export const Comandas = ({
   comandas: comandasProp,
@@ -14,6 +14,7 @@ export const Comandas = ({
   const { comandas: comandasBd, agregarComanda: agregarComandaBd, actualizarComanda, eliminarComanda: eliminarComandaHook } = useComandas()
   const { menu, categories, loading: loadingMenu } = useMenu()
   const { mesas: mesasBd } = useMesas()
+  const { promociones } = usePromociones()
 
   const comandas = comandasProp || comandasBd
   const mesas = mesasProp || mesasBd
@@ -36,6 +37,7 @@ export const Comandas = ({
   const [mostrarCuentaSeparada, setMostrarCuentaSeparada] = useState(false)
   const [comandaBaseCuenta, setComandaBaseCuenta] = useState(null)
   const [nombreCuentaSeparada, setNombreCuentaSeparada] = useState('')
+  const [promocionesSeleccionadasIds, setPromocionesSeleccionadasIds] = useState([])
 
   // Calcular ID automáticamente basado en comandas existentes
   const proximoId = comandas.length + 1
@@ -110,6 +112,7 @@ export const Comandas = ({
   }
 
   const agregarAlComanda = (platillo) => {
+    const categoriaActual = categories.find(cat => cat.key === activeCategory)
     const existente = itemsComanda.find(item => item.nombre === platillo.nombre)
     
     if (existente) {
@@ -127,6 +130,8 @@ export const Comandas = ({
       const nuevoItem = {
         id: itemsComanda.length + 1,
         ...platillo,
+        categoria: activeCategory,
+        categoriaLabel: categoriaActual?.label || activeCategory,
         cantidad: 1,
         comentarios: '',
         subtotal: parseFloat(platillo.precio.replace('$', '')) * 1
@@ -176,8 +181,169 @@ export const Comandas = ({
     setItemsComanda(itemsComanda.filter(item => item.id !== id))
   }
 
+  const promocionesAplicables = promociones.filter(promo =>
+    promo.estado === 'activa' &&
+    !String(promo.nombre || '').toLowerCase().includes('vip')
+  )
+
+  const promocionesSeleccionadas = promocionesAplicables.filter(promo =>
+    promocionesSeleccionadasIds.includes(String(promo.id))
+  )
+
+  const normalizarTexto = (texto) => String(texto || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+
+  const obtenerObjetivosPromocion = (promo) => {
+    const explicitos = Array.isArray(promo.aplicableTo)
+      ? promo.aplicableTo.map(normalizarTexto).filter(Boolean)
+      : []
+
+    if (explicitos.length > 0) return explicitos
+
+    const texto = normalizarTexto(`${promo.nombre || ''} ${promo.descripcion || ''}`)
+    const objetivos = []
+    const posibles = [
+      'pizzas',
+      'pizza',
+      'bebidas',
+      'bebida',
+      'aguachile',
+      'aguachiles',
+      'pastas',
+      'pasta',
+      'postres',
+      'postre',
+      'mariscos',
+      'camarones',
+      'pollo',
+      'cafe',
+      'cafes'
+    ]
+
+    posibles.forEach(posible => {
+      if (texto.includes(posible)) objetivos.push(posible)
+    })
+
+    if (texto.includes('happy hour')) objetivos.push('bebidas', 'bebida')
+
+    return [...new Set(objetivos)]
+  }
+
+  const calcularSubtotal = () => {
+    return itemsComanda.reduce((total, item) => total + item.subtotal, 0)
+  }
+
+  const obtenerItemsPromocion = (promo) => {
+    if (!promo) return []
+    const aplicables = obtenerObjetivosPromocion(promo)
+    if (aplicables.length === 0) return []
+
+    return itemsComanda.filter(item => {
+      const nombre = normalizarTexto(item.nombre)
+      const categoria = normalizarTexto(item.categoriaLabel || item.categoria)
+      return aplicables.some(aplica =>
+        nombre.includes(aplica) ||
+        aplica.includes(nombre) ||
+        categoria.includes(aplica) ||
+        aplica.includes(categoria)
+      )
+    })
+  }
+
+  const obtenerReglaDescripcionPromocion = (promo) => {
+    const descripcion = normalizarTexto(promo?.descripcion || '')
+    const nxm = descripcion.match(/(\d+)\s*x\s*(\d+)/)
+    const porcentaje = descripcion.match(/(\d+(?:\.\d+)?)\s*%/)
+    const precioEspecial = descripcion.match(/(?:por|a)\s*\$?\s*(\d+(?:\.\d+)?)/) || descripcion.match(/\$\s*(\d+(?:\.\d+)?)/)
+
+    return {
+      texto: descripcion,
+      nxm: nxm ? { compra: Number(nxm[1]), paga: Number(nxm[2]) } : null,
+      gratis: descripcion.includes('gratis'),
+      gratisTodo: descripcion.includes('todo gratis') || descripcion.includes('todos gratis') || descripcion.includes('productos gratis') || descripcion.trim() === 'gratis',
+      porcentaje: porcentaje ? Number(porcentaje[1]) : descripcion.includes('mitad de precio') ? 50 : null,
+      precioEspecial: precioEspecial ? Number(precioEspecial[1]) : null
+    }
+  }
+
+  const itemCoincideConObjetivoGratis = (item, regla) => {
+    if (!regla.gratis) return false
+    if (regla.gratisTodo) return true
+
+    const nombre = normalizarTexto(item.nombre)
+    const categoria = normalizarTexto(item.categoriaLabel || item.categoria)
+    const antesGratis = regla.texto.split('gratis')[0] || ''
+    const objetivoGratis = antesGratis.includes('+')
+      ? antesGratis.split('+').pop().trim()
+      : antesGratis.trim()
+
+    if (!objetivoGratis) return false
+    if (objetivoGratis.includes(nombre) || nombre.includes(objetivoGratis)) return true
+    if (objetivoGratis.includes(categoria) || categoria.includes(objetivoGratis)) return true
+
+    const esBebida = categoria.includes('bebida') ||
+      ['refresco', 'bebida', 'gaseosa', 'limonada', 'jugo', 'te', 'cafe'].some(palabra => nombre.includes(palabra))
+
+    if ((objetivoGratis.includes('bebida') || objetivoGratis.includes('refresco')) && esBebida) return true
+
+    return !regla.texto.includes('+') && regla.texto.includes(nombre)
+  }
+
+  const calcularPromocionesAplicadas = () => {
+    return promocionesSeleccionadas.map(promo => {
+      const items = obtenerItemsPromocion(promo)
+      const base = items.reduce((total, item) => total + item.subtotal, 0)
+      let descuento = 0
+      const regla = obtenerReglaDescripcionPromocion(promo)
+
+      if (regla.nxm) {
+        descuento = items.reduce((total, item) => {
+          const precioUnitario = parseFloat(String(item.precio || '0').replace('$', '')) || 0
+          const grupos = Math.floor(item.cantidad / regla.nxm.compra)
+          const unidadesGratis = Math.max(regla.nxm.compra - regla.nxm.paga, 0)
+          return total + (grupos * unidadesGratis * precioUnitario)
+        }, 0)
+      } else if (regla.gratis) {
+        descuento = items
+          .filter(item => itemCoincideConObjetivoGratis(item, regla))
+          .reduce((total, item) => total + item.subtotal, 0)
+      } else if (regla.precioEspecial) {
+        descuento = Math.max(base - regla.precioEspecial, 0)
+      } else if (regla.porcentaje) {
+        descuento = base * (regla.porcentaje / 100)
+      } else if (promo.tipo === '2x1') {
+        descuento = items.reduce((total, item) => {
+          const precioUnitario = parseFloat(String(item.precio || '0').replace('$', '')) || 0
+          return total + (Math.floor(item.cantidad / 2) * precioUnitario)
+        }, 0)
+      } else if (promo.precio > 0 && promo.tipo === 'menu') {
+        descuento = Math.max(base - promo.precio, 0)
+      } else {
+        const descuentoPorcentaje = parseFloat(promo.descuento) || 0
+        descuento = base * (descuentoPorcentaje / 100)
+      }
+
+      return {
+        promo,
+        items,
+        base,
+        descuento: parseFloat(descuento.toFixed(2))
+      }
+    })
+  }
+
+  const calcularDescuentoPromocion = () => {
+    const subtotal = calcularSubtotal()
+    const descuento = calcularPromocionesAplicadas().reduce((total, promo) => total + promo.descuento, 0)
+    return Math.min(parseFloat(descuento.toFixed(2)), subtotal)
+  }
+
   const calcularTotal = () => {
-    return itemsComanda.reduce((total, item) => total + item.subtotal, 0).toFixed(2)
+    const subtotal = calcularSubtotal()
+    const descuento = calcularDescuentoPromocion()
+    return Math.max(subtotal - descuento, 0).toFixed(2)
   }
 
   const abrirNuevaComanda = () => {
@@ -205,6 +371,7 @@ export const Comandas = ({
     setComandaAEditar(null)
     setComandaBaseCuenta(null)
     setNombreCuentaSeparada('')
+    setPromocionesSeleccionadasIds([])
   }
 
   const guardarComanda = async () => {
@@ -212,7 +379,17 @@ export const Comandas = ({
 
     if (comandaAEditar) {
       try {
-        await actualizarComandaActiva(comandaAEditar.id, { items: itemsComanda })
+        const descuento = calcularDescuentoPromocion()
+        await actualizarComandaActiva(comandaAEditar.id, {
+          items: itemsComanda,
+          descuento,
+          promocionAplicada: calcularPromocionesAplicadas().map(aplicada => ({
+            id: aplicada.promo.id,
+            nombre: aplicada.promo.nombre,
+            descuento: aplicada.descuento,
+            productos: aplicada.items.map(item => item.nombre)
+          }))
+        })
         setMensajeAlerta(`Comanda #${comandaAEditar.id} actualizada correctamente`)
         setTimeout(() => setMensajeAlerta(''), 3000)
         cerrarComanda()
@@ -229,6 +406,13 @@ export const Comandas = ({
       await agregarComanda({
         mesa: referenciaMesa ? `Mesa ${numeroMesa.trim()} - ${referenciaMesa}` : `Mesa ${numeroMesa.trim()}`,
         items: itemsComanda,
+        descuento: calcularDescuentoPromocion(),
+        promocionAplicada: calcularPromocionesAplicadas().map(aplicada => ({
+          id: aplicada.promo.id,
+          nombre: aplicada.promo.nombre,
+          descuento: aplicada.descuento,
+          productos: aplicada.items.map(item => item.nombre)
+        })),
         id_mesa: comandaBaseCuenta?.id_mesa || null,
         cuentaSeparada: !!comandaBaseCuenta,
         nombreCuenta: comandaBaseCuenta ? referenciaMesa : null,
@@ -260,6 +444,7 @@ export const Comandas = ({
     // Establecer la comanda a editar y los items
     setComandaAEditar(comanda)
     setItemsComanda(comanda.items)
+    setPromocionesSeleccionadasIds([])
     setNumeroMesa(comanda.mesa?.match(/Mesa\s*(\d+)/i)?.[1] || '')
     setNombreMesa(comanda.mesa?.replace(/Mesa\s*\d+\s*-?\s*/i, '') || comanda.mesa)
     setShowComandaForm(true)
@@ -325,6 +510,15 @@ export const Comandas = ({
       setMensajeAlerta(`Comanda #${comandaAEliminar.id} eliminada correctamente`)
       setTimeout(() => setMensajeAlerta(''), 3000)
     }
+  }
+
+  const alternarPromocion = (id) => {
+    const idTexto = String(id)
+    setPromocionesSeleccionadasIds(prev =>
+      prev.includes(idTexto)
+        ? prev.filter(item => item !== idTexto)
+        : [...prev, idTexto]
+    )
   }
 
   return (
@@ -488,9 +682,9 @@ export const Comandas = ({
           zIndex: 1000
         }}>
           <div style={{
-            width: '100vw',
-            maxWidth: '1110px',
-            height: '85vh',
+            width: '98vw',
+            maxWidth: '1540px',
+            height: '88vh',
             backgroundColor: '#FF6F00',
             borderRadius: '12px',
             display: 'flex',
@@ -522,7 +716,7 @@ export const Comandas = ({
             {/* Content */}
             <div style={{display: 'flex', flex: 1, overflow: 'hidden', alignItems: 'stretch'}}>
               {/* Left Side - Platillos */}
-              <div style={{flex: 1, display: 'flex', flexDirection: 'column', borderRight: '1px solid #000', overflow: 'hidden'}}>
+              <div style={{flex: '1 1 780px', minWidth: '650px', display: 'flex', flexDirection: 'column', borderRight: '1px solid #000', overflow: 'hidden'}}>
                 
                 {/* Categorías */}
                 <div style={{
@@ -567,6 +761,8 @@ export const Comandas = ({
                   margin: '0',
                   display: 'grid',
                   gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
+                  gridAutoRows: '100px',
+                  alignContent: 'start',
                   gap: '0.5rem',
                   backgroundColor: '#fff'
                 }}>
@@ -621,7 +817,7 @@ export const Comandas = ({
               </div>
 
               {/* Right Side - Comanda (Carrito) */}
-              <div style={{width: '400px', minWidth: '380px', height: '100%', display: 'flex', flexDirection: 'column', backgroundColor: '#FF6F00', boxSizing: 'border-box'}}>
+              <div style={{width: '390px', minWidth: '360px', height: '100%', display: 'flex', flexDirection: 'column', backgroundColor: '#FF6F00', boxSizing: 'border-box'}}>
                 
                 {/* Cabecera */}
                 <div style={{
@@ -629,6 +825,8 @@ export const Comandas = ({
                   justifyContent: 'space-between',
                   alignItems: 'center',
                   padding: '1rem',
+                  minHeight: '68px',
+                  boxSizing: 'border-box',
                   borderBottom: '2px solid #000',
                   backgroundColor: '#FF6F00'
                 }}>
@@ -826,6 +1024,18 @@ export const Comandas = ({
 
                 {/* Total y Botón Guardar */}
                 <div style={{padding: '1rem', borderTop: '2px solid #000', backgroundColor: '#FF6F00'}}>
+                  {calcularDescuentoPromocion() > 0 && (
+                    <>
+                      <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem'}}>
+                        <span style={{color: '#000', fontWeight: 700, fontSize: '13px'}}>Subtotal:</span>
+                        <span style={{color: '#000', fontWeight: 700, fontSize: '14px'}}>${calcularSubtotal().toFixed(2)}</span>
+                      </div>
+                      <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.8rem'}}>
+                        <span style={{color: '#000', fontWeight: 700, fontSize: '13px'}}>Promo:</span>
+                        <span style={{color: '#064E3B', fontWeight: 800, fontSize: '14px'}}>- ${calcularDescuentoPromocion().toFixed(2)}</span>
+                      </div>
+                    </>
+                  )}
                   <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem'}}>
                     <span style={{color: '#000', fontWeight: 700, fontSize: '14px'}}>Total:</span>
                     <span style={{color: '#000', fontWeight: 700, fontSize: '18px'}}>
@@ -850,6 +1060,55 @@ export const Comandas = ({
                   >
                     {comandaAEditar ? 'Actualizar Comanda' : 'Guardar Comanda'}
                   </button>
+                </div>
+              </div>
+              <div style={{width: '320px', minWidth: '300px', height: '100%', display: 'flex', flexDirection: 'column', backgroundColor: '#FF6F00', borderLeft: '2px solid #000', boxSizing: 'border-box'}}>
+                <div style={{padding: '1rem', minHeight: '68px', boxSizing: 'border-box', display: 'flex', alignItems: 'center', borderBottom: '2px solid #000'}}>
+                  <h3 style={{color: '#000', margin: 0, fontSize: '16px', fontWeight: 800}}>Promociones</h3>
+                </div>
+                <div style={{flex: 1, overflowY: 'auto', padding: '1rem'}}>
+                  <div style={{background: '#fff', borderRadius: '8px', padding: '0.85rem', border: '1px solid #000'}}>
+                    <div style={{display: 'grid', gap: '0.45rem'}}>
+                      {promocionesAplicables.length === 0 ? (
+                        <div style={{fontSize: '12px', color: '#666'}}>No hay promociones activas disponibles.</div>
+                      ) : promocionesAplicables.map(promo => (
+                        <label key={promo.id} style={{display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '12px', fontWeight: 700, color: '#111', background: promocionesSeleccionadasIds.includes(String(promo.id)) ? '#FFF7ED' : '#F8FAFC', border: '1px solid #E5E7EB', borderRadius: '6px', padding: '0.45rem', cursor: 'pointer'}}>
+                          <input
+                            type="checkbox"
+                            checked={promocionesSeleccionadasIds.includes(String(promo.id))}
+                            onChange={() => alternarPromocion(promo.id)}
+                          />
+                          <span>{promo.nombre} {promo.descuento > 0 ? `- ${promo.descuento}%` : ''}</span>
+                        </label>
+                      ))}
+                    </div>
+
+                    {calcularPromocionesAplicadas().length > 0 && (
+                      <div style={{marginTop: '0.8rem', display: 'grid', gap: '0.65rem', fontSize: '12px', color: '#333'}}>
+                        <div><strong>Modo pruebas:</strong> se puede aplicar aunque la fecha o dia no coincida.</div>
+                        {calcularPromocionesAplicadas().map(aplicada => (
+                          <div key={aplicada.promo.id} style={{borderTop: '1px solid #E5E7EB', paddingTop: '0.6rem'}}>
+                            <div style={{display: 'flex', justifyContent: 'space-between', gap: '0.5rem', fontWeight: 800}}>
+                              <span>{aplicada.promo.nombre}</span>
+                              <span>- ${aplicada.descuento.toFixed(2)}</span>
+                            </div>
+                            {aplicada.items.length > 0 ? (
+                              <div style={{marginTop: '0.4rem', color: '#475569'}}>
+                                {aplicada.items.map(item => (
+                                  <div key={`${aplicada.promo.id}-${item.id}`} style={{display: 'flex', justifyContent: 'space-between', gap: '0.5rem'}}>
+                                    <span>{item.nombre}</span>
+                                    <span>${item.subtotal.toFixed(2)}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <div style={{marginTop: '0.35rem', color: '#B45309'}}>No aplica a los productos actuales.</div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -931,8 +1190,8 @@ export const Comandas = ({
                 }}
                 style={{
                   padding: '0.8rem 1.5rem',
-                  backgroundColor: '#e0e0e0',
-                  color: '#333',
+                  backgroundColor: '#fc0101',
+                  color: '#ffffff',
                   border: 'none',
                   borderRadius: '6px',
                   fontWeight: 700,
@@ -947,8 +1206,8 @@ export const Comandas = ({
                 disabled={!nombreCuentaSeparada.trim()}
                 style={{
                   padding: '0.8rem 1.5rem',
-                  backgroundColor: nombreCuentaSeparada.trim() ? '#4CAF50' : '#ccc',
-                  color: '#000',
+                  backgroundColor: nombreCuentaSeparada.trim() ? '#4CAF50' : '#4CAF50',
+                  color: '#ffffff',
                   border: 'none',
                   borderRadius: '6px',
                   fontWeight: 700,
@@ -1181,7 +1440,7 @@ export const Comandas = ({
                   style={{
                     flex: 1,
                     padding: '0.8rem',
-                    backgroundColor: '#FFD54F',
+                    backgroundColor: '#00c3ff',
                     color: '#000',
                     border: 'none',
                     borderRadius: '6px',
@@ -1193,7 +1452,7 @@ export const Comandas = ({
                   onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#FFC107'}
                   onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#FFD54F'}
                 >
-                  ✏️ Editar
+                   Editar
                 </button>
               )}
               {puedeEliminarComandas && (
@@ -1206,7 +1465,7 @@ export const Comandas = ({
                     flex: 1,
                     padding: '0.8rem',
                     backgroundColor: '#EF4444',
-                    color: '#fff',
+                    color: '#000',
                     border: 'none',
                     borderRadius: '6px',
                     fontWeight: 700,

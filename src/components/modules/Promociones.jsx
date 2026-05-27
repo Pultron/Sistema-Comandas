@@ -1,19 +1,22 @@
 import { useState } from 'react'
 import { appStyles } from '../../styles/styles'
-import { usePromociones } from '../../hooks/useSupabase'
+import { useMenu, usePromociones } from '../../hooks/useSupabase'
 
 export const PromocionesModule = () => {
   const {
     promociones,
-    menuDelDia,
     guardarPromocion: guardarPromocionBd,
     eliminarPromocion: eliminarPromocionBd,
     cambiarEstadoPromocion: cambiarEstadoPromocionBd
   } = usePromociones()
+  const { menu } = useMenu()
 
   const [mostrarFormulario, setMostrarFormulario] = useState(false)
-  const [mostrarMenuDia, setMostrarMenuDia] = useState(false)
   const [editando, setEditando] = useState(null)
+  const [busquedaProducto, setBusquedaProducto] = useState('')
+  const [mensajeAlerta, setMensajeAlerta] = useState('')
+  const [tipoAlerta, setTipoAlerta] = useState('error')
+  const [guardando, setGuardando] = useState(false)
   const [formData, setFormData] = useState({
     nombre: '',
     tipo: 'porcentaje',
@@ -25,11 +28,107 @@ export const PromocionesModule = () => {
     aplicableTo: ''
   })
 
-  const [nuevoPlato, setNuevoPlato] = useState({
-    platillo: '',
-    precio: '',
-    preparacion: ''
-  })
+  const aplicablesSeleccionados = String(formData.aplicableTo || '')
+    .split(',')
+    .map(item => item.trim())
+    .filter(Boolean)
+
+  const normalizarTexto = (texto) => String(texto || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+
+  const productosMenu = Object.values(menu)
+    .flatMap(categoria => (categoria.platillos || []).map(producto => ({
+      ...producto,
+      categoriaLabel: categoria.nombre || ''
+    })))
+    .filter((producto, index, arr) => arr.findIndex(item => item.nombre === producto.nombre) === index)
+    .sort((a, b) => a.nombre.localeCompare(b.nombre))
+
+  const productosFiltrados = productosMenu.filter(producto =>
+    producto.nombre.toLowerCase().includes(busquedaProducto.toLowerCase())
+  )
+
+  const actualizarAplicables = (valores) => {
+    setFormData(prev => ({ ...prev, aplicableTo: valores.join(', ') }))
+  }
+
+  const alternarAplicable = (valor) => {
+    const existe = aplicablesSeleccionados.some(item => item.toLowerCase() === valor.toLowerCase())
+    actualizarAplicables(
+      existe
+        ? aplicablesSeleccionados.filter(item => item.toLowerCase() !== valor.toLowerCase())
+        : [...aplicablesSeleccionados, valor]
+    )
+  }
+
+  const quitarAplicable = (valor) => {
+    actualizarAplicables(aplicablesSeleccionados.filter(item => item !== valor))
+  }
+
+  const productosSeleccionados = productosMenu.filter(producto =>
+    aplicablesSeleccionados.some(item => item.toLowerCase() === producto.nombre.toLowerCase())
+  )
+
+  const obtenerPrecioProducto = (producto) => parseFloat(String(producto?.precio || '0').replace('$', '')) || 0
+
+  const obtenerReglaDescripcion = () => {
+    const descripcion = normalizarTexto(formData.descripcion)
+    const nxm = descripcion.match(/(\d+)\s*x\s*(\d+)/)
+    const porcentaje = descripcion.match(/(\d+(?:\.\d+)?)\s*%/)
+    const precioEspecial = descripcion.match(/(?:por|a)\s*\$?\s*(\d+(?:\.\d+)?)/) || descripcion.match(/\$\s*(\d+(?:\.\d+)?)/)
+
+    return {
+      texto: descripcion,
+      nxm: nxm ? { compra: Number(nxm[1]), paga: Number(nxm[2]) } : null,
+      gratis: descripcion.includes('gratis'),
+      gratisTodo: descripcion.includes('todo gratis') || descripcion.includes('todos gratis') || descripcion.includes('productos gratis') || descripcion.trim() === 'gratis',
+      porcentaje: porcentaje ? Number(porcentaje[1]) : descripcion.includes('mitad de precio') ? 50 : null,
+      precioEspecial: precioEspecial ? Number(precioEspecial[1]) : null
+    }
+  }
+
+  const productoEsGratis = (producto) => {
+    const regla = reglaDescripcion
+    const descripcion = regla.texto
+    if (!regla.gratis) return false
+    if (regla.gratisTodo) return true
+
+    const nombre = normalizarTexto(producto.nombre)
+    const categoria = normalizarTexto(producto.categoriaLabel)
+    const antesGratis = descripcion.split('gratis')[0] || ''
+    const objetivoGratis = antesGratis.includes('+')
+      ? antesGratis.split('+').pop().trim()
+      : antesGratis.trim()
+    const esBebida = categoria.includes('bebida') ||
+      ['refresco', 'bebida', 'gaseosa', 'limonada', 'jugo', 'te', 'cafe'].some(palabra => nombre.includes(palabra))
+
+    if (objetivoGratis.includes(nombre) || nombre.includes(objetivoGratis)) return true
+    if (objetivoGratis.includes(categoria) || categoria.includes(objetivoGratis)) return true
+    if ((objetivoGratis.includes('bebida') || objetivoGratis.includes('refresco')) && esBebida) return true
+
+    return false
+  }
+
+  const reglaDescripcion = obtenerReglaDescripcion()
+  const tieneReglaAutomatica = reglaDescripcion.nxm || reglaDescripcion.gratis || reglaDescripcion.porcentaje || reglaDescripcion.precioEspecial
+  const mostrarPrecioManual = formData.tipo === 'menu' && !tieneReglaAutomatica
+
+  const calcularPrecioPromo = (precio) => {
+    const descuento = parseFloat(formData.descuento) || 0
+    const precioEspecial = parseFloat(formData.precio) || 0
+
+    if (formData.tipo === 'porcentaje' || formData.tipo === 'horario') {
+      return Math.max(precio - (precio * descuento / 100), 0)
+    }
+
+    if (formData.tipo === 'menu' && precioEspecial > 0) {
+      return precioEspecial
+    }
+
+    return precio
+  }
 
   const abrirFormulario = (promo = null) => {
     if (promo) {
@@ -47,7 +146,7 @@ export const PromocionesModule = () => {
     } else {
       setFormData({
         nombre: '',
-        tipo: 'porcentaje',
+        tipo: 'menu',
         descripcion: '',
         descuento: '',
         precio: '',
@@ -57,32 +156,36 @@ export const PromocionesModule = () => {
       })
       setEditando(null)
     }
+    setBusquedaProducto('')
     setMostrarFormulario(true)
   }
 
-  const guardarPromocion = () => {
+  const mostrarMensaje = (mensaje, tipo = 'error') => {
+    setMensajeAlerta(mensaje)
+    setTipoAlerta(tipo)
+    setTimeout(() => setMensajeAlerta(''), 3500)
+  }
+
+  const guardarPromocion = async () => {
     if (!formData.nombre || !formData.descripcion || !formData.fechaInicio || !formData.fechaFin) {
-      alert('Completa todos los campos')
+      mostrarMensaje('Completa todos los campos')
       return
     }
 
-    guardarPromocionBd(formData, editando)
+    try {
+      setGuardando(true)
+      await guardarPromocionBd({
+        ...formData,
+        precio: tieneReglaAutomatica ? '' : formData.precio
+      }, editando)
 
-    setMostrarFormulario(false)
-  }
-
-  const agregarPlato = () => {
-    if (!nuevoPlato.platillo || !nuevoPlato.precio) {
-      alert('Completa el platillo y precio')
-      return
+      setMostrarFormulario(false)
+      mostrarMensaje(editando ? 'Promocion editada correctamente' : 'Promocion guardada correctamente', 'success')
+    } catch (error) {
+      mostrarMensaje(`No se pudo guardar la promocion: ${error.message}`)
+    } finally {
+      setGuardando(false)
     }
-
-    alert('El menú del día se sincroniza desde Supabase. Si necesitas crear/editar platos, hay que añadir la tabla y el flujo en BD.')
-    setNuevoPlato({ platillo: '', precio: '', preparacion: '' })
-  }
-
-  const eliminarPlato = () => {
-    alert('El menú del día se sincroniza desde Supabase. Para borrar platos hay que implementar esa tabla en la BD.')
   }
 
   const eliminarPromocion = (id) => {
@@ -105,12 +208,6 @@ export const PromocionesModule = () => {
       <div style={appStyles.pageHeader}>
         <h1 style={appStyles.pageTitle}> Promociones y Descuentos</h1>
         <div style={{display: 'flex', gap: '1rem'}}>
-          <button
-            onClick={() => setMostrarMenuDia(true)}
-            style={{...appStyles.btnPrimary, background: '#9C27B0'}}
-          >
-             Menú del Día
-          </button>
           <button
             onClick={() => abrirFormulario()}
             style={{...appStyles.btnPrimary}}
@@ -231,7 +328,7 @@ export const PromocionesModule = () => {
       {/* Modal Nueva Promoción */}
       {mostrarFormulario && (
         <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000}}>
-          <div style={{backgroundColor: 'white', borderRadius: '12px', padding: '2rem', maxWidth: '600px', width: '90%', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 10px 40px rgba(0, 0, 0, 0.3)'}}>
+          <div style={{backgroundColor: 'white', borderRadius: '12px', padding: '2rem', maxWidth: '760px', width: '92%', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 10px 40px rgba(0, 0, 0, 0.3)'}}>
             <h2 style={{color: '#333', margin: '0 0 1.5rem 0', fontSize: '20px', fontWeight: 700}}>
               {editando ? 'Editar Promoción' : 'Nueva Promoción'}
             </h2>
@@ -240,7 +337,7 @@ export const PromocionesModule = () => {
                 <label style={{display: 'block', fontWeight: 600, marginBottom: '0.5rem', color: '#333'}}>Nombre</label>
                 <input type="text" value={formData.nombre} onChange={(e) => setFormData({...formData, nombre: e.target.value})} style={{width: '100%', padding: '0.8rem', border: '2px solid #e0e0e0', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box'}} onFocus={(e) => e.target.style.borderColor = '#FF6F00'} onBlur={(e) => e.target.style.borderColor = '#e0e0e0'} />
               </div>
-              <div>
+              <div style={{display: editando ? 'block' : 'none'}}>
                 <label style={{display: 'block', fontWeight: 600, marginBottom: '0.5rem', color: '#333'}}>Tipo de Promoción</label>
                 <select value={formData.tipo} onChange={(e) => setFormData({...formData, tipo: e.target.value})} style={{width: '100%', padding: '0.8rem', border: '2px solid #e0e0e0', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box'}}>
                   <option value="porcentaje">Descuento %</option>
@@ -253,18 +350,6 @@ export const PromocionesModule = () => {
                 <label style={{display: 'block', fontWeight: 600, marginBottom: '0.5rem', color: '#333'}}>Descripción</label>
                 <input type="text" value={formData.descripcion} onChange={(e) => setFormData({...formData, descripcion: e.target.value})} placeholder="Describe la promoción..." style={{width: '100%', padding: '0.8rem', border: '2px solid #e0e0e0', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box'}} onFocus={(e) => e.target.style.borderColor = '#FF6F00'} onBlur={(e) => e.target.style.borderColor = '#e0e0e0'} />
               </div>
-              {formData.tipo !== 'menu' && (
-                <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem'}}>
-                  <div>
-                    <label style={{display: 'block', fontWeight: 600, marginBottom: '0.5rem', color: '#333'}}>Descuento (%)</label>
-                    <input type="number" value={formData.descuento} onChange={(e) => setFormData({...formData, descuento: e.target.value})} style={{width: '100%', padding: '0.8rem', border: '2px solid #e0e0e0', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box'}} onFocus={(e) => e.target.style.borderColor = '#FF6F00'} onBlur={(e) => e.target.style.borderColor = '#e0e0e0'} />
-                  </div>
-                  <div>
-                    <label style={{display: 'block', fontWeight: 600, marginBottom: '0.5rem', color: '#333'}}>Precio Especial ($)</label>
-                    <input type="number" value={formData.precio} onChange={(e) => setFormData({...formData, precio: e.target.value})} style={{width: '100%', padding: '0.8rem', border: '2px solid #e0e0e0', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box'}} onFocus={(e) => e.target.style.borderColor = '#FF6F00'} onBlur={(e) => e.target.style.borderColor = '#e0e0e0'} />
-                  </div>
-                </div>
-              )}
               <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem'}}>
                 <div>
                   <label style={{display: 'block', fontWeight: 600, marginBottom: '0.5rem', color: '#333'}}>Fecha Inicio</label>
@@ -275,82 +360,196 @@ export const PromocionesModule = () => {
                   <input type="date" value={formData.fechaFin} onChange={(e) => setFormData({...formData, fechaFin: e.target.value})} style={{width: '100%', padding: '0.8rem', border: '2px solid #e0e0e0', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box'}} onFocus={(e) => e.target.style.borderColor = '#FF6F00'} onBlur={(e) => e.target.style.borderColor = '#e0e0e0'} />
                 </div>
               </div>
-              <div>
-                <label style={{display: 'block', fontWeight: 600, marginBottom: '0.5rem', color: '#333'}}>Aplicable a (separado por comas)</label>
-                <input type="text" value={formData.aplicableTo} onChange={(e) => setFormData({...formData, aplicableTo: e.target.value})} placeholder="Ej: Pizza, Bebidas, Postres..." style={{width: '100%', padding: '0.8rem', border: '2px solid #e0e0e0', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box'}} onFocus={(e) => e.target.style.borderColor = '#FF6F00'} onBlur={(e) => e.target.style.borderColor = '#e0e0e0'} />
+              {(formData.tipo === 'porcentaje' || formData.tipo === 'horario') && (
+                <div>
+                  <label style={{display: 'block', fontWeight: 600, marginBottom: '0.5rem', color: '#333'}}>Descuento (%)</label>
+                  <input type="number" value={formData.descuento} onChange={(e) => setFormData({...formData, descuento: e.target.value})} style={{width: '100%', padding: '0.8rem', border: '2px solid #e0e0e0', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box'}} onFocus={(e) => e.target.style.borderColor = '#FF6F00'} onBlur={(e) => e.target.style.borderColor = '#e0e0e0'} />
+                </div>
+              )}
+              {formData.tipo === '2x1' && (
+                <div style={{padding: '1rem', background: '#FFF7ED', border: '1px solid #FDBA74', borderRadius: '8px', color: '#9A3412', fontSize: '13px', fontWeight: 700}}>
+                  Esta promocion cobra 1 producto por cada 2 iguales agregados en la comanda.
+                </div>
+              )}
+              {mostrarPrecioManual && (
+                <div>
+                  <label style={{display: 'block', fontWeight: 600, marginBottom: '0.5rem', color: '#333'}}>{editando ? 'Precio especial del menu ($)' : 'Precio de la promocion ($)'}</label>
+                  <input type="number" value={formData.precio} onChange={(e) => setFormData({...formData, precio: e.target.value})} style={{width: '100%', padding: '0.8rem', border: '2px solid #e0e0e0', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box'}} onFocus={(e) => e.target.style.borderColor = '#FF6F00'} onBlur={(e) => e.target.style.borderColor = '#e0e0e0'} />
+                </div>
+              )}
+              {formData.tipo === 'menu' && reglaDescripcion.nxm && (
+                <div style={{padding: '1rem', background: '#FFF7ED', border: '1px solid #FDBA74', borderRadius: '8px', color: '#9A3412', fontSize: '13px', fontWeight: 700}}>
+                  Regla detectada: {reglaDescripcion.nxm.compra}x{reglaDescripcion.nxm.paga}. Se calculara por cantidad en comanda.
+                </div>
+              )}
+              {formData.tipo === 'menu' && reglaDescripcion.gratis && (
+                <div style={{padding: '1rem', background: '#ECFDF5', border: '1px solid #86EFAC', borderRadius: '8px', color: '#166534', fontSize: '13px', fontWeight: 700}}>
+                  Regla detectada: producto gratis. No se necesita precio manual.
+                </div>
+              )}
+              {formData.tipo === 'menu' && reglaDescripcion.porcentaje && (
+                <div style={{padding: '1rem', background: '#EFF6FF', border: '1px solid #93C5FD', borderRadius: '8px', color: '#1D4ED8', fontSize: '13px', fontWeight: 700}}>
+                  Regla detectada: {reglaDescripcion.porcentaje}% de descuento escrito en la descripcion.
+                </div>
+              )}
+              {formData.tipo === 'menu' && reglaDescripcion.precioEspecial && (
+                <div style={{padding: '1rem', background: '#F0FDF4', border: '1px solid #86EFAC', borderRadius: '8px', color: '#166534', fontSize: '13px', fontWeight: 700}}>
+                  Regla detectada: paquete por ${reglaDescripcion.precioEspecial.toFixed(2)} escrito en la descripcion.
+                </div>
+              )}
+              <div style={{border: '1px solid #e5e5e5', borderRadius: '8px', padding: '1rem', background: '#FAFAFA'}}>
+                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', marginBottom: '0.8rem', flexWrap: 'wrap'}}>
+                  <label style={{display: 'block', fontWeight: 700, color: '#333'}}>Aplicar promocion a</label>
+                </div>
+
+                {aplicablesSeleccionados.length > 0 && (
+                  <div style={{display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.9rem'}}>
+                    {aplicablesSeleccionados.map(item => (
+                      <button key={item} type="button" onClick={() => quitarAplicable(item)} style={{padding: '0.35rem 0.65rem', background: '#FFF3E0', color: '#9A3412', border: '1px solid #FDBA74', borderRadius: '999px', fontSize: '12px', fontWeight: 700, cursor: 'pointer'}}>
+                        {item} x
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                <div>
+                  <input type="text" value={busquedaProducto} onChange={(e) => setBusquedaProducto(e.target.value)} placeholder="Buscar producto..." style={{width: '100%', padding: '0.75rem', border: '2px solid #e0e0e0', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box', marginBottom: '0.8rem'}} />
+                  <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(165px, 1fr))', gap: '0.6rem', maxHeight: '210px', overflowY: 'auto'}}>
+                    {productosFiltrados.map(producto => {
+                      const activo = aplicablesSeleccionados.some(item => item.toLowerCase() === producto.nombre.toLowerCase())
+                      return (
+                        <button key={producto.id} type="button" onClick={() => alternarAplicable(producto.nombre)} style={{padding: '0.65rem', background: activo ? '#DCFCE7' : '#fff', color: activo ? '#166534' : '#333', border: `2px solid ${activo ? '#22C55E' : '#e0e0e0'}`, borderRadius: '6px', fontWeight: 700, cursor: 'pointer', textAlign: 'left', fontSize: '13px'}}>
+                          {producto.nombre}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
               </div>
+              {productosSeleccionados.length > 0 && (
+                <div style={{border: '1px solid #BBF7D0', background: '#F0FDF4', borderRadius: '8px', padding: '1rem'}}>
+                  <div style={{fontWeight: 800, color: '#166534', marginBottom: '0.8rem'}}>Vista previa de precios</div>
+                  <div style={{display: 'grid', gap: '0.55rem'}}>
+                    {reglaDescripcion.nxm ? (
+                      productosSeleccionados.map(producto => {
+                        const precio = obtenerPrecioProducto(producto)
+                        const totalNormal = precio * reglaDescripcion.nxm.compra
+                        const totalPromo = precio * reglaDescripcion.nxm.paga
+                        return (
+                          <div key={producto.id} style={{display: 'grid', gridTemplateColumns: '1fr auto', gap: '1rem', alignItems: 'center', padding: '0.6rem', background: '#fff', borderRadius: '6px', border: '1px solid #DCFCE7'}}>
+                            <span style={{fontWeight: 700, color: '#333'}}>{producto.nombre}</span>
+                            <span style={{fontWeight: 800, color: '#166534'}}>
+                              {reglaDescripcion.nxm.compra} x ${precio.toFixed(2)} = ${totalNormal.toFixed(2)} a ${totalPromo.toFixed(2)}
+                            </span>
+                          </div>
+                        )
+                      })
+                    ) : reglaDescripcion.gratis ? (
+                      <>
+                        {productosSeleccionados.map(producto => {
+                          const precio = obtenerPrecioProducto(producto)
+                          const gratis = productoEsGratis(producto)
+                          return (
+                            <div key={producto.id} style={{display: 'grid', gridTemplateColumns: '1fr auto', gap: '1rem', alignItems: 'center', padding: '0.6rem', background: '#fff', borderRadius: '6px', border: '1px solid #DCFCE7'}}>
+                              <span style={{fontWeight: 700, color: '#333'}}>{producto.nombre}</span>
+                              <span style={{fontWeight: 800, color: gratis ? '#166534' : '#333'}}>
+                                {gratis ? `$${precio.toFixed(2)} a Gratis` : `$${precio.toFixed(2)}`}
+                              </span>
+                            </div>
+                          )
+                        })}
+                        <div style={{display: 'grid', gridTemplateColumns: '1fr auto', gap: '1rem', alignItems: 'center', padding: '0.7rem', background: '#DCFCE7', borderRadius: '6px', color: '#14532D', fontWeight: 900}}>
+                          <span>Total con promocion</span>
+                          <span>
+                            ${productosSeleccionados.reduce((total, producto) => total + obtenerPrecioProducto(producto), 0).toFixed(2)} a ${productosSeleccionados.reduce((total, producto) => total + (productoEsGratis(producto) ? 0 : obtenerPrecioProducto(producto)), 0).toFixed(2)}
+                          </span>
+                        </div>
+                      </>
+                    ) : reglaDescripcion.precioEspecial ? (
+                      <div style={{display: 'grid', gridTemplateColumns: '1fr auto', gap: '1rem', alignItems: 'center', padding: '0.6rem', background: '#fff', borderRadius: '6px', border: '1px solid #DCFCE7'}}>
+                        <span style={{fontWeight: 700, color: '#333'}}>
+                          {productosSeleccionados.map(producto => producto.nombre).join(' + ')}
+                        </span>
+                        <span style={{fontWeight: 800, color: '#166534'}}>
+                          ${productosSeleccionados.reduce((total, producto) => total + obtenerPrecioProducto(producto), 0).toFixed(2)} a ${reglaDescripcion.precioEspecial.toFixed(2)}
+                        </span>
+                      </div>
+                    ) : reglaDescripcion.porcentaje ? (
+                      productosSeleccionados.map(producto => {
+                        const precio = obtenerPrecioProducto(producto)
+                        const precioPromo = Math.max(precio - (precio * reglaDescripcion.porcentaje / 100), 0)
+                        return (
+                          <div key={producto.id} style={{display: 'grid', gridTemplateColumns: '1fr auto', gap: '1rem', alignItems: 'center', padding: '0.6rem', background: '#fff', borderRadius: '6px', border: '1px solid #DCFCE7'}}>
+                            <span style={{fontWeight: 700, color: '#333'}}>{producto.nombre}</span>
+                            <span style={{fontWeight: 800, color: '#166534'}}>
+                              ${precio.toFixed(2)} a ${precioPromo.toFixed(2)}
+                            </span>
+                          </div>
+                        )
+                      })
+                    ) : formData.tipo === 'menu' ? (
+                      <div style={{display: 'grid', gridTemplateColumns: '1fr auto', gap: '1rem', alignItems: 'center', padding: '0.6rem', background: '#fff', borderRadius: '6px', border: '1px solid #DCFCE7'}}>
+                        <span style={{fontWeight: 700, color: '#333'}}>
+                          {productosSeleccionados.map(producto => producto.nombre).join(' + ')}
+                        </span>
+                        <span style={{fontWeight: 800, color: '#166534'}}>
+                          ${productosSeleccionados.reduce((total, producto) => total + obtenerPrecioProducto(producto), 0).toFixed(2)} a ${calcularPrecioPromo(0).toFixed(2)}
+                        </span>
+                      </div>
+                    ) : (
+                      productosSeleccionados.map(producto => {
+                        const precio = obtenerPrecioProducto(producto)
+                        const precioPromo = calcularPrecioPromo(precio)
+                        return (
+                          <div key={producto.id} style={{display: 'grid', gridTemplateColumns: '1fr auto', gap: '1rem', alignItems: 'center', padding: '0.6rem', background: '#fff', borderRadius: '6px', border: '1px solid #DCFCE7'}}>
+                            <span style={{fontWeight: 700, color: '#333'}}>{producto.nombre}</span>
+                            {formData.tipo === '2x1' ? (
+                              <span style={{fontWeight: 800, color: '#166534'}}>2 x ${precio.toFixed(2)} = ${precio.toFixed(2)}</span>
+                            ) : (
+                              <span style={{fontWeight: 800, color: '#166534'}}>
+                                ${precio.toFixed(2)} a ${precioPromo.toFixed(2)}
+                              </span>
+                            )}
+                          </div>
+                        )
+                      })
+                    )}
+                  </div>
+                </div>
+              )}
               <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem'}}>
                 <button onClick={() => setMostrarFormulario(false)} style={{padding: '0.8rem', background: '#e0e0e0', color: '#333', border: 'none', borderRadius: '6px', fontWeight: 600, cursor: 'pointer'}}>Cancelar</button>
-                <button onClick={guardarPromocion} style={{padding: '0.8rem', background: 'linear-gradient(90deg, #FF6F00 0%, #FFB300 50%, #FF9800 100%)', color: '#000', border: 'none', borderRadius: '6px', fontWeight: 600, cursor: 'pointer'}}>Guardar</button>
+                <button
+                  onClick={guardarPromocion}
+                  disabled={guardando}
+                  style={{padding: '0.8rem', background: guardando ? '#d1d5db' : 'linear-gradient(90deg, #FF6F00 0%, #FFB300 50%, #FF9800 100%)', color: '#000', border: 'none', borderRadius: '6px', fontWeight: 600, cursor: guardando ? 'not-allowed' : 'pointer'}}
+                >
+                  {guardando ? 'Guardando...' : 'Guardar'}
+                </button>
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Modal Menú del Día */}
-      {mostrarMenuDia && (
-        <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000}}>
-          <div style={{backgroundColor: 'white', borderRadius: '12px', padding: '2rem', maxWidth: '600px', width: '90%', maxHeight: '80vh', overflowY: 'auto', boxShadow: '0 10px 40px rgba(0, 0, 0, 0.3)'}}>
-            <h2 style={{color: '#333', margin: '0 0 1.5rem 0', fontSize: '20px', fontWeight: 700}}> Menú del Día</h2>
-            
-            <div style={{background: '#f5f5f5', padding: '1rem', borderRadius: '8px', marginBottom: '1.5rem'}}>
-              <p style={{color: '#666', fontSize: '13px', margin: 0}}>Configura los platillos especiales de hoy</p>
-            </div>
-
-            <div style={{display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem'}}>
-              <div>
-                <label style={{display: 'block', fontWeight: 600, marginBottom: '0.5rem', color: '#333'}}>Platillo</label>
-                <input type="text" value={nuevoPlato.platillo} onChange={(e) => setNuevoPlato({...nuevoPlato, platillo: e.target.value})} placeholder="Ej: Sopa de verduras..." style={{width: '100%', padding: '0.8rem', border: '2px solid #e0e0e0', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box'}} onFocus={(e) => e.target.style.borderColor = '#FF6F00'} onBlur={(e) => e.target.style.borderColor = '#e0e0e0'} />
-              </div>
-              <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem'}}>
-                <div>
-                  <label style={{display: 'block', fontWeight: 600, marginBottom: '0.5rem', color: '#333'}}>Precio ($)</label>
-                  <input type="number" value={nuevoPlato.precio} onChange={(e) => setNuevoPlato({...nuevoPlato, precio: e.target.value})} style={{width: '100%', padding: '0.8rem', border: '2px solid #e0e0e0', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box'}} onFocus={(e) => e.target.style.borderColor = '#FF6F00'} onBlur={(e) => e.target.style.borderColor = '#e0e0e0'} />
-                </div>
-                <div>
-                  <label style={{display: 'block', fontWeight: 600, marginBottom: '0.5rem', color: '#333'}}>Prep (min)</label>
-                  <input type="number" value={nuevoPlato.preparacion} onChange={(e) => setNuevoPlato({...nuevoPlato, preparacion: e.target.value})} style={{width: '100%', padding: '0.8rem', border: '2px solid #e0e0e0', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box'}} onFocus={(e) => e.target.style.borderColor = '#FF6F00'} onBlur={(e) => e.target.style.borderColor = '#e0e0e0'} />
-                </div>
-              </div>
-              <button onClick={agregarPlato} style={{padding: '0.8rem', background: '#4CAF50', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 600, cursor: 'pointer'}}>+ Agregar Platillo</button>
-            </div>
-
-            <h3 style={{color: '#333', fontSize: '16px', fontWeight: 700, marginBottom: '1rem'}}>Platillos del Día</h3>
-            <div style={{display: 'flex', flexDirection: 'column', gap: '0.8rem', marginBottom: '1.5rem'}}>
-              {menuDelDia.map((plato, idx) => (
-                <div key={idx} style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  padding: '1rem',
-                  background: '#f5f5f5',
-                  borderRadius: '8px'
-                }}>
-                  <div>
-                    <div style={{fontWeight: 600, color: '#333'}}>{plato.platillo}</div>
-                    <div style={{fontSize: '12px', color: '#666'}}>Prep: {plato.preparacion} min</div>
-                  </div>
-                  <div style={{display: 'flex', alignItems: 'center', gap: '1rem'}}>
-                    <div style={{fontWeight: 700, color: '#FF6F00', fontSize: '16px'}}>${plato.precio}</div>
-                    <button
-                      onClick={() => eliminarPlato(idx)}
-                      style={{padding: '0.5rem 0.8rem', background: '#EF4444', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer'}}
-                    >
-                      🗑️
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem'}}>
-              <button onClick={() => setMostrarMenuDia(false)} style={{padding: '0.8rem', background: '#e0e0e0', color: '#333', border: 'none', borderRadius: '6px', fontWeight: 600, cursor: 'pointer'}}>Cerrar</button>
-              <button onClick={() => setMostrarMenuDia(false)} style={{padding: '0.8rem', background: 'linear-gradient(90deg, #9C27B0 0%, #BA68C8 100%)', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 600, cursor: 'pointer'}}>Guardar Cambios</button>
-            </div>
-          </div>
+      {mensajeAlerta && (
+        <div style={{
+          position: 'fixed',
+          top: '20px',
+          right: '20px',
+          zIndex: 3000,
+          padding: '1rem 1.25rem',
+          borderRadius: '8px',
+          background: tipoAlerta === 'success' ? '#16A34A' : '#EF4444',
+          color: '#fff',
+          fontWeight: 800,
+          boxShadow: '0 8px 24px rgba(0,0,0,0.25)',
+          maxWidth: '520px'
+        }}>
+          {mensajeAlerta}
         </div>
       )}
+
     </div>
   )
 }

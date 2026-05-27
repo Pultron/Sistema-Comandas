@@ -17,6 +17,12 @@ const avisarCambioMesas = () => {
   }
 }
 
+const avisarCambioReservaciones = () => {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('reservaciones:changed'))
+  }
+}
+
 // ── PRODUCTOS / MENÚ ──────────────────────────
 export function useMenu() {
   const [menu, setMenu]         = useState({})
@@ -158,8 +164,10 @@ export function useComandas() {
 
     // Calcular totales
     const subtotal  = comanda.items.reduce((s, i) => s + i.subtotal, 0)
-    const impuesto  = parseFloat((subtotal * 0.15).toFixed(2))
-    const total     = parseFloat((subtotal + impuesto).toFixed(2))
+    const descuento = parseFloat(comanda.descuento || 0)
+    const baseImpuesto = Math.max(subtotal - descuento, 0)
+    const impuesto  = parseFloat((baseImpuesto * 0.15).toFixed(2))
+    const total     = parseFloat((baseImpuesto + impuesto).toFixed(2))
 
     // Insertar comanda
     const comandaPayload = {
@@ -169,10 +177,12 @@ export function useComandas() {
       id_mesero:    1, // Cambia esto por el ID del usuario logueado
       estado:       'pendiente',
       subtotal,
+      descuento,
       impuesto,
       total,
       cuenta_separada: comanda.cuentaSeparada || false,
-      nombre_cuenta: comanda.nombreCuenta || null
+      nombre_cuenta: comanda.nombreCuenta || null,
+      observaciones: comanda.promocionAplicada ? JSON.stringify({ promocionAplicada: comanda.promocionAplicada }) : null
     }
 
     if (comanda.idReservacion) {
@@ -266,15 +276,19 @@ export function useComandas() {
 
   async function actualizarComanda(id, comanda) {
     const subtotal = comanda.items.reduce((s, i) => s + i.subtotal, 0)
-    const impuesto = parseFloat((subtotal * 0.15).toFixed(2))
-    const total = parseFloat((subtotal + impuesto).toFixed(2))
+    const descuento = parseFloat(comanda.descuento || 0)
+    const baseImpuesto = Math.max(subtotal - descuento, 0)
+    const impuesto = parseFloat((baseImpuesto * 0.15).toFixed(2))
+    const total = parseFloat((baseImpuesto + impuesto).toFixed(2))
 
     const { error: updateError } = await supabase
       .from('comandas')
       .update({
         subtotal,
+        descuento,
         impuesto,
         total,
+        observaciones: comanda.promocionAplicada ? JSON.stringify({ promocionAplicada: comanda.promocionAplicada }) : null,
         updated_at: new Date().toISOString()
       })
       .eq('id', id)
@@ -333,15 +347,17 @@ export function useComandas() {
 
     if (activas && activas.length > 0) return
 
+    const { error: reservacionError } = await supabase
+      .from('reservaciones')
+      .update({ estado: 'terminada' })
+      .eq('id', id_reservacion)
+
+    if (reservacionError) throw reservacionError
+
     await supabase
       .from('comandas')
       .update({ id_reservacion: null })
       .eq('id_reservacion', id_reservacion)
-
-    await supabase
-      .from('reservaciones')
-      .delete()
-      .eq('id', id_reservacion)
 
     if (id_mesa) {
       await supabase
@@ -350,6 +366,8 @@ export function useComandas() {
         .eq('id', id_mesa)
       avisarCambioMesas()
     }
+
+    avisarCambioReservaciones()
   }
 
   return { comandas, loading, agregarComanda, actualizarComanda, actualizarEstadoComanda, eliminarComanda, refetch: fetchComandas }
@@ -481,7 +499,14 @@ export function useClientes() {
   const [reservaciones, setReservaciones] = useState([])
   const [loading, setLoading]           = useState(true)
 
-  useEffect(() => { fetchReservaciones() }, [])
+  useEffect(() => {
+    fetchReservaciones()
+
+    const recargarReservaciones = () => fetchReservaciones()
+    window.addEventListener('reservaciones:changed', recargarReservaciones)
+
+    return () => window.removeEventListener('reservaciones:changed', recargarReservaciones)
+  }, [])
 
   async function fetchReservaciones() {
     const { data, error } = await supabase
@@ -509,6 +534,7 @@ export function useClientes() {
       setReservaciones(data.map(reservacion => ({
         ...reservacion,
         cliente: reservacion.cliente || '',
+        estado: reservacion.estado || 'activa',
         mesa: mesasPorId[reservacion.id_mesa] || reservacion.id_mesa || '',
         idMesa: reservacion.id_mesa
       })))
@@ -580,6 +606,7 @@ export function useClientes() {
     }
 
     await fetchReservaciones()
+    avisarCambioReservaciones()
   }
 
   return {
@@ -705,29 +732,37 @@ export function useProveedores() {
     const { data: proveedoresData } = await supabase
       .from('proveedores')
       .select('*, compras_proveedor(fecha, total)')
-      .eq('estado', 'activo')
       .order('nombre')
 
     const { data: productosProveedorData, error: productosProveedorError } = await supabase
       .from('productos_proveedor')
       .select('*')
-      .eq('estado', 'activo')
       .order('nombre')
 
     if (productosProveedorError) {
       console.error('No se pudieron cargar productos_proveedor:', productosProveedorError.message)
     }
 
-    if (proveedoresData) setProveedores(proveedoresData.map(p => {
-      const productosProveedor = (productosProveedorData || [])
+    if (proveedoresData) {
+      const proveedoresFormateados = proveedoresData.map(p => {
+      const productosProveedorConfigurados = (productosProveedorData || [])
         .filter(producto => String(producto.id_proveedor) === String(p.id))
         .map(formatProductoProveedor)
+      const productosGuardados = Array.isArray(p.productos)
+        ? p.productos
+        : parseProductosProveedor(p.productos)
+      const productosProveedor = productosProveedorConfigurados.length > 0
+        ? productosProveedorConfigurados
+        : productosGuardados.map((nombre, index) => ({
+            id: `proveedor-${p.id}-${index}`,
+            nombre,
+            unidadesPermitidas: ['kilos', 'piezas', 'litros', 'cajas'],
+            preciosPorUnidad: {}
+          }))
 
       const productos = productosProveedor.length > 0
         ? productosProveedor.map(producto => producto.nombre)
-        : Array.isArray(p.productos)
-          ? p.productos
-          : String(p.productos || '').split(',').map(item => item.trim()).filter(Boolean)
+        : productosGuardados
 
       return {
         ...p,
@@ -736,7 +771,10 @@ export function useProveedores() {
         comprasRealizadas: p.compras_proveedor?.length || 0,
         ultimaCompra: p.compras_proveedor?.[0]?.fecha || ''
       }
-    }))
+    })
+
+      setProveedores(proveedoresFormateados)
+    }
     setLoading(false)
   }
 
@@ -754,29 +792,103 @@ export function useProveedores() {
   }
 
   async function guardarProveedor(formData, editando) {
+    const productos = normalizarProductosProveedor(formData.productosProveedor?.length
+      ? formData.productosProveedor
+      : parseProductosProveedor(formData.productos).map(nombre => ({ nombre }))
+    )
+    let sincronizacionProductos = { ok: true }
+
     if (editando) {
-      await supabase.from('proveedores').update({
+      const { error } = await supabase.from('proveedores').update({
         nombre:   formData.nombre,
         contacto: formData.contacto,
         telefono: formData.telefono,
         email:    formData.email,
         productos: formData.productos
       }).eq('id', editando.id)
+
+      if (error) throw error
+      sincronizacionProductos = await intentarSincronizarProductosProveedor(editando.id, productos)
     } else {
-      await supabase.from('proveedores').insert({
+      const { data: proveedor, error } = await supabase.from('proveedores').insert({
         nombre:   formData.nombre,
         contacto: formData.contacto,
         telefono: formData.telefono,
         email:    formData.email,
         productos: formData.productos,
         estado:   'activo'
-      })
+      }).select('id').single()
+
+      if (error) throw error
+      if (proveedor?.id) {
+        sincronizacionProductos = await intentarSincronizarProductosProveedor(proveedor.id, productos)
+      }
     }
     await fetchProveedores()
+    return { sincronizacionProductos }
+  }
+
+  async function intentarSincronizarProductosProveedor(idProveedor, productos) {
+    try {
+      await sincronizarProductosProveedor(idProveedor, productos)
+      return { ok: true }
+    } catch (error) {
+      console.warn('No se pudieron sincronizar productos_proveedor:', error.message)
+      return { ok: false, error }
+    }
+  }
+
+  async function sincronizarProductosProveedor(idProveedor, productos) {
+    const { data: existentes, error: cargarError } = await supabase
+      .from('productos_proveedor')
+      .select('id, nombre')
+      .eq('id_proveedor', idProveedor)
+
+    if (cargarError) throw cargarError
+
+    const nombres = productos.map(producto => producto.nombre.toLowerCase())
+    const updates = (existentes || []).map(producto => {
+      const productoForm = productos.find(item => item.nombre.toLowerCase() === String(producto.nombre || '').toLowerCase())
+      const sigueActivo = nombres.includes(String(producto.nombre || '').toLowerCase())
+      return supabase
+        .from('productos_proveedor')
+        .update(sigueActivo ? {
+          nombre: productoForm.nombre,
+          unidades_permitidas: productoForm.unidadesPermitidas,
+          precio_por_unidad: productoForm.preciosPorUnidad,
+          estado: 'activo'
+        } : { estado: 'inactivo' })
+        .eq('id', producto.id)
+    })
+
+    const nuevos = productos
+      .filter(productoForm => !(existentes || []).some(producto => String(producto.nombre || '').toLowerCase() === productoForm.nombre.toLowerCase()))
+      .map(producto => ({
+        id_proveedor: idProveedor,
+        nombre: producto.nombre,
+        unidades_permitidas: producto.unidadesPermitidas,
+        precio_por_unidad: producto.preciosPorUnidad,
+        estado: 'activo'
+      }))
+
+    if (nuevos.length > 0) {
+      updates.push(supabase.from('productos_proveedor').insert(nuevos))
+    }
+
+    const results = await Promise.all(updates)
+    const error = results.find(result => result.error)?.error
+    if (error) throw error
   }
 
   async function eliminarProveedor(id) {
     await supabase.from('proveedores').update({ estado: 'inactivo' }).eq('id', id)
+    await supabase.from('productos_proveedor').update({ estado: 'inactivo' }).eq('id_proveedor', id)
+    await fetchProveedores()
+  }
+
+  async function activarProveedor(id) {
+    await supabase.from('proveedores').update({ estado: 'activo' }).eq('id', id)
+    await supabase.from('productos_proveedor').update({ estado: 'activo' }).eq('id_proveedor', id)
     await fetchProveedores()
   }
 
@@ -800,7 +912,21 @@ export function useProveedores() {
     await fetchProveedores()
   }
 
-  async function actualizarPreciosProveedor(productos) {
+  async function actualizarPreciosProveedor(productos, idProveedor = null) {
+    if (idProveedor) {
+      const productosNormalizados = normalizarProductosProveedor(productos)
+      const { error: proveedorError } = await supabase
+        .from('proveedores')
+        .update({ productos: productosNormalizados.map(producto => producto.nombre).join(', ') })
+        .eq('id', idProveedor)
+
+      if (proveedorError) throw proveedorError
+
+      await sincronizarProductosProveedor(idProveedor, productosNormalizados)
+      await fetchProveedores()
+      return
+    }
+
     const updates = productos.map(producto => {
       const preciosPorUnidad = Object.fromEntries(
         Object.entries(producto.preciosPorUnidad || {}).map(([unidad, precio]) => [
@@ -829,6 +955,7 @@ export function useProveedores() {
     loading,
     guardarProveedor,
     eliminarProveedor,
+    activarProveedor,
     registrarCompra,
     actualizarPreciosProveedor,
     refetch: fetchProveedores
@@ -857,7 +984,8 @@ export function usePromociones() {
           ? p.aplicable_to
           : Array.isArray(p.aplicableTo)
             ? p.aplicableTo
-            : String(p.aplicable_to || p.aplicableTo || '').split(',').map(item => item.trim()).filter(Boolean)
+            : String(p.aplicable_to || p.aplicableTo || '').split(',').map(item => item.trim()).filter(Boolean),
+        precio: parseFloat(p.precio) || 0
       })))
     }
     setLoading(false)
@@ -878,27 +1006,33 @@ export function usePromociones() {
   }
 
   async function guardarPromocion(formData, editando) {
-    if (editando) {
-      await supabase.from('promociones').update({
-        nombre:      formData.nombre,
-        tipo:        formData.tipo,
-        descripcion: formData.descripcion,
-        descuento:   parseFloat(formData.descuento) || 0,
-        fecha_inicio: formData.fechaInicio || null,
-        fecha_fin:    formData.fechaFin || null,
-        estado:      formData.estado || 'activa'
-      }).eq('id', editando.id)
-    } else {
-      await supabase.from('promociones').insert({
-        nombre:      formData.nombre,
-        tipo:        formData.tipo,
-        descripcion: formData.descripcion,
-        descuento:   parseFloat(formData.descuento) || 0,
-        fecha_inicio: formData.fechaInicio || null,
-        fecha_fin:    formData.fechaFin || null,
-        estado:      'activa'
-      })
+    const payload = {
+      nombre:      formData.nombre,
+      tipo:        formData.tipo,
+      descripcion: formData.descripcion,
+      descuento:   parseFloat(formData.descuento) || 0,
+      precio:      parseFloat(formData.precio) || 0,
+      fecha_inicio: formData.fechaInicio || null,
+      fecha_fin:    formData.fechaFin || null,
+      aplicable_to: parseArrayText(formData.aplicableTo),
+      estado:      formData.estado || 'activa'
     }
+
+    if (editando) {
+      const { error } = await supabase
+        .from('promociones')
+        .update(payload)
+        .eq('id', editando.id)
+
+      if (error) throw error
+    } else {
+      const { error } = await supabase
+        .from('promociones')
+        .insert({ ...payload, estado: 'activa' })
+
+      if (error) throw error
+    }
+
     await fetchPromociones()
   }
 
@@ -1026,6 +1160,38 @@ function formatProductoProveedor(producto) {
     unidadesPermitidas: parseArrayField(producto.unidades_permitidas),
     preciosPorUnidad: parseJsonField(producto.precio_por_unidad)
   }
+}
+
+function parseProductosProveedor(value) {
+  return [...new Set(String(value || '')
+    .split(',')
+    .map(item => item.trim())
+    .filter(Boolean))]
+}
+
+function parseArrayText(value) {
+  return String(value || '')
+    .split(',')
+    .map(item => item.trim())
+    .filter(Boolean)
+}
+
+function normalizarProductosProveedor(productos) {
+  return productos
+    .map(producto => {
+      const unidadesPermitidas = (producto.unidadesPermitidas || []).filter(Boolean)
+      const preciosPorUnidad = Object.fromEntries(unidadesPermitidas.map(unidad => [
+        unidad,
+        parseFloat(producto.preciosPorUnidad?.[unidad]) || 0
+      ]))
+
+      return {
+        nombre: String(producto.nombre || '').trim(),
+        unidadesPermitidas,
+        preciosPorUnidad
+      }
+    })
+    .filter(producto => producto.nombre && producto.unidadesPermitidas.length > 0)
 }
 
 function parseArrayField(value) {
