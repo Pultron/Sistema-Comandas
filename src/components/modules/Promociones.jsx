@@ -14,6 +14,7 @@ export const PromocionesModule = () => {
   const [mostrarFormulario, setMostrarFormulario] = useState(false)
   const [editando, setEditando] = useState(null)
   const [busquedaProducto, setBusquedaProducto] = useState('')
+  const [categoriaActiva, setCategoriaActiva] = useState('')
   const [mensajeAlerta, setMensajeAlerta] = useState('')
   const [tipoAlerta, setTipoAlerta] = useState('error')
   const [guardando, setGuardando] = useState(false)
@@ -38,16 +39,31 @@ export const PromocionesModule = () => {
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
 
-  const productosMenu = Object.values(menu)
-    .flatMap(categoria => (categoria.platillos || []).map(producto => ({
+  const categoriasMenu = Object.entries(menu).map(([key, categoria]) => ({
+    key,
+    nombre: String(categoria.nombre || key.replace(/_/g, ' ')).replace(/^[\p{Emoji}]+\s*/u, '').trim(),
+    productos: categoria.platillos || []
+  }))
+
+  const categoriaSeleccionada = categoriasMenu.find(categoria => categoria.key === categoriaActiva) || categoriasMenu[0]
+
+  const productosMenu = categoriasMenu
+    .flatMap(categoria => categoria.productos.map(producto => ({
       ...producto,
+      categoriaKey: categoria.key,
       categoriaLabel: categoria.nombre || ''
     })))
     .filter((producto, index, arr) => arr.findIndex(item => item.nombre === producto.nombre) === index)
     .sort((a, b) => a.nombre.localeCompare(b.nombre))
 
-  const productosFiltrados = productosMenu.filter(producto =>
-    producto.nombre.toLowerCase().includes(busquedaProducto.toLowerCase())
+  const productosCategoria = (categoriaSeleccionada?.productos || []).map(producto => ({
+    ...producto,
+    categoriaKey: categoriaSeleccionada.key,
+    categoriaLabel: categoriaSeleccionada.nombre
+  }))
+
+  const productosFiltrados = productosCategoria.filter(producto =>
+    normalizarTexto(producto.nombre).includes(normalizarTexto(busquedaProducto))
   )
 
   const actualizarAplicables = (valores) => {
@@ -63,6 +79,10 @@ export const PromocionesModule = () => {
     )
   }
 
+  const categoriaEstaSeleccionada = (categoria) => (
+    aplicablesSeleccionados.some(item => normalizarTexto(item) === normalizarTexto(categoria?.nombre))
+  )
+
   const quitarAplicable = (valor) => {
     actualizarAplicables(aplicablesSeleccionados.filter(item => item !== valor))
   }
@@ -77,7 +97,7 @@ export const PromocionesModule = () => {
     const descripcion = normalizarTexto(formData.descripcion)
     const nxm = descripcion.match(/(\d+)\s*x\s*(\d+)/)
     const porcentaje = descripcion.match(/(\d+(?:\.\d+)?)\s*%/)
-    const precioEspecial = descripcion.match(/(?:por|a)\s*\$?\s*(\d+(?:\.\d+)?)/) || descripcion.match(/\$\s*(\d+(?:\.\d+)?)/)
+    const precioEspecial = descripcion.match(/(?:por|a|x)\s*\$?\s*(\d+(?:\.\d+)?)/) || descripcion.match(/\$\s*(\d+(?:\.\d+)?)/)
 
     return {
       texto: descripcion,
@@ -157,6 +177,7 @@ export const PromocionesModule = () => {
       setEditando(null)
     }
     setBusquedaProducto('')
+    setCategoriaActiva('')
     setMostrarFormulario(true)
   }
 
@@ -176,7 +197,7 @@ export const PromocionesModule = () => {
       setGuardando(true)
       await guardarPromocionBd({
         ...formData,
-        precio: tieneReglaAutomatica ? '' : formData.precio
+        precio: reglaDescripcion.precioEspecial || formData.precio
       }, editando)
 
       setMostrarFormulario(false)
@@ -412,10 +433,43 @@ export const PromocionesModule = () => {
                   </div>
                 )}
 
-                <div>
-                  <input type="text" value={busquedaProducto} onChange={(e) => setBusquedaProducto(e.target.value)} placeholder="Buscar producto..." style={{width: '100%', padding: '0.75rem', border: '2px solid #e0e0e0', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box', marginBottom: '0.8rem'}} />
+                <div style={{display: 'grid', gap: '0.8rem'}}>
+                  <div style={{display: 'flex', gap: '0.5rem', overflowX: 'auto', paddingBottom: '0.2rem'}}>
+                    {categoriasMenu.map(categoria => {
+                      const activa = (categoriaSeleccionada?.key || '') === categoria.key
+                      return (
+                        <button
+                          key={categoria.key}
+                          type="button"
+                          onClick={() => {
+                            setCategoriaActiva(categoria.key)
+                            setBusquedaProducto('')
+                          }}
+                          style={{padding: '0.55rem 0.8rem', background: activa ? '#2563EB' : '#EFF6FF', color: activa ? '#fff' : '#1E3A8A', border: `2px solid ${activa ? '#1D4ED8' : '#BFDBFE'}`, borderRadius: '6px', fontSize: '12px', fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap'}}
+                        >
+                          {categoria.nombre}
+                        </button>
+                      )
+                    })}
+                  </div>
+
+                  {categoriaSeleccionada && (
+                    <button
+                      type="button"
+                      onClick={() => alternarAplicable(categoriaSeleccionada.nombre)}
+                      style={{padding: '0.65rem 0.75rem', background: categoriaEstaSeleccionada(categoriaSeleccionada) ? '#DCFCE7' : '#F8FAFC', color: categoriaEstaSeleccionada(categoriaSeleccionada) ? '#166534' : '#334155', border: `2px solid ${categoriaEstaSeleccionada(categoriaSeleccionada) ? '#22C55E' : '#CBD5E1'}`, borderRadius: '6px', fontSize: '13px', fontWeight: 800, cursor: 'pointer', textAlign: 'left'}}
+                    >
+                      {categoriaEstaSeleccionada(categoriaSeleccionada) ? 'Categoria seleccionada: ' : 'Aplicar a toda la categoria: '}
+                      {categoriaSeleccionada.nombre}
+                    </button>
+                  )}
+
+                  <input type="text" value={busquedaProducto} onChange={(e) => setBusquedaProducto(e.target.value)} placeholder={`Buscar en ${categoriaSeleccionada?.nombre || 'categoria'}...`} style={{width: '100%', padding: '0.75rem', border: '2px solid #e0e0e0', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box'}} />
+
                   <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(165px, 1fr))', gap: '0.6rem', maxHeight: '210px', overflowY: 'auto'}}>
-                    {productosFiltrados.map(producto => {
+                    {productosFiltrados.length === 0 ? (
+                      <div style={{fontSize: '13px', color: '#64748B', padding: '0.6rem'}}>No hay productos en esta categoria.</div>
+                    ) : productosFiltrados.map(producto => {
                       const activo = aplicablesSeleccionados.some(item => item.toLowerCase() === producto.nombre.toLowerCase())
                       return (
                         <button key={producto.id} type="button" onClick={() => alternarAplicable(producto.nombre)} style={{padding: '0.65rem', background: activo ? '#DCFCE7' : '#fff', color: activo ? '#166534' : '#333', border: `2px solid ${activo ? '#22C55E' : '#e0e0e0'}`, borderRadius: '6px', fontWeight: 700, cursor: 'pointer', textAlign: 'left', fontSize: '13px'}}>

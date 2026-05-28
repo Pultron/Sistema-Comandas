@@ -23,6 +23,12 @@ const avisarCambioReservaciones = () => {
   }
 }
 
+const avisarCambioInventario = () => {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('inventario:changed'))
+  }
+}
+
 // ── PRODUCTOS / MENÚ ──────────────────────────
 export function useMenu() {
   const [menu, setMenu]         = useState({})
@@ -627,7 +633,18 @@ export function useInventario() {
   const [movimientos, setMovimientos]   = useState([])
   const [loading, setLoading]           = useState(true)
 
-  useEffect(() => { fetchInventario(); fetchMovimientos() }, [])
+  useEffect(() => {
+    fetchInventario()
+    fetchMovimientos()
+
+    const recargarInventario = () => {
+      fetchInventario()
+      fetchMovimientos()
+    }
+
+    window.addEventListener('inventario:changed', recargarInventario)
+    return () => window.removeEventListener('inventario:changed', recargarInventario)
+  }, [])
 
   async function fetchInventario() {
     const { data } = await supabase
@@ -686,26 +703,30 @@ export function useInventario() {
   }
 
   async function registrarMovimiento(movData) {
-    const { data: ing } = await supabase
+    const query = supabase
       .from('inventario')
-      .select('id, cantidad, cantidad_minima')
-      .eq('nombre', movData.ingrediente)
-      .single()
+      .select('id, nombre, cantidad, cantidad_minima')
+
+    const { data: ing } = movData.ingredienteId
+      ? await query.eq('id', movData.ingredienteId).single()
+      : await query.eq('nombre', movData.ingrediente).single()
 
     if (!ing) return
+    const cantidadMovimiento = parseFloat(movData.cantidad) || 0
+    const persona = movData.persona ? ` | Retiro: ${movData.persona}` : ''
 
     await supabase.from('movimientos_inventario').insert({
       id_ingrediente: ing.id,
-      tipo:           movData.tipo,
-      cantidad:       parseFloat(movData.cantidad),
-      motivo:         movData.motivo,
+      tipo:           movData.tipo || 'salida',
+      cantidad:       cantidadMovimiento,
+      motivo:         `${movData.motivo || 'Movimiento'}${persona}`,
       fecha:          new Date().toISOString().split('T')[0]
     })
 
     // Actualizar cantidad
     const nuevaCantidad = movData.tipo === 'entrada'
-      ? ing.cantidad + parseFloat(movData.cantidad)
-      : ing.cantidad - parseFloat(movData.cantidad)
+      ? ing.cantidad + cantidadMovimiento
+      : Math.max(ing.cantidad - cantidadMovimiento, 0)
 
     await supabase.from('inventario').update({
       cantidad:   nuevaCantidad,
@@ -715,6 +736,7 @@ export function useInventario() {
 
     await fetchInventario()
     await fetchMovimientos()
+    avisarCambioInventario()
   }
 
   return { ingredientes, movimientos, loading, guardarIngrediente, eliminarIngrediente, registrarMovimiento, refetch: fetchInventario }
@@ -756,7 +778,7 @@ export function useProveedores() {
         : productosGuardados.map((nombre, index) => ({
             id: `proveedor-${p.id}-${index}`,
             nombre,
-            unidadesPermitidas: ['kilos', 'piezas', 'litros', 'cajas'],
+            unidadesPermitidas: ['kilos', 'piezas', 'cajas'],
             preciosPorUnidad: {}
           }))
 
@@ -809,6 +831,7 @@ export function useProveedores() {
 
       if (error) throw error
       sincronizacionProductos = await intentarSincronizarProductosProveedor(editando.id, productos)
+      await sincronizarInventarioConProductosProveedor(editando.id)
     } else {
       const { data: proveedor, error } = await supabase.from('proveedores').insert({
         nombre:   formData.nombre,
@@ -822,6 +845,7 @@ export function useProveedores() {
       if (error) throw error
       if (proveedor?.id) {
         sincronizacionProductos = await intentarSincronizarProductosProveedor(proveedor.id, productos)
+        await sincronizarInventarioConProductosProveedor(proveedor.id)
       }
     }
     await fetchProveedores()
@@ -908,8 +932,78 @@ export function useProveedores() {
       num_items:    compraData.items?.length || 0,
       observaciones: JSON.stringify({ items: compraData.items || [] })
     })
+
+    await ingresarCompraAInventario(compraData.items || [], prov.id, compraData.proveedor)
     await fetchHistorial()
     await fetchProveedores()
+    avisarCambioInventario()
+  }
+
+  async function ingresarCompraAInventario(items, idProveedor, proveedorNombre) {
+    for (const item of items) {
+      const cantidad = parseFloat(item.cantidad) || 0
+      const contenidoCaja = parseFloat(item.contenidoCaja) || 0
+      const cantidadInventario = item.unidad === 'cajas' && contenidoCaja > 0
+        ? cantidad * contenidoCaja
+        : cantidad
+      const motivoCompra = item.unidad === 'cajas'
+        ? `Compra realizada a ${proveedorNombre} (${cantidad} cajas x ${contenidoCaja} piezas)`
+        : `Compra realizada a ${proveedorNombre}`
+      if (!item.producto || !cantidadInventario) continue
+
+      const unidadInventario = item.unidad === 'cajas' ? 'piezas' : normalizarUnidadInventario(item.unidad)
+      const { data: existente } = await supabase
+        .from('inventario')
+        .select('id, cantidad, cantidad_minima')
+        .ilike('nombre', item.producto)
+        .eq('id_proveedor', idProveedor)
+        .maybeSingle()
+
+      if (existente) {
+        const nuevaCantidad = (parseFloat(existente.cantidad) || 0) + cantidadInventario
+        await supabase
+          .from('inventario')
+          .update({
+            cantidad: nuevaCantidad,
+            unidad: unidadInventario,
+            id_proveedor: idProveedor,
+            estado: nuevaCantidad <= existente.cantidad_minima ? 'bajo' : 'normal',
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existente.id)
+
+        await supabase.from('movimientos_inventario').insert({
+          id_ingrediente: existente.id,
+          tipo: 'entrada',
+          cantidad: cantidadInventario,
+          motivo: motivoCompra,
+          fecha: new Date().toISOString().split('T')[0]
+        })
+      } else {
+        const { data: nuevo } = await supabase
+          .from('inventario')
+          .insert({
+            nombre: item.producto,
+            unidad: unidadInventario,
+            cantidad: cantidadInventario,
+            cantidad_minima: 0,
+            id_proveedor: idProveedor,
+            estado: 'normal'
+          })
+          .select('id')
+          .single()
+
+        if (nuevo?.id) {
+          await supabase.from('movimientos_inventario').insert({
+            id_ingrediente: nuevo.id,
+            tipo: 'entrada',
+            cantidad: cantidadInventario,
+            motivo: motivoCompra,
+            fecha: new Date().toISOString().split('T')[0]
+          })
+        }
+      }
+    }
   }
 
   async function actualizarPreciosProveedor(productos, idProveedor = null) {
@@ -923,7 +1017,9 @@ export function useProveedores() {
       if (proveedorError) throw proveedorError
 
       await sincronizarProductosProveedor(idProveedor, productosNormalizados)
+      await sincronizarInventarioConProductosProveedor(idProveedor)
       await fetchProveedores()
+      avisarCambioInventario()
       return
     }
 
@@ -934,6 +1030,9 @@ export function useProveedores() {
           parseFloat(precio) || 0
         ])
       )
+      if (producto.unidadesPermitidas?.includes('cajas')) {
+        preciosPorUnidad.contenidoCaja = parseFloat(producto.contenidoCaja) || parseFloat(producto.preciosPorUnidad?.contenidoCaja) || 0
+      }
 
       return supabase
         .from('productos_proveedor')
@@ -947,6 +1046,58 @@ export function useProveedores() {
     if (error) throw error
 
     await fetchProveedores()
+  }
+
+  async function sincronizarInventarioConProductosProveedor(idProveedor) {
+    const { data: productos, error: productosError } = await supabase
+      .from('productos_proveedor')
+      .select('id, nombre, unidades_permitidas, precio_por_unidad, estado')
+      .eq('id_proveedor', idProveedor)
+      .eq('estado', 'activo')
+
+    if (productosError) throw productosError
+
+    const { data: inventario, error: inventarioError } = await supabase
+      .from('inventario')
+      .select('id, nombre')
+      .eq('id_proveedor', idProveedor)
+
+    if (inventarioError) throw inventarioError
+
+    const operaciones = (productos || []).map(producto => {
+      const existente = (inventario || []).find(item =>
+        String(item.nombre || '').toLowerCase() === String(producto.nombre || '').toLowerCase()
+      )
+      const unidad = obtenerUnidadInventarioProducto(producto)
+
+      if (existente) {
+        return supabase
+          .from('inventario')
+          .update({
+            nombre: producto.nombre,
+            unidad,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existente.id)
+      }
+
+      return supabase
+        .from('inventario')
+        .insert({
+          nombre: producto.nombre,
+          unidad,
+          cantidad: 0,
+          cantidad_minima: 0,
+          id_proveedor: idProveedor,
+          estado: 'normal'
+        })
+    })
+
+    if (operaciones.length > 0) {
+      const resultados = await Promise.all(operaciones)
+      const error = resultados.find(resultado => resultado.error)?.error
+      if (error) throw error
+    }
   }
 
   return {
@@ -965,10 +1116,9 @@ export function useProveedores() {
 // ── PROMOCIONES ───────────────────────────────
 export function usePromociones() {
   const [promociones, setPromociones] = useState([])
-  const [menuDelDia, setMenuDelDia]   = useState([])
   const [loading, setLoading]         = useState(true)
 
-  useEffect(() => { fetchPromociones(); fetchMenuDelDia() }, [])
+  useEffect(() => { fetchPromociones() }, [])
 
   async function fetchPromociones() {
     const { data } = await supabase
@@ -980,29 +1130,17 @@ export function usePromociones() {
         ...p,
         fechaInicio: p.fecha_inicio || p.fechaInicio || '',
         fechaFin: p.fecha_fin || p.fechaFin || '',
-        aplicableTo: Array.isArray(p.aplicable_to)
-          ? p.aplicable_to
-          : Array.isArray(p.aplicableTo)
-            ? p.aplicableTo
-            : String(p.aplicable_to || p.aplicableTo || '').split(',').map(item => item.trim()).filter(Boolean),
-        precio: parseFloat(p.precio) || 0
+        aplicableTo: Array.isArray(p.aplicable_a)
+          ? p.aplicable_a
+          : Array.isArray(p.aplicable_to)
+            ? p.aplicable_to
+            : Array.isArray(p.aplicableTo)
+              ? p.aplicableTo
+              : String(p.aplicable_a || p.aplicable_to || p.aplicableTo || '').split(',').map(item => item.trim()).filter(Boolean),
+        precio: parseFloat(p.precio_especial ?? p.precio) || 0
       })))
     }
     setLoading(false)
-  }
-
-  async function fetchMenuDelDia() {
-    const hoy = new Date().toISOString().split('T')[0]
-    const { data } = await supabase
-      .from('menu_del_dia')
-      .select('*')
-      .eq('fecha', hoy)
-      .eq('activo', true)
-    if (data) setMenuDelDia(data.map(m => ({
-      platillo:    m.nombre_platillo,
-      precio:      m.precio,
-      preparacion: m.tiempo_prep
-    })))
   }
 
   async function guardarPromocion(formData, editando) {
@@ -1011,10 +1149,10 @@ export function usePromociones() {
       tipo:        formData.tipo,
       descripcion: formData.descripcion,
       descuento:   parseFloat(formData.descuento) || 0,
-      precio:      parseFloat(formData.precio) || 0,
+      precio_especial: parseFloat(formData.precio) || null,
       fecha_inicio: formData.fechaInicio || null,
       fecha_fin:    formData.fechaFin || null,
-      aplicable_to: parseArrayText(formData.aplicableTo),
+      aplicable_a:  parseArrayText(formData.aplicableTo),
       estado:      formData.estado || 'activa'
     }
 
@@ -1046,7 +1184,7 @@ export function usePromociones() {
     await fetchPromociones()
   }
 
-  return { promociones, menuDelDia, loading, guardarPromocion, eliminarPromocion, cambiarEstadoPromocion, refetch: fetchPromociones }
+  return { promociones, loading, guardarPromocion, eliminarPromocion, cambiarEstadoPromocion, refetch: fetchPromociones }
 }
 
 // ── CAJA ──────────────────────────────────────
@@ -1154,11 +1292,14 @@ function formatItemsCompra(compra) {
 }
 
 function formatProductoProveedor(producto) {
+  const preciosPorUnidad = parseJsonField(producto.precio_por_unidad)
+
   return {
     id: producto.id,
     nombre: producto.nombre,
-    unidadesPermitidas: parseArrayField(producto.unidades_permitidas),
-    preciosPorUnidad: parseJsonField(producto.precio_por_unidad)
+    unidadesPermitidas: parseArrayField(producto.unidades_permitidas).filter(unidad => ['kilos', 'piezas', 'cajas'].includes(unidad)),
+    preciosPorUnidad,
+    contenidoCaja: preciosPorUnidad.contenidoCaja || ''
   }
 }
 
@@ -1167,6 +1308,29 @@ function parseProductosProveedor(value) {
     .split(',')
     .map(item => item.trim())
     .filter(Boolean))]
+}
+
+function normalizarUnidadInventario(unidad) {
+  const unidades = {
+    kilos: 'kg',
+    kilo: 'kg',
+    kg: 'kg',
+    piezas: 'piezas',
+    pieza: 'piezas',
+    unidades: 'piezas',
+    unidad: 'piezas',
+    cajas: 'cajas',
+    caja: 'cajas'
+  }
+
+  return unidades[String(unidad || '').toLowerCase()] || unidad || 'piezas'
+}
+
+function obtenerUnidadInventarioProducto(producto) {
+  const unidades = parseArrayField(producto.unidades_permitidas)
+  if (unidades.includes('kilos')) return 'kg'
+  if (unidades.includes('piezas') || unidades.includes('cajas')) return 'piezas'
+  return 'piezas'
 }
 
 function parseArrayText(value) {
@@ -1179,11 +1343,14 @@ function parseArrayText(value) {
 function normalizarProductosProveedor(productos) {
   return productos
     .map(producto => {
-      const unidadesPermitidas = (producto.unidadesPermitidas || []).filter(Boolean)
+      const unidadesPermitidas = (producto.unidadesPermitidas || []).filter(unidad => ['kilos', 'piezas', 'cajas'].includes(unidad))
       const preciosPorUnidad = Object.fromEntries(unidadesPermitidas.map(unidad => [
         unidad,
         parseFloat(producto.preciosPorUnidad?.[unidad]) || 0
       ]))
+      if (unidadesPermitidas.includes('cajas')) {
+        preciosPorUnidad.contenidoCaja = parseFloat(producto.contenidoCaja) || 0
+      }
 
       return {
         nombre: String(producto.nombre || '').trim(),

@@ -38,7 +38,8 @@ export const ProveedoresModule = () => {
     producto: '',
     cantidad: '',
     unidad: '',
-    precioUnitario: ''
+    precioUnitario: '',
+    contenidoCaja: ''
   })
   const [editandoItemId, setEditandoItemId] = useState(null)
 
@@ -55,14 +56,21 @@ export const ProveedoresModule = () => {
    setTimeout(() => setToast(null), 3000)
   }
 
-  const unidadesDisponibles = ['kilos', 'litros', 'piezas', 'cajas']
+  const unidadesDisponibles = ['kilos', 'piezas', 'cajas']
 
   const crearProductoProveedor = (producto = {}) => ({
     id: producto.id || `nuevo-${Date.now()}-${Math.random()}`,
     nombre: producto.nombre || '',
-    unidadesPermitidas: producto.unidadesPermitidas?.length ? producto.unidadesPermitidas : ['kilos'],
-    preciosPorUnidad: { ...(producto.preciosPorUnidad || {}) }
+    unidadesPermitidas: (producto.unidadesPermitidas?.length ? producto.unidadesPermitidas : ['kilos'])
+      .filter(unidad => ['kilos', 'piezas', 'cajas'].includes(unidad)),
+    preciosPorUnidad: { ...(producto.preciosPorUnidad || {}) },
+    contenidoCaja: producto.contenidoCaja || producto.preciosPorUnidad?.contenidoCaja || ''
   })
+
+  const unidadesParaProductoPrecio = (producto) => {
+    const actuales = producto.unidadesPermitidas || []
+    return [...new Set([...actuales, ...unidadesDisponibles])]
+  }
 
   const abrirFormulario = (prov = null) => {
     if (prov) {
@@ -135,6 +143,13 @@ export const ProveedoresModule = () => {
     ))
   }
 
+  const cambiarContenidoCajaPrecio = (productoId, valor) => {
+    const contenidoCaja = valor.replace(',', '.').replace(/[^0-9.]/g, '')
+    setPreciosForm(prev => prev.map(producto =>
+      producto.id === productoId ? { ...producto, contenidoCaja } : producto
+    ))
+  }
+
   const agregarProductoPrecio = () => {
     setPreciosForm(prev => [crearProductoProveedor(), ...prev])
   }
@@ -172,6 +187,13 @@ export const ProveedoresModule = () => {
     ))
   }
 
+  const cambiarContenidoCajaForm = (productoId, valor) => {
+    const contenidoCaja = valor.replace(',', '.').replace(/[^0-9.]/g, '')
+    setProductosForm(prev => prev.map(producto =>
+      producto.id === productoId ? { ...producto, contenidoCaja } : producto
+    ))
+  }
+
   const agregarProductoForm = () => {
     setProductosForm(prev => [crearProductoProveedor(), ...prev])
   }
@@ -191,7 +213,8 @@ export const ProveedoresModule = () => {
         ...producto,
         nombre: producto.nombre.trim(),
         unidadesPermitidas: producto.unidadesPermitidas.filter(Boolean),
-        preciosPorUnidad: producto.preciosPorUnidad || {}
+        preciosPorUnidad: producto.preciosPorUnidad || {},
+        contenidoCaja: producto.contenidoCaja
       }))
       .filter(producto => producto.nombre)
 
@@ -202,11 +225,12 @@ export const ProveedoresModule = () => {
 
     const productoIncompleto = productosValidos.find(producto =>
       producto.unidadesPermitidas.length === 0 ||
-      producto.unidadesPermitidas.some(unidad => !parseFloat(producto.preciosPorUnidad?.[unidad]))
+      producto.unidadesPermitidas.some(unidad => !parseFloat(producto.preciosPorUnidad?.[unidad])) ||
+      (producto.unidadesPermitidas.includes('cajas') && !parseFloat(producto.contenidoCaja))
     )
 
     if (!editando && productoIncompleto) {
-      mostrarToast('Cada producto necesita unidad y precio mayor a cero')
+      mostrarToast('Cada producto necesita unidad, precio y piezas por caja si aplica')
       return
     }
 
@@ -234,7 +258,8 @@ export const ProveedoresModule = () => {
         ...producto,
         nombre: producto.nombre.trim(),
         unidadesPermitidas: producto.unidadesPermitidas.filter(Boolean),
-        preciosPorUnidad: producto.preciosPorUnidad || {}
+        preciosPorUnidad: producto.preciosPorUnidad || {},
+        contenidoCaja: producto.contenidoCaja
       }))
       .filter(producto => producto.nombre)
 
@@ -248,11 +273,12 @@ export const ProveedoresModule = () => {
       producto.unidadesPermitidas.some(unidad => {
         const precio = parseFloat(producto.preciosPorUnidad?.[unidad])
         return !precio || precio <= 0
-      })
+      }) ||
+      (producto.unidadesPermitidas.includes('cajas') && !parseFloat(producto.contenidoCaja))
     )
 
     if (tienePrecioInvalido) {
-      mostrarToast('Cada producto necesita unidad y precio mayor a cero')
+      mostrarToast('Cada producto necesita unidad, precio y piezas por caja si aplica')
       return
     }
 
@@ -269,7 +295,7 @@ export const ProveedoresModule = () => {
 
   const seleccionarProveedorCompra = (nombreProveedor) => {
     setCompraData({ proveedor: nombreProveedor, items: [] })
-    setItemCompra({ productoId: '', producto: '', cantidad: '', unidad: '', precioUnitario: '' })
+    setItemCompra({ productoId: '', producto: '', cantidad: '', unidad: '', precioUnitario: '', contenidoCaja: '' })
     setEditandoItemId(null)
   }
 
@@ -282,13 +308,14 @@ export const ProveedoresModule = () => {
       producto: producto.nombre,
       unidad: primeraUnidad,
       precioUnitario: precioPrimera,
-      cantidad: '1'
+      cantidad: '1',
+      contenidoCaja: producto.contenidoCaja || ''
     }))
   }
 
   const cambiarUnidadCompra = (unidad) => {
     const precioUnitario = productoSeleccionado?.preciosPorUnidad?.[unidad] ?? ''
-    setItemCompra(prev => ({ ...prev, unidad, precioUnitario }))
+    setItemCompra(prev => ({ ...prev, unidad, precioUnitario, contenidoCaja: productoSeleccionado?.contenidoCaja || '' }))
   }
 
   const agregarItemCompra = () => {
@@ -300,17 +327,24 @@ export const ProveedoresModule = () => {
       return
     }
 
+    if (itemCompra.unidad === 'cajas' && !parseFloat(itemCompra.contenidoCaja)) {
+      mostrarToast('Indica cuantas piezas contiene la caja')
+      return
+    }
+
     const nuevoItem = {
       id: editandoItemId || Date.now(),
+      productoId: itemCompra.productoId,
       producto: itemCompra.producto,
       cantidad,
       unidad: itemCompra.unidad,
       precioUnitario,
+      contenidoCaja: itemCompra.unidad === 'cajas' ? parseFloat(itemCompra.contenidoCaja) || 0 : null,
       subtotal: cantidad * precioUnitario
     }
 
     setCompraData(prev => ({ ...prev, items: [...prev.items, nuevoItem] }))
-    setItemCompra({ productoId: '', producto: '', cantidad: '', unidad: '', precioUnitario: '' })
+    setItemCompra({ productoId: '', producto: '', cantidad: '', unidad: '', precioUnitario: '', contenidoCaja: '' })
     setEditandoItemId(null)
   }
 
@@ -326,21 +360,27 @@ export const ProveedoresModule = () => {
       producto: item.producto,
       cantidad: String(item.cantidad),
       unidad: item.unidad,
-      precioUnitario: item.precioUnitario
+      precioUnitario: item.precioUnitario,
+      contenidoCaja: item.contenidoCaja || ''
     })
     setCompraData(prev => ({ ...prev, items: prev.items.filter(i => i.id !== item.id) }))
   }
 
-  const registrarCompra = () => {
+  const registrarCompra = async () => {
     if (!compraData.proveedor || compraData.items.length === 0) {
       mostrarToast('Selecciona un proveedor y agrega al menos un producto')
       return
     }
-    registrarCompraBd({ ...compraData, total: totalCompra })
-    setCompraData({ proveedor: '', items: [] })
-    setItemCompra({ productoId: '', producto: '', cantidad: '', unidad: '', precioUnitario: '' })
-    setEditandoItemId(null)
-    setMostrarCompra(false)
+    try {
+      await registrarCompraBd({ ...compraData, total: totalCompra })
+      setCompraData({ proveedor: '', items: [] })
+      setItemCompra({ productoId: '', producto: '', cantidad: '', unidad: '', precioUnitario: '', contenidoCaja: '' })
+      setEditandoItemId(null)
+      setMostrarCompra(false)
+      mostrarToast('Compra registrada e inventario actualizado', 'success')
+    } catch (error) {
+      mostrarToast(`No se pudo registrar la compra: ${error.message}`)
+    }
   }
 
   const confirmarEliminarProveedor = async () => {
@@ -519,6 +559,16 @@ export const ProveedoresModule = () => {
                                   placeholder="$0.00"
                                   style={{width: '100%', padding: '0.6rem', border: '2px solid #e0e0e0', borderRadius: '6px', fontSize: '13px', boxSizing: 'border-box', background: activa ? '#fff' : '#f1f1f1'}}
                                 />
+                                {unidad === 'cajas' && activa && (
+                                  <input
+                                    type="text"
+                                    inputMode="decimal"
+                                    value={producto.contenidoCaja || ''}
+                                    onChange={(e) => cambiarContenidoCajaForm(producto.id, e.target.value)}
+                                    placeholder="Piezas por caja"
+                                    style={{width: '100%', marginTop: '0.55rem', padding: '0.6rem', border: '2px solid #BFDBFE', borderRadius: '6px', fontSize: '13px', boxSizing: 'border-box', background: '#EFF6FF'}}
+                                  />
+                                )}
                               </div>
                             )
                           })}
@@ -571,7 +621,7 @@ export const ProveedoresModule = () => {
                       <button type="button" onClick={() => quitarProductoPrecio(producto.id)} style={{height: '40px', padding: '0 0.75rem', background: '#EF4444', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 700, cursor: 'pointer'}}>Eliminar</button>
                     </div>
                     <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(145px, 1fr))', gap: '0.7rem'}}>
-                      {unidadesDisponibles.map(unidad => {
+                      {unidadesParaProductoPrecio(producto).map(unidad => {
                         const activa = producto.unidadesPermitidas.includes(unidad)
                         return (
                           <div key={unidad} style={{padding: '0.75rem', background: activa ? '#F0FDF4' : '#fff', border: `1px solid ${activa ? '#86EFAC' : '#e5e5e5'}`, borderRadius: '6px'}}>
@@ -592,6 +642,16 @@ export const ProveedoresModule = () => {
                               placeholder="$0.00"
                               style={{width: '100%', padding: '0.6rem', border: '2px solid #e0e0e0', borderRadius: '6px', fontSize: '13px', boxSizing: 'border-box', background: activa ? '#fff' : '#f1f1f1'}}
                           />
+                          {unidad === 'cajas' && activa && (
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              value={producto.contenidoCaja || ''}
+                              onChange={(e) => cambiarContenidoCajaPrecio(producto.id, e.target.value)}
+                              placeholder="Piezas por caja"
+                              style={{width: '100%', marginTop: '0.55rem', padding: '0.6rem', border: '2px solid #BFDBFE', borderRadius: '6px', fontSize: '13px', boxSizing: 'border-box', background: '#EFF6FF'}}
+                            />
+                          )}
                         </div>
                         )
                       })}
@@ -653,7 +713,7 @@ export const ProveedoresModule = () => {
               )}
 
               {/* Fila de campos */}
-              <div style={{display: 'grid', gridTemplateColumns: '1.2fr 0.7fr 0.7fr 0.7fr 0.8fr auto', gap: '0.8rem', alignItems: 'end'}}>
+              <div style={{display: 'grid', gridTemplateColumns: itemCompra.unidad === 'cajas' ? '1.1fr 0.65fr 0.65fr 0.7fr 0.7fr 0.8fr auto' : '1.2fr 0.7fr 0.7fr 0.7fr 0.8fr auto', gap: '0.8rem', alignItems: 'end'}}>
                 <div>
                   <label style={{display: 'block', fontWeight: 600, marginBottom: '0.5rem', color: '#333'}}>Producto</label>
                   <input type="text" value={itemCompra.producto} readOnly placeholder="Selecciona un item" style={{width: '100%', padding: '0.75rem', border: '2px solid #e0e0e0', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box', background: '#f8f8f8'}} />
@@ -688,6 +748,12 @@ export const ProveedoresModule = () => {
                   <label style={{display: 'block', fontWeight: 600, marginBottom: '0.5rem', color: '#333'}}>Precio</label>
                   <input type="text" value={itemCompra.precioUnitario} readOnly placeholder="—" style={{width: '100%', padding: '0.75rem', border: '2px solid #e0e0e0', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box', background: '#f8f8f8'}} />
                 </div>
+                {itemCompra.unidad === 'cajas' && (
+                  <div>
+                    <label style={{display: 'block', fontWeight: 600, marginBottom: '0.5rem', color: '#333'}}>Piezas/caja</label>
+                    <input type="text" value={itemCompra.contenidoCaja} readOnly placeholder="0" style={{width: '100%', padding: '0.75rem', border: '2px solid #BFDBFE', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box', background: '#EFF6FF', color: '#1E3A8A', fontWeight: 700}} />
+                  </div>
+                )}
                 <div>
                   <label style={{display: 'block', fontWeight: 600, marginBottom: '0.5rem', color: '#333'}}>Subtotal</label>
                   <input
@@ -722,7 +788,7 @@ export const ProveedoresModule = () => {
                   compraData.items.map(item => (
                     <div key={item.id} style={{display: 'grid', gridTemplateColumns: '1.3fr 0.8fr 0.8fr 0.8fr 80px', gap: '0.5rem', alignItems: 'center', padding: '0.75rem 1rem', borderTop: '1px solid #eee', fontSize: '13px'}}>
                       <strong>{item.producto}</strong>
-                      <span>{item.cantidad} {item.unidad}</span>
+                      <span>{item.cantidad} {formatUnidad(item.unidad)}{item.unidad === 'cajas' && item.contenidoCaja ? ` (${item.cantidad * item.contenidoCaja} piezas)` : ''}</span>
                       <span>${item.precioUnitario.toFixed(2)}</span>
                       <strong>${item.subtotal.toFixed(2)}</strong>
                       <div style={{display: 'flex', gap: '0.4rem'}}>
@@ -786,6 +852,6 @@ export const ProveedoresModule = () => {
   )
 }
 function formatUnidad(unidad) {
-  const labels = { kilos: 'Kilos', piezas: 'Piezas', litros: 'Litros', cajas: 'Cajas' }
+  const labels = { kilos: 'Kilos', piezas: 'Piezas', cajas: 'Cajas' }
   return labels[unidad] || unidad
 }

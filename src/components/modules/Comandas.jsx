@@ -42,6 +42,15 @@ export const Comandas = ({
   // Calcular ID automáticamente basado en comandas existentes
   const proximoId = comandas.length + 1
   const activeCategory = selectedCategory || categories[0]?.key || ''
+  const productosMenu = Object.entries(menu).flatMap(([key, categoria]) => {
+    const categoriaInfo = categories.find(cat => cat.key === key)
+    return (categoria.platillos || []).map(producto => ({
+      ...producto,
+      categoria: key,
+      categoriaLabel: categoriaInfo?.label || categoria.nombre || key
+    }))
+  })
+  const categoriasMenu = [...new Set(productosMenu.map(producto => producto.categoriaLabel).filter(Boolean))]
 
   // Calcular estadísticas
   const totalComandas = comandas.length
@@ -111,8 +120,11 @@ export const Comandas = ({
     return limite.limitado ? `+ Cuenta (${limite.usadas}/${limite.limite})` : '+ Cuenta'
   }
 
-  const agregarAlComanda = (platillo) => {
-    const categoriaActual = categories.find(cat => cat.key === activeCategory)
+  const obtenerPrecioNumero = (precio) => parseFloat(String(precio || '0').replace('$', '')) || 0
+
+  const agregarAlComanda = (platillo, categoriaOverride = null) => {
+    const categoriaKey = categoriaOverride?.key || platillo.categoria || activeCategory
+    const categoriaActual = categoriaOverride || categories.find(cat => cat.key === categoriaKey)
     const existente = itemsComanda.find(item => item.nombre === platillo.nombre)
     
     if (existente) {
@@ -121,7 +133,7 @@ export const Comandas = ({
           ? {
               ...item,
               cantidad: item.cantidad + 1,
-              subtotal: parseFloat(platillo.precio.replace('$', '')) * (item.cantidad + 1)
+              subtotal: obtenerPrecioNumero(platillo.precio) * (item.cantidad + 1)
             }
           : item
       )
@@ -130,11 +142,11 @@ export const Comandas = ({
       const nuevoItem = {
         id: itemsComanda.length + 1,
         ...platillo,
-        categoria: activeCategory,
-        categoriaLabel: categoriaActual?.label || activeCategory,
+        categoria: categoriaKey,
+        categoriaLabel: platillo.categoriaLabel || categoriaActual?.label || categoriaKey,
         cantidad: 1,
         comentarios: '',
-        subtotal: parseFloat(platillo.precio.replace('$', '')) * 1
+        subtotal: obtenerPrecioNumero(platillo.precio)
       }
       setItemsComanda([...itemsComanda, nuevoItem])
     }
@@ -146,7 +158,7 @@ export const Comandas = ({
         ? {
             ...item,
             cantidad: item.cantidad + 1,
-            subtotal: parseFloat(item.precio.replace('$', '')) * (item.cantidad + 1)
+            subtotal: obtenerPrecioNumero(item.precio) * (item.cantidad + 1)
           }
         : item
     )
@@ -159,7 +171,7 @@ export const Comandas = ({
         ? {
             ...item,
             cantidad: item.cantidad - 1,
-            subtotal: parseFloat(item.precio.replace('$', '')) * (item.cantidad - 1)
+            subtotal: obtenerPrecioNumero(item.precio) * (item.cantidad - 1)
           }
         : item
     )
@@ -203,7 +215,10 @@ export const Comandas = ({
     if (explicitos.length > 0) return explicitos
 
     const texto = normalizarTexto(`${promo.nombre || ''} ${promo.descripcion || ''}`)
-    const objetivos = []
+    const objetivos = categoriasMenu
+      .map(categoria => normalizarTexto(categoria))
+      .filter(categoria => texto.includes(categoria))
+
     const posibles = [
       'pizzas',
       'pizza',
@@ -231,6 +246,138 @@ export const Comandas = ({
     return [...new Set(objetivos)]
   }
 
+  const obtenerAplicablesExplicitos = (promo) => (
+    Array.isArray(promo?.aplicableTo)
+      ? promo.aplicableTo.map(item => String(item || '').trim()).filter(Boolean)
+      : []
+  )
+
+  const aplicableEsCategoria = (aplicable) => (
+    categoriasMenu.some(categoria => normalizarTexto(categoria) === normalizarTexto(aplicable))
+  )
+
+  const buscarProductoMenu = (objetivo) => {
+    const objetivoNormalizado = normalizarTexto(objetivo)
+    return productosMenu.find(producto => {
+      const nombre = normalizarTexto(producto.nombre)
+      return nombre === objetivoNormalizado || nombre.includes(objetivoNormalizado) || objetivoNormalizado.includes(nombre)
+    })
+  }
+
+  const obtenerProductosComboPromocion = (promo) => {
+    return obtenerAplicablesExplicitos(promo)
+      .filter(aplicable => !aplicableEsCategoria(aplicable))
+      .map(buscarProductoMenu)
+      .filter(Boolean)
+      .filter((producto, index, arr) => arr.findIndex(item => item.nombre === producto.nombre) === index)
+  }
+
+  const obtenerReglaDescripcionPromocion = (promo) => {
+    const descripcion = normalizarTexto(promo?.descripcion || '')
+    const nxm = descripcion.match(/(\d+)\s*x\s*(\d+)/)
+    const porcentaje = descripcion.match(/(\d+(?:\.\d+)?)\s*%/)
+    const precioEspecial = descripcion.match(/(?:por|a|x)\s*\$?\s*(\d+(?:\.\d+)?)/) || descripcion.match(/\$\s*(\d+(?:\.\d+)?)/)
+
+    return {
+      texto: descripcion,
+      nxm: nxm ? { compra: Number(nxm[1]), paga: Number(nxm[2]) } : promo?.tipo === '2x1' ? { compra: 2, paga: 1 } : null,
+      gratis: descripcion.includes('gratis'),
+      gratisTodo: descripcion.includes('todo gratis') || descripcion.includes('todos gratis') || descripcion.includes('productos gratis') || descripcion.trim() === 'gratis',
+      porcentaje: porcentaje ? Number(porcentaje[1]) : descripcion.includes('mitad de precio') ? 50 : null,
+      precioEspecial: precioEspecial ? Number(precioEspecial[1]) : null
+    }
+  }
+
+  const obtenerPrecioEspecialPromocion = (promo, regla = obtenerReglaDescripcionPromocion(promo)) => (
+    regla.precioEspecial || parseFloat(promo?.precio) || 0
+  )
+
+  const promocionAgregaProductos = (promo) => {
+    const regla = obtenerReglaDescripcionPromocion(promo)
+    return obtenerProductosComboPromocion(promo).length > 0 && (
+      obtenerPrecioEspecialPromocion(promo, regla) > 0 ||
+      regla.nxm ||
+      promo?.tipo === 'menu'
+    )
+  }
+
+  const obtenerCantidadAgregarPromocion = (promo) => {
+    const regla = obtenerReglaDescripcionPromocion(promo)
+    return regla.nxm?.compra || 1
+  }
+
+  const obtenerDetalleComboPromocion = (promo) => {
+    const productosCombo = obtenerProductosComboPromocion(promo)
+    if (productosCombo.length === 0) return null
+
+    const productos = productosCombo.map(producto => {
+      const productoNormalizado = normalizarTexto(producto.nombre)
+      const item = itemsComanda.find(item => normalizarTexto(item.nombre) === productoNormalizado)
+      return {
+        producto,
+        item,
+        cantidad: item?.cantidad || 0,
+        precio: obtenerPrecioNumero(item?.precio || producto.precio)
+      }
+    })
+
+    return {
+      productos,
+      grupos: Math.min(...productos.map(producto => producto.cantidad)),
+      basePorCombo: productos.reduce((total, producto) => total + producto.precio, 0)
+    }
+  }
+
+  const agregarProductosCombo = (promo) => {
+    const productosCombo = obtenerProductosComboPromocion(promo)
+    if (productosCombo.length === 0) return
+    const cantidadAgregar = obtenerCantidadAgregarPromocion(promo)
+
+    setItemsComanda(prev => {
+      const siguienteId = prev.reduce((max, item) => Math.max(max, Number(item.id) || 0), 0) + 1
+      let nuevos = 0
+
+      const actualizados = prev.map(item => {
+        const productoCombo = productosCombo.find(producto => normalizarTexto(producto.nombre) === normalizarTexto(item.nombre))
+        if (!productoCombo) return item
+
+        const cantidad = item.cantidad + cantidadAgregar
+        return {
+          ...item,
+          cantidad,
+          subtotal: obtenerPrecioNumero(item.precio) * cantidad
+        }
+      })
+
+      const agregados = productosCombo
+        .filter(producto => !prev.some(item => normalizarTexto(item.nombre) === normalizarTexto(producto.nombre)))
+        .map(producto => {
+          nuevos += 1
+          return {
+            id: siguienteId + nuevos - 1,
+            ...producto,
+            cantidad: cantidadAgregar,
+            comentarios: '',
+            subtotal: obtenerPrecioNumero(producto.precio) * cantidadAgregar
+          }
+        })
+
+      return [...actualizados, ...agregados]
+    })
+  }
+
+  const seleccionarPromocion = (id) => {
+    const idTexto = String(id)
+    setPromocionesSeleccionadasIds(prev => (
+      prev.includes(idTexto) ? prev : [...prev, idTexto]
+    ))
+  }
+
+  const agregarComboPromocion = (promo) => {
+    agregarProductosCombo(promo)
+    seleccionarPromocion(promo.id)
+  }
+
   const calcularSubtotal = () => {
     return itemsComanda.reduce((total, item) => total + item.subtotal, 0)
   }
@@ -250,22 +397,6 @@ export const Comandas = ({
         aplica.includes(categoria)
       )
     })
-  }
-
-  const obtenerReglaDescripcionPromocion = (promo) => {
-    const descripcion = normalizarTexto(promo?.descripcion || '')
-    const nxm = descripcion.match(/(\d+)\s*x\s*(\d+)/)
-    const porcentaje = descripcion.match(/(\d+(?:\.\d+)?)\s*%/)
-    const precioEspecial = descripcion.match(/(?:por|a)\s*\$?\s*(\d+(?:\.\d+)?)/) || descripcion.match(/\$\s*(\d+(?:\.\d+)?)/)
-
-    return {
-      texto: descripcion,
-      nxm: nxm ? { compra: Number(nxm[1]), paga: Number(nxm[2]) } : null,
-      gratis: descripcion.includes('gratis'),
-      gratisTodo: descripcion.includes('todo gratis') || descripcion.includes('todos gratis') || descripcion.includes('productos gratis') || descripcion.trim() === 'gratis',
-      porcentaje: porcentaje ? Number(porcentaje[1]) : descripcion.includes('mitad de precio') ? 50 : null,
-      precioEspecial: precioEspecial ? Number(precioEspecial[1]) : null
-    }
   }
 
   const itemCoincideConObjetivoGratis = (item, regla) => {
@@ -297,10 +428,12 @@ export const Comandas = ({
       const base = items.reduce((total, item) => total + item.subtotal, 0)
       let descuento = 0
       const regla = obtenerReglaDescripcionPromocion(promo)
+      const detalleCombo = obtenerDetalleComboPromocion(promo)
+      const precioEspecial = obtenerPrecioEspecialPromocion(promo, regla)
 
       if (regla.nxm) {
         descuento = items.reduce((total, item) => {
-          const precioUnitario = parseFloat(String(item.precio || '0').replace('$', '')) || 0
+          const precioUnitario = obtenerPrecioNumero(item.precio)
           const grupos = Math.floor(item.cantidad / regla.nxm.compra)
           const unidadesGratis = Math.max(regla.nxm.compra - regla.nxm.paga, 0)
           return total + (grupos * unidadesGratis * precioUnitario)
@@ -309,17 +442,17 @@ export const Comandas = ({
         descuento = items
           .filter(item => itemCoincideConObjetivoGratis(item, regla))
           .reduce((total, item) => total + item.subtotal, 0)
-      } else if (regla.precioEspecial) {
-        descuento = Math.max(base - regla.precioEspecial, 0)
+      } else if (detalleCombo?.grupos > 0 && precioEspecial > 0) {
+        descuento = (detalleCombo.basePorCombo - precioEspecial) * detalleCombo.grupos
+      } else if (precioEspecial > 0) {
+        descuento = base - precioEspecial
       } else if (regla.porcentaje) {
         descuento = base * (regla.porcentaje / 100)
       } else if (promo.tipo === '2x1') {
         descuento = items.reduce((total, item) => {
-          const precioUnitario = parseFloat(String(item.precio || '0').replace('$', '')) || 0
+          const precioUnitario = obtenerPrecioNumero(item.precio)
           return total + (Math.floor(item.cantidad / 2) * precioUnitario)
         }, 0)
-      } else if (promo.precio > 0 && promo.tipo === 'menu') {
-        descuento = Math.max(base - promo.precio, 0)
       } else {
         const descuentoPorcentaje = parseFloat(promo.descuento) || 0
         descuento = base * (descuentoPorcentaje / 100)
@@ -329,7 +462,8 @@ export const Comandas = ({
         promo,
         items,
         base,
-        descuento: parseFloat(descuento.toFixed(2))
+        descuento: parseFloat(descuento.toFixed(2)),
+        combos: detalleCombo?.grupos || 0
       }
     })
   }
@@ -514,6 +648,12 @@ export const Comandas = ({
 
   const alternarPromocion = (id) => {
     const idTexto = String(id)
+    const promo = promocionesAplicables.find(promo => String(promo.id) === idTexto)
+
+    if (promo && !promocionesSeleccionadasIds.includes(idTexto) && promocionAgregaProductos(promo)) {
+      agregarProductosCombo(promo)
+    }
+
     setPromocionesSeleccionadasIds(prev =>
       prev.includes(idTexto)
         ? prev.filter(item => item !== idTexto)
@@ -1071,16 +1211,40 @@ export const Comandas = ({
                     <div style={{display: 'grid', gap: '0.45rem'}}>
                       {promocionesAplicables.length === 0 ? (
                         <div style={{fontSize: '12px', color: '#666'}}>No hay promociones activas disponibles.</div>
-                      ) : promocionesAplicables.map(promo => (
-                        <label key={promo.id} style={{display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '12px', fontWeight: 700, color: '#111', background: promocionesSeleccionadasIds.includes(String(promo.id)) ? '#FFF7ED' : '#F8FAFC', border: '1px solid #E5E7EB', borderRadius: '6px', padding: '0.45rem', cursor: 'pointer'}}>
-                          <input
-                            type="checkbox"
-                            checked={promocionesSeleccionadasIds.includes(String(promo.id))}
-                            onChange={() => alternarPromocion(promo.id)}
-                          />
-                          <span>{promo.nombre} {promo.descuento > 0 ? `- ${promo.descuento}%` : ''}</span>
-                        </label>
-                      ))}
+                      ) : promocionesAplicables.map(promo => {
+                        const esComboMenu = promocionAgregaProductos(promo)
+                        const aplicada = calcularPromocionesAplicadas().find(aplicada => aplicada.promo.id === promo.id)
+
+                        return (
+                          <div key={promo.id} style={{display: 'grid', gap: '0.45rem', background: promocionesSeleccionadasIds.includes(String(promo.id)) ? '#FFF7ED' : '#F8FAFC', border: '1px solid #E5E7EB', borderRadius: '6px', padding: '0.55rem'}}>
+                            <label style={{display: 'grid', gridTemplateColumns: 'auto 1fr', alignItems: 'start', gap: '0.5rem', fontSize: '12px', fontWeight: 700, color: '#111', cursor: 'pointer'}}>
+                              <input
+                                type="checkbox"
+                                checked={promocionesSeleccionadasIds.includes(String(promo.id))}
+                                onChange={() => alternarPromocion(promo.id)}
+                                style={{marginTop: '0.15rem'}}
+                              />
+                              <span style={{display: 'grid', gap: '0.25rem'}}>
+                                <span>{promo.nombre} {promo.descuento > 0 ? `- ${promo.descuento}%` : ''}</span>
+                                {promo.descripcion && (
+                                  <span style={{fontSize: '11px', lineHeight: 1.35, color: '#475569', fontWeight: 600}}>
+                                    {promo.descripcion}
+                                  </span>
+                                )}
+                              </span>
+                            </label>
+                            {esComboMenu && (
+                              <button
+                                type="button"
+                                onClick={() => agregarComboPromocion(promo)}
+                                style={{padding: '0.45rem 0.55rem', background: '#16A34A', color: '#fff', border: 'none', borderRadius: '5px', fontSize: '12px', fontWeight: 800, cursor: 'pointer'}}
+                              >
+                                + Agregar combo{aplicada?.combos > 0 ? ` (${aplicada.combos})` : ''}
+                              </button>
+                            )}
+                          </div>
+                        )
+                      })}
                     </div>
 
                     {calcularPromocionesAplicadas().length > 0 && (
@@ -1089,9 +1253,14 @@ export const Comandas = ({
                         {calcularPromocionesAplicadas().map(aplicada => (
                           <div key={aplicada.promo.id} style={{borderTop: '1px solid #E5E7EB', paddingTop: '0.6rem'}}>
                             <div style={{display: 'flex', justifyContent: 'space-between', gap: '0.5rem', fontWeight: 800}}>
-                              <span>{aplicada.promo.nombre}</span>
+                              <span>{aplicada.promo.nombre}{aplicada.combos > 1 ? ` x${aplicada.combos}` : ''}</span>
                               <span>- ${aplicada.descuento.toFixed(2)}</span>
                             </div>
+                            {aplicada.promo.descripcion && (
+                              <div style={{marginTop: '0.35rem', color: '#334155', lineHeight: 1.35, fontWeight: 700}}>
+                                {aplicada.promo.descripcion}
+                              </div>
+                            )}
                             {aplicada.items.length > 0 ? (
                               <div style={{marginTop: '0.4rem', color: '#475569'}}>
                                 {aplicada.items.map(item => (
