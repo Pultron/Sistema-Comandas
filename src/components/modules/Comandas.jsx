@@ -536,9 +536,8 @@ export const Comandas = ({
       setMensajeAlerta('La edición visual sigue disponible, pero la actualización completa se sincroniza con la BD desde el hook de comandas.')
       setComandaAEditar(null)
     } else {
-      const referenciaMesa = nombreMesa.trim()
       await agregarComanda({
-        mesa: referenciaMesa ? `Mesa ${numeroMesa.trim()} - ${referenciaMesa}` : `Mesa ${numeroMesa.trim()}`,
+        mesa: `Mesa ${numeroMesa.trim()}`,
         items: itemsComanda,
         descuento: calcularDescuentoPromocion(),
         promocionAplicada: calcularPromocionesAplicadas().map(aplicada => ({
@@ -549,7 +548,7 @@ export const Comandas = ({
         })),
         id_mesa: comandaBaseCuenta?.id_mesa || null,
         cuentaSeparada: !!comandaBaseCuenta,
-        nombreCuenta: comandaBaseCuenta ? referenciaMesa : null,
+        nombreCuenta: null,
         idReservacion: comandaBaseCuenta?.idReservacion || null
       })
     }
@@ -1308,7 +1307,7 @@ export const Comandas = ({
             boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4)'
           }}>
             <h2 style={{color: '#000', margin: '0 0 1.5rem 0', fontSize: '22px', fontWeight: 800}}>
-              Agregar cuenta
+              Agregar Cuenta Individual
             </h2>
             <label style={{display: 'block', color: '#333', fontWeight: 700, marginBottom: '0.5rem', fontSize: '14px'}}>
               Mesa
@@ -1447,26 +1446,6 @@ export const Comandas = ({
                 No hay mesas disponibles en este momento.
               </div>
             )}
-            <label style={{display: 'block', color: '#000', fontWeight: 700, marginBottom: '0.5rem', fontSize: '14px'}}>
-              Nombre o referencia:
-            </label>
-            <input
-              type="text"
-              value={nombreMesa}
-              onChange={(e) => setNombreMesa(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && confirmarMesa()}
-              placeholder="Ej: Juan, Mesa VIP, etc. (opcional)"
-              style={{
-                width: '100%',
-                padding: '0.8rem',
-                fontSize: '16px',
-                border: '2px solid #000',
-                borderRadius: '6px',
-                marginBottom: '1.5rem',
-                boxSizing: 'border-box',
-                fontFamily: 'inherit'
-              }}
-            />
             <div style={{display: 'flex', gap: '1rem', justifyContent: 'flex-end'}}>
               <button
                 onClick={() => {

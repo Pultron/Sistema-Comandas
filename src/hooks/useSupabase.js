@@ -5,6 +5,10 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 
+const fechaActualLocal = () => {
+  return new Date().toLocaleDateString('sv-SE')
+}
+
 const avisarCambioComandas = () => {
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new Event('comandas:changed'))
@@ -472,21 +476,29 @@ export function usePersonal() {
 
   async function guardarEmpleado(formData, editando) {
     if (editando) {
-      await supabase.from('usuarios').update({
+      const updateData = {
         nombre:  formData.nombre,
         usuario: formData.usuario,
+        correo:  formData.correo || null,
+        telefono: formData.telefono || null,
         rol:     formData.rol,
         estado:  formData.estado
-      }).eq('id', editando.id)
+      }
+      // Solo actualizar contraseña si cambió
+      if (formData.password && formData.password !== editando.contrasena) {
+        updateData.contrasena = formData.password
+      }
+      await supabase.from('usuarios').update(updateData).eq('id', editando.id)
     } else {
       await supabase.from('usuarios').insert({
         nombre:       formData.nombre,
         usuario:      formData.usuario,
         correo:       formData.correo || null,
+        telefono:     formData.telefono || null,
         contrasena:   formData.password,
         rol:          formData.rol,
         estado:       'activo',
-        fecha_ingreso: new Date().toISOString().split('T')[0]
+        fecha_ingreso: fechaActualLocal()
       })
     }
     await fetchPersonal()
@@ -654,6 +666,7 @@ export function useInventario() {
     if (data) setIngredientes(data.map(i => ({
       ...i,
       minimo: i.cantidad_minima,
+      maximo: i.cantidad_maxima,
       proveedor: i.proveedores?.nombre || 'Sin proveedor'
     })))
     setLoading(false)
@@ -702,6 +715,30 @@ export function useInventario() {
     await fetchInventario()
   }
 
+  async function actualizarLimitesStock(id, limites) {
+    const minimo = parseFloat(limites.minimo) || 0
+    const maximo = limites.maximo === '' || limites.maximo === null || limites.maximo === undefined
+      ? null
+      : parseFloat(limites.maximo)
+
+    const { data: ing } = await supabase
+      .from('inventario')
+      .select('cantidad')
+      .eq('id', id)
+      .single()
+
+    const cantidad = parseFloat(ing?.cantidad) || 0
+    await supabase.from('inventario').update({
+      cantidad_minima: minimo,
+      cantidad_maxima: maximo,
+      estado: cantidad <= minimo ? 'bajo' : 'normal',
+      updated_at: new Date().toISOString()
+    }).eq('id', id)
+
+    await fetchInventario()
+    avisarCambioInventario()
+  }
+
   async function registrarMovimiento(movData) {
     const query = supabase
       .from('inventario')
@@ -720,7 +757,7 @@ export function useInventario() {
       tipo:           movData.tipo || 'salida',
       cantidad:       cantidadMovimiento,
       motivo:         `${movData.motivo || 'Movimiento'}${persona}`,
-      fecha:          new Date().toISOString().split('T')[0]
+      fecha:          fechaActualLocal()
     })
 
     // Actualizar cantidad
@@ -732,14 +769,14 @@ export function useInventario() {
       cantidad:   nuevaCantidad,
       estado:     nuevaCantidad <= ing.cantidad_minima ? 'bajo' : 'normal',
       updated_at: new Date().toISOString()
-    }).eq('nombre', movData.ingrediente)
+    }).eq('id', ing.id)
 
     await fetchInventario()
     await fetchMovimientos()
     avisarCambioInventario()
   }
 
-  return { ingredientes, movimientos, loading, guardarIngrediente, eliminarIngrediente, registrarMovimiento, refetch: fetchInventario }
+  return { ingredientes, movimientos, loading, guardarIngrediente, eliminarIngrediente, registrarMovimiento, actualizarLimitesStock, refetch: fetchInventario }
 }
 
 // ── PROVEEDORES ───────────────────────────────
@@ -927,7 +964,7 @@ export function useProveedores() {
 
     await supabase.from('compras_proveedor').insert({
       id_proveedor: prov.id,
-      fecha:        new Date().toISOString().split('T')[0],
+      fecha:        fechaActualLocal(),
       total:        parseFloat(compraData.total),
       num_items:    compraData.items?.length || 0,
       observaciones: JSON.stringify({ items: compraData.items || [] })
@@ -977,7 +1014,7 @@ export function useProveedores() {
           tipo: 'entrada',
           cantidad: cantidadInventario,
           motivo: motivoCompra,
-          fecha: new Date().toISOString().split('T')[0]
+          fecha: fechaActualLocal()
         })
       } else {
         const { data: nuevo } = await supabase
@@ -999,7 +1036,7 @@ export function useProveedores() {
             tipo: 'entrada',
             cantidad: cantidadInventario,
             motivo: motivoCompra,
-            fecha: new Date().toISOString().split('T')[0]
+            fecha: fechaActualLocal()
           })
         }
       }
@@ -1220,7 +1257,7 @@ export function useCaja() {
     await supabase.from('cortes_caja').insert({
       id_usuario:    1, // Cambia por el ID del usuario logueado
       turno:         formCorte.turno,
-      fecha:         new Date().toISOString().split('T')[0],
+      fecha:         fechaActualLocal(),
       total_ventas:  totalVentas,
       pagos_efectivo: parseFloat(formCorte.pagosEfectivo || 0),
       pagos_tarjeta:  parseFloat(formCorte.pagosTarjeta  || 0),
