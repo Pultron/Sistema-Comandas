@@ -71,6 +71,10 @@ export function useMenu() {
               id:           p.id,
               nombre:       p.nombre,
               precio:       `$${parseFloat(p.precio).toFixed(2)}`,
+              precioNumero:  Number(p.precio) || 0,
+              descripcion:   p.descripcion || p.descripcion_corta || p.detalle || '',
+              categoria:     key,
+              id_categoria:  p.id_categoria,
               imagen:       p.imagen || '🍽️',
               ingredientes: p.ingredientes ? p.ingredientes.split(',').map(i => i.trim()) : [],
               tiempo:       p.tiempo_preparacion
@@ -79,9 +83,11 @@ export function useMenu() {
       })
 
       const catsFormatted = cats.map(cat => ({
+        id:    cat.id,
         key:   cat.nombre.toLowerCase().replace(/\s+/g, '_'),
         label: cat.nombre,
-        icon:  cat.icono
+        icon:  cat.icono,
+        color: cat.color_hex
       }))
 
       setMenu(menuObj)

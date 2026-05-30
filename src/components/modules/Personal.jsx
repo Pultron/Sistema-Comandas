@@ -217,7 +217,6 @@ export const PersonalModule = () => {
                 <th style={{padding: '1rem', textAlign: 'left', fontWeight: 700}}>Usuario</th>
                 <th style={{padding: '1rem', textAlign: 'left', fontWeight: 700}}>Rol</th>
                 <th style={{padding: '1rem', textAlign: 'center', fontWeight: 700}}>Estado</th>
-                <th style={{padding: '1rem', textAlign: 'center', fontWeight: 700}}>Asistencia</th>
                 <th style={{padding: '1rem', textAlign: 'center', fontWeight: 700}}>Acciones</th>
               </tr>
             </thead>
@@ -264,9 +263,6 @@ export const PersonalModule = () => {
                     }}>
                       {empleado.estado === 'activo' ? ' Activo' : ' Inactivo'}
                     </div>
-                  </td>
-                  <td style={{padding: '1rem', textAlign: 'center', fontWeight: 700, color: '#FF6F00'}}>
-                    {empleado.asistencia} días
                   </td>
                   <td style={{padding: '1rem', textAlign: 'center'}}>
                     <div style={{display: 'flex', gap: '0.5rem', justifyContent: 'center', flexWrap: 'wrap'}}>

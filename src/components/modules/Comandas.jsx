@@ -1,7 +1,99 @@
 import { useState } from 'react'
-import { ComandIcon, CheckCircleIcon, DollarSignIcon, ClockIcon } from '../Icons'
+import { ComandIcon, CheckCircleIcon, DollarSignIcon, ClockIcon, SearchIcon, UserIcon } from '../Icons'
 import { appStyles } from '../../styles/styles'
 import { useComandas, useMenu, useMesas, usePromociones } from '../../hooks/useSupabase'
+import '../../styles/Comandas.css'
+
+const IconShell = ({ children, size = 24, className = '' }) => (
+  <svg
+    className={className}
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    {children}
+  </svg>
+)
+
+const TableRestaurantIcon = ({ size = 24, className = '' }) => (
+  <IconShell size={size} className={className}>
+    <path d="M4 10h16" />
+    <path d="M6 10l-2 9" />
+    <path d="M18 10l2 9" />
+    <path d="M8 10l1 9" />
+    <path d="M16 10l-1 9" />
+    <path d="M7 5h10l2 5H5l2-5z" />
+  </IconShell>
+)
+
+const UtensilsIcon = ({ size = 24, className = '' }) => (
+  <IconShell size={size} className={className}>
+    <path d="M4 3v8" />
+    <path d="M8 3v8" />
+    <path d="M6 3v18" />
+    <path d="M14 3v7a4 4 0 0 0 4 4h1" />
+    <path d="M18 3v18" />
+  </IconShell>
+)
+
+const CalendarCheckIcon = ({ size = 24, className = '' }) => (
+  <IconShell size={size} className={className}>
+    <rect x="3" y="4" width="18" height="18" rx="2" />
+    <path d="M16 2v4" />
+    <path d="M8 2v4" />
+    <path d="M3 10h18" />
+    <path d="m9 16 2 2 4-5" />
+  </IconShell>
+)
+
+const UsersIcon = ({ size = 24, className = '' }) => (
+  <IconShell size={size} className={className}>
+    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+    <circle cx="9" cy="7" r="4" />
+    <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+  </IconShell>
+)
+
+const EyeIcon = ({ size = 24, className = '' }) => (
+  <IconShell size={size} className={className}>
+    <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" />
+    <circle cx="12" cy="12" r="3" />
+  </IconShell>
+)
+
+const CalendarIcon = ({ size = 24, className = '' }) => (
+  <IconShell size={size} className={className}>
+    <rect x="3" y="4" width="18" height="18" rx="2" />
+    <path d="M16 2v4" />
+    <path d="M8 2v4" />
+    <path d="M3 10h18" />
+  </IconShell>
+)
+
+const ChevronDownIcon = ({ size = 24, className = '' }) => (
+  <IconShell size={size} className={className}>
+    <path d="m6 9 6 6 6-6" />
+  </IconShell>
+)
+
+const ChevronLeftIcon = ({ size = 24, className = '' }) => (
+  <IconShell size={size} className={className}>
+    <path d="m15 18-6-6 6-6" />
+  </IconShell>
+)
+
+const ChevronRightIcon = ({ size = 24, className = '' }) => (
+  <IconShell size={size} className={className}>
+    <path d="m9 18 6-6-6-6" />
+  </IconShell>
+)
 
 export const Comandas = ({
   comandas: comandasProp,
@@ -38,6 +130,9 @@ export const Comandas = ({
   const [comandaBaseCuenta, setComandaBaseCuenta] = useState(null)
   const [nombreCuentaSeparada, setNombreCuentaSeparada] = useState('')
   const [promocionesSeleccionadasIds, setPromocionesSeleccionadasIds] = useState([])
+  const [busquedaComanda, setBusquedaComanda] = useState('')
+  const [filtroEstado, setFiltroEstado] = useState('todas')
+  const [paginaActual, setPaginaActual] = useState(1)
 
   // Calcular ID automáticamente basado en comandas existentes
   const proximoId = comandas.length + 1
@@ -59,11 +154,6 @@ export const Comandas = ({
     const precio = parseFloat(c.total.replace('$', ''))
     return total + precio
   }, 0)
-
-  const getBadgeStyle = (estado) => {
-    if (estado === 'Pendiente') return { ...appStyles.badge, ...appStyles.badgePending }
-    return { ...appStyles.badge, ...appStyles.badgeSuccess }
-  }
 
   const formatearHora = (fecha) => {
     const date = new Date(fecha)
@@ -113,11 +203,6 @@ export const Comandas = ({
   const puedeAgregarCuentaSeparada = (comanda) => {
     const limite = obtenerLimiteCuentas(comanda)
     return !limite.alcanzado
-  }
-
-  const textoBotonCuenta = (comanda) => {
-    const limite = obtenerLimiteCuentas(comanda)
-    return limite.limitado ? `+ Cuenta (${limite.usadas}/${limite.limite})` : '+ Cuenta'
   }
 
   const obtenerPrecioNumero = (precio) => parseFloat(String(precio || '0').replace('$', '')) || 0
@@ -660,151 +745,282 @@ export const Comandas = ({
     )
   }
 
+  const obtenerNumeroMesa = (comanda) => {
+    const textoMesa = String(comanda.mesa || '')
+    const coincidencia = textoMesa.match(/Mesa\s*(\d+)/i)
+    return coincidencia?.[1] || textoMesa.replace(/Reservaci[oó]n\s*-\s*/i, '').trim()
+  }
+
+  const obtenerMesaVisible = (comanda) => {
+    const numero = obtenerNumeroMesa(comanda)
+    return String(numero).toLowerCase().startsWith('mesa') ? numero : `Mesa ${numero}`
+  }
+
+  const esComandaReservacion = (comanda) => {
+    const mesa = String(comanda.mesa || '')
+    return Boolean(comanda.esReservacion || (comanda.idReservacion && !comanda.cuentaSeparada) || /^Reservaci[oó]n/i.test(mesa))
+  }
+
+  const obtenerConteoProductos = (comanda) => Number(comanda.productos ?? comanda.items?.length ?? 0)
+
+  const obtenerTextoCuentaDividida = (comanda) => {
+    const limite = obtenerLimiteCuentas(comanda)
+    return `${limite.usadas}/${limite.limite ?? 0}`
+  }
+
+  const obtenerClaseEstado = (estado) => (
+    estado === 'Pendiente' ? 'comanda-status comanda-status--pending' : 'comanda-status comanda-status--paid'
+  )
+
+  const buscarEnComanda = (comanda) => {
+    const termino = normalizarTexto(busquedaComanda)
+    if (!termino) return true
+
+    const valores = [
+      comanda.mesa,
+      obtenerMesaVisible(comanda),
+      comanda.nombreCuenta,
+      comanda.mesero,
+      `#${comanda.id}`,
+      comanda.id
+    ]
+
+    return valores.some(valor => normalizarTexto(valor).includes(termino))
+  }
+
+  const comandasFiltradas = comandas.filter(comanda => {
+    const coincideEstado =
+      filtroEstado === 'todas' ||
+      (filtroEstado === 'pendientes' && comanda.estado === 'Pendiente') ||
+      (filtroEstado === 'pagadas' && comanda.estado === 'Pagado')
+
+    return coincideEstado && buscarEnComanda(comanda)
+  })
+
+  const comandasPendientes = comandas.filter(c => c.estado === 'Pendiente').length
+  const comandasPorPagina = 10
+  const totalPaginas = Math.max(1, Math.ceil(comandasFiltradas.length / comandasPorPagina))
+  const paginaSegura = Math.min(paginaActual, totalPaginas)
+  const inicioPagina = (paginaSegura - 1) * comandasPorPagina
+  const comandasPagina = comandasFiltradas.slice(inicioPagina, inicioPagina + comandasPorPagina)
+  const fechaSelector = 'Hoy, 25 jun 2026'
+
   return (
-    <div>
-      <div style={appStyles.pageHeader}>
-        <h1 style={appStyles.pageTitle}>
-          <ComandIcon size={24} color="#FFD54F" style={{marginRight: '0.5rem', verticalAlign: 'middle'}} /> 
-          Comandas Activas
-        </h1>
-        <button style={appStyles.btnPrimary} onClick={abrirNuevaComanda}>+ Nueva Comanda</button>
-      </div>
+    <div className="comandas-active-module">
+      <section className="comandas-hero">
+        <div className="comandas-title-wrap">
+          <div className="comandas-title-icon">
+            <ComandIcon size={34} color="currentColor" />
+          </div>
+          <div>
+            <h1>Comandas Activas</h1>
+            <p>Resumen de comandas en curso y historial reciente</p>
+          </div>
+        </div>
+        <button className="comandas-new-button" onClick={abrirNuevaComanda}>
+          <span aria-hidden="true">+</span>
+          Nueva Comanda
+        </button>
+      </section>
 
-      {/* Stats */}
-      <div style={appStyles.statsContainer}>
-        <div style={appStyles.statCard}>
-          <div style={appStyles.statIcon}>
-            <ComandIcon size={28} color="#000000" />
+      <section className="comandas-kpis" aria-label="Resumen de comandas">
+        <article className="comandas-kpi comandas-kpi--total">
+          <div className="comandas-kpi-icon">
+            <ComandIcon size={34} color="currentColor" />
           </div>
-          <div style={appStyles.statLabel}>Total Comandas</div>
-          <div style={appStyles.statValue}>{totalComandas}</div>
-        </div>
-        <div style={appStyles.statCard}>
-          <div style={appStyles.statIcon}>
-            <ClockIcon size={28} color="#000000" />
+          <div>
+            <div className="comandas-kpi-label">Total Comandas</div>
+            <div className="comandas-kpi-value">{totalComandas}</div>
           </div>
-          <div style={appStyles.statLabel}>Pendientes</div>
-          <div style={appStyles.statValue}>{comandas.filter(c => c.estado === 'Pendiente').length}</div>
-        </div>
-        <div style={appStyles.statCard}>
-          <div style={appStyles.statIcon}>
-            <CheckCircleIcon size={28} color="#000000" />
+        </article>
+        <article className="comandas-kpi comandas-kpi--pending">
+          <div className="comandas-kpi-icon">
+            <ClockIcon size={34} color="currentColor" />
           </div>
-          <div style={appStyles.statLabel}>Pagadas</div>
-          <div style={appStyles.statValue}>{comandasPagadas}</div>
-        </div>
-        <div style={appStyles.statCard}>
-          <div style={appStyles.statIcon}>
-            <DollarSignIcon size={28} color="#000000" />
+          <div>
+            <div className="comandas-kpi-label">Pendientes</div>
+            <div className="comandas-kpi-value">{comandasPendientes}</div>
           </div>
-          <div style={appStyles.statLabel}>Ingresos Hoy</div>
-          <div style={appStyles.statValue}>${ingresosHoy.toFixed(2)}</div>
-        </div>
-      </div>
+        </article>
+        <article className="comandas-kpi comandas-kpi--paid">
+          <div className="comandas-kpi-icon">
+            <CheckCircleIcon size={36} color="currentColor" />
+          </div>
+          <div>
+            <div className="comandas-kpi-label">Pagadas</div>
+            <div className="comandas-kpi-value">{comandasPagadas}</div>
+          </div>
+        </article>
+        <article className="comandas-kpi comandas-kpi--income">
+          <div className="comandas-kpi-icon">
+            <DollarSignIcon size={36} color="currentColor" />
+          </div>
+          <div>
+            <div className="comandas-kpi-label">Ingresos Hoy</div>
+            <div className="comandas-kpi-value">${ingresosHoy.toFixed(2)}</div>
+          </div>
+        </article>
+      </section>
 
-      {/* Table */}
-      <div style={appStyles.tableContainer}>
-        <table style={appStyles.table}>
-          <colgroup>
-            <col style={{width: '11%'}} />
-            <col style={{width: '19%'}} />
-            <col style={{width: '14%'}} />
-            <col style={{width: '10%'}} />
-            <col style={{width: '10%'}} />
-            <col style={{width: '12%'}} />
-            <col style={{width: '24%'}} />
-          </colgroup>
-          <thead style={appStyles.tableHead}>
-            <tr>
-              <th style={{...appStyles.tableTh, textAlign: 'left'}}>Comanda ID</th>
-              <th style={{...appStyles.tableTh, textAlign: 'left'}}>Mesa / Cliente</th>
-              <th style={{...appStyles.tableTh, textAlign: 'left'}}>Hora</th>
-              <th style={{...appStyles.tableTh, textAlign: 'center'}}>Productos</th>
-              <th style={{...appStyles.tableTh, textAlign: 'right'}}>Total</th>
-              <th style={{...appStyles.tableTh, textAlign: 'center'}}>Estado</th>
-              <th style={{...appStyles.tableTh, textAlign: 'center'}}>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {comandas.map(comanda => (
-              <tr key={comanda.id}>
-                <td style={{...appStyles.tableTd, textAlign: 'left'}}>
-                  <strong>#{comanda.id}</strong>
-                </td>
-                <td style={{...appStyles.tableTd, textAlign: 'left'}}>{comanda.mesa}</td>
-                <td style={{...appStyles.tableTd, textAlign: 'left'}}>{formatearHora(comanda.fecha)}</td>
-                <td style={{...appStyles.tableTd, textAlign: 'center'}}>{comanda.productos}</td>
-                <td style={{...appStyles.tableTd, textAlign: 'right'}}><strong>{comanda.total}</strong></td>
-                <td style={{...appStyles.tableTd, textAlign: 'center'}}><span style={getBadgeStyle(comanda.estado)}>{comanda.estado}</span></td>
-                <td style={{...appStyles.tableTd, textAlign: 'center'}}>
-                  <div style={{display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', flexWrap: 'wrap'}}>
-                  <button 
-                    onClick={() => verComanda(comanda)}
-                    style={{
-                      background: '#4CAF50',
-                      border: 'none',
-                      cursor: 'pointer',
-                      marginRight: '0.5rem',
-                      color: '#fff',
-                      padding: '0.6rem 1rem',
-                      fontSize: '12px',
-                      fontWeight: 700,
-                      borderRadius: '6px',
-                      transition: 'all 0.3s ease',
-                      boxShadow: '0 2px 8px rgba(76, 175, 80, 0.3)',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '0.4rem'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = '#45A049'
-                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(76, 175, 80, 0.5)'
-                      e.currentTarget.style.transform = 'translateY(-2px)'
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = '#4CAF50'
-                      e.currentTarget.style.boxShadow = '0 2px 8px rgba(76, 175, 80, 0.3)'
-                      e.currentTarget.style.transform = 'translateY(0)'
-                    }}
-                    title="Ver Comanda"
-                  >
-                     Ver Comanda
-                  </button>
-                  {!comanda.cuentaSeparada && (
-                    (() => {
-                      const limiteCuenta = obtenerLimiteCuentas(comanda)
-                      const cuentaHabilitada = comanda.estado === 'Pendiente' && !limiteCuenta.alcanzado
+      <section className="comandas-filters comandas-filters--simple" aria-label="Filtros de comandas">
+        <label className="comandas-search">
+          <SearchIcon size={22} color="currentColor" />
+          <input
+            type="search"
+            value={busquedaComanda}
+            onChange={(event) => {
+              setBusquedaComanda(event.target.value)
+              setPaginaActual(1)
+            }}
+            placeholder="Buscar mesa o cliente..."
+          />
+        </label>
 
-                      return (
-                        <button
-                          onClick={() => abrirCuentaSeparada(comanda)}
-                          disabled={!cuentaHabilitada}
-                          style={{
-                            background: '#111827',
-                            border: 'none',
-                            cursor: cuentaHabilitada ? 'pointer' : 'not-allowed',
-                            marginRight: '0.5rem',
-                            color: '#fff',
-                            padding: '0.5rem 0.8rem',
-                            borderRadius: '6px',
-                            fontWeight: 700,
-                            fontSize: '12px',
-                            opacity: cuentaHabilitada ? 1 : 0.5
-                          }}
-                          title={limiteCuenta.alcanzado ? 'Limite de cuentas separadas alcanzado' : 'Agregar cuenta separada'}
-                        >
-                          {textoBotonCuenta(comanda)}
-                        </button>
-                      )
-                    })()
-                  )}
+        <div className="comandas-quick-filters" role="group" aria-label="Filtros rapidos">
+          <button
+            className={`comandas-filter-pill comandas-filter-pill--all ${filtroEstado === 'todas' ? 'is-active' : ''}`}
+            onClick={() => {
+              setFiltroEstado('todas')
+              setPaginaActual(1)
+            }}
+          >
+            <ComandIcon size={17} color="currentColor" />
+            Todas ({totalComandas})
+          </button>
+          <button
+            className={`comandas-filter-pill comandas-filter-pill--pending ${filtroEstado === 'pendientes' ? 'is-active' : ''}`}
+            onClick={() => {
+              setFiltroEstado('pendientes')
+              setPaginaActual(1)
+            }}
+          >
+            <ClockIcon size={18} color="currentColor" />
+            Pendientes ({comandasPendientes})
+          </button>
+          <button
+            className={`comandas-filter-pill comandas-filter-pill--paid ${filtroEstado === 'pagadas' ? 'is-active' : ''}`}
+            onClick={() => {
+              setFiltroEstado('pagadas')
+              setPaginaActual(1)
+            }}
+          >
+            <CheckCircleIcon size={18} color="currentColor" />
+            Pagadas ({comandasPagadas})
+          </button>
+        </div>
+      </section>
+
+      <section className="comandas-card-grid" aria-label="Comandas">
+        {comandasPagina.length === 0 ? (
+          <div className="comandas-empty-state">No hay comandas para mostrar.</div>
+        ) : (
+          comandasPagina.map(comanda => {
+            const reservacion = esComandaReservacion(comanda)
+            const productos = obtenerConteoProductos(comanda)
+
+            return (
+              <article className="comanda-card" key={comanda.id}>
+                <div className="comanda-card-top">
+                  <span className="comanda-id-pill">
+                    <ComandIcon size={14} color="currentColor" />
+                    #{comanda.id}
+                  </span>
+                  <span className={obtenerClaseEstado(comanda.estado)}>
+                    {comanda.estado === 'Pendiente' ? (
+                      <ClockIcon size={18} color="currentColor" />
+                    ) : (
+                      <CheckCircleIcon size={18} color="currentColor" />
+                    )}
+                    {comanda.estado === 'Pendiente' ? 'Pendiente' : 'Pagada'}
+                  </span>
+                </div>
+
+                <div className="comanda-table-title">
+                  <TableRestaurantIcon size={31} className="comanda-table-icon" />
+                  <strong>{obtenerMesaVisible(comanda)}</strong>
+                </div>
+
+                {reservacion && (
+                  <div className="comanda-reservation-pill">
+                    <CalendarCheckIcon size={17} />
+                    Reservación
                   </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                )}
+
+                <div className="comanda-divider" />
+
+                <div className="comanda-metrics">
+                  <div className="comanda-metric comanda-metric--time">
+                    <ClockIcon size={19} color="currentColor" />
+                    <span>{formatearHora(comanda.fecha)}</span>
+                  </div>
+                  <div className={`comanda-metric ${comanda.estado === 'Pendiente' ? 'comanda-metric--products-pending' : 'comanda-metric--products-paid'}`}>
+                    <UtensilsIcon size={20} />
+                    <span>{productos} productos</span>
+                  </div>
+                </div>
+
+                <div className="comanda-waiter">
+                  <span>Mesero</span>
+                  <strong>
+                    <UserIcon size={20} color="currentColor" />
+                    {comanda.mesero || 'Sin mesero'}
+                  </strong>
+                </div>
+
+                <div className="comanda-divider comanda-divider--tight" />
+
+                <div className="comanda-total">
+                  <span>Total</span>
+                  <strong>{comanda.total}</strong>
+                </div>
+
+                <div className="comanda-actions">
+                  <button className="comanda-view-button" onClick={() => verComanda(comanda)}>
+                    <EyeIcon size={19} />
+                    Ver Comanda
+                  </button>
+                  <button
+                    className="comanda-split-button"
+                    onClick={() => abrirCuentaSeparada(comanda)}
+                    title="Gestionar cuentas divididas"
+                  >
+                    <UsersIcon size={24} />
+                    <span>{obtenerTextoCuentaDividida(comanda)}</span>
+                  </button>
+                </div>
+              </article>
+            )
+          })
+        )}
+      </section>
+
+      <footer className="comandas-pagination">
+        <div>Mostrando {comandasFiltradas.length === 0 ? 0 : inicioPagina + 1} a {Math.min(inicioPagina + comandasPagina.length, comandasFiltradas.length)} de {comandasFiltradas.length} comandas</div>
+        <div className="comandas-page-controls">
+          <button
+            className="comandas-page-button"
+            disabled={paginaSegura <= 1}
+            onClick={() => setPaginaActual(prev => Math.max(1, prev - 1))}
+          >
+            <ChevronLeftIcon size={18} />
+            Anterior
+          </button>
+          <span className="comandas-current-page">{paginaSegura}</span>
+          <button
+            className="comandas-page-button"
+            disabled={paginaSegura >= totalPaginas}
+            onClick={() => setPaginaActual(prev => Math.min(totalPaginas, prev + 1))}
+          >
+            <ChevronRightIcon size={18} />
+            Siguiente
+          </button>
+        </div>
+        <button className="comandas-page-size" type="button">
+          10 por página
+          <ChevronDownIcon size={18} />
+        </button>
+      </footer>
 
       {/* Modal POS */}
       {showComandaForm && (

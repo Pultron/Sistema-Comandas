@@ -1,0 +1,100 @@
+.personal-attendance-module {
+  background: #f6f7f9;
+  min-height: 100%;
+  padding: 6px 14px 24px;
+  width: 100%;
+}
+
+.personal-attendance-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.personal-attendance-menu-wrap {
+  align-self: flex-start;
+  position: relative;
+  z-index: 30;
+}
+
+.personal-attendance-menu-button {
+  align-items: center;
+  background: linear-gradient(90deg, #ff6f00 0%, #ffb300 100%);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  border-radius: 8px;
+  box-shadow: 0 8px 18px rgba(255, 111, 0, 0.25);
+  color: #111111;
+  cursor: pointer;
+  display: flex;
+  height: 44px;
+  justify-content: center;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+  width: 48px;
+}
+
+.personal-attendance-menu-button:hover,
+.personal-attendance-menu-button.open {
+  box-shadow: 0 12px 24px rgba(255, 111, 0, 0.34);
+  transform: translateY(-1px);
+}
+
+.personal-attendance-dropdown {
+  background: #ffffff;
+  border: 1px solid rgba(255, 140, 0, 0.28);
+  border-radius: 10px;
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.2);
+  display: grid;
+  gap: 6px;
+  min-width: 240px;
+  padding: 8px;
+  position: absolute;
+  left: 0;
+  top: calc(100% + 10px);
+  z-index: 20;
+}
+
+.personal-attendance-dropdown button {
+  align-items: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: #1f2937;
+  cursor: pointer;
+  display: flex;
+  font-size: 0.95rem;
+  font-weight: 800;
+  gap: 10px;
+  min-height: 44px;
+  padding: 10px 12px;
+  text-align: left;
+}
+
+.personal-attendance-dropdown button svg {
+  color: #ff6f00;
+  flex: 0 0 auto;
+}
+
+.personal-attendance-dropdown button:hover,
+.personal-attendance-dropdown button.active {
+  background: #fff7e8;
+  border-color: #ffd19a;
+}
+
+.personal-attendance-content {
+  min-width: 0;
+}
+
+.personal-attendance-content > div {
+  padding: 0 !important;
+}
+
+@media (max-width: 760px) {
+  .personal-attendance-module {
+    padding: 6px 10px 16px;
+  }
+
+  .personal-attendance-dropdown {
+    min-width: min(240px, calc(100vw - 32px));
+  }
+}

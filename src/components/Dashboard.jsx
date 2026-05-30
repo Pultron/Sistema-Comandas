@@ -4,6 +4,8 @@ import { Pagos } from './modules/Pagos'
 import { DashboardModule } from './modules/Dashboard'
 import { MesasModule } from './modules/Mesas'
 import { PersonalModule } from './modules/Personal'
+import { AsistenciaModule } from './modules/Asistencia'
+import { PersonalAsistenciaModule } from './modules/PersonalAsistencia'
 import { ReportesModule } from './modules/Reportes'
 import { ClientesModule } from './modules/Clientes'
 import { CajaModule } from './modules/Caja'
@@ -87,6 +89,14 @@ export const Dashboard = ({
         <PersonalModule />
       )}
 
+      {activeModule === 'asistencia' && (
+        <AsistenciaModule />
+      )}
+
+      {activeModule === 'personal_asistencia' && (
+        <PersonalAsistenciaModule />
+      )}
+
       {activeModule === 'reportes' && (
         <ReportesModule comandas={comandasActivas} />
       )}
@@ -121,7 +131,7 @@ export const Dashboard = ({
 
       {activeModule !== 'dashboard' && activeModule !== 'comandas' && activeModule !== 'menu' && 
        activeModule !== 'mesas' && activeModule !== 'personal' && activeModule !== 'reportes' && 
-       activeModule !== 'clientes' && activeModule !== 'caja' && activeModule !== 'configuracion' && 
+       activeModule !== 'asistencia' && activeModule !== 'personal_asistencia' && activeModule !== 'clientes' && activeModule !== 'caja' && activeModule !== 'configuracion' && 
        activeModule !== 'pagos' && activeModule !== 'inventario' && activeModule !== 'proveedores' && 
        activeModule !== 'promociones' && (
         <DefaultModule module={activeModule} modules={modules} />

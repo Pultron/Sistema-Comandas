@@ -5,7 +5,7 @@ export const modulesData = [
   { id: 'comandas', name: 'Comandas', icon: ComandIcon },
   { id: 'menu', name: 'Menú', icon: MenuIcon },
   { id: 'mesas', name: 'Mesas', icon: MesasIcon },
-  { id: 'personal', name: 'Personal', icon: PersonalIcon },
+  { id: 'personal_asistencia', name: 'Personal / Asistencia', icon: PersonalIcon },
   { id: 'pagos', name: 'Pagos', icon: PagosIcon },
   { id: 'inventario', name: 'Inventario', icon: InventarioIcon },
   { id: 'proveedores', name: 'Proveedores', icon: ProveedoresIcon },

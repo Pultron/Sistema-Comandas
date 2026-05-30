@@ -619,4 +619,6 @@ export const moduleBackgrounds = {
   comandas: '#ECEFF1',      
   menu: '#ECEFF1',          
   pagos: '#ECEFF1',         
+  asistencia: '#f6f7f9',
+  personal_asistencia: '#f6f7f9',
 }

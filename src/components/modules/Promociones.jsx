@@ -14,6 +14,7 @@ export const PromocionesModule = () => {
   const [mostrarFormulario, setMostrarFormulario] = useState(false)
   const [editando, setEditando] = useState(null)
   const [busquedaProducto, setBusquedaProducto] = useState('')
+  const [busquedaPromocion, setBusquedaPromocion] = useState('')
   const [categoriaActiva, setCategoriaActiva] = useState('')
   const [mensajeAlerta, setMensajeAlerta] = useState('')
   const [tipoAlerta, setTipoAlerta] = useState('error')
@@ -202,6 +203,7 @@ export const PromocionesModule = () => {
 
       setMostrarFormulario(false)
       mostrarMensaje(editando ? 'Promocion editada correctamente' : 'Promocion guardada correctamente', 'success')
+      setBusquedaPromocion('')
     } catch (error) {
       mostrarMensaje(`No se pudo guardar la promocion: ${error.message}`)
     } finally {
@@ -222,6 +224,12 @@ export const PromocionesModule = () => {
   }
 
   const activas = promociones.filter(p => p.estado === 'activa').length
+  const inactivas = promociones.filter(p => p.estado === 'inactiva').length
+  
+  const promocionesFiltradas = promociones.filter(promo =>
+    normalizarTexto(promo.nombre).includes(normalizarTexto(busquedaPromocion)) ||
+    normalizarTexto(promo.descripcion).includes(normalizarTexto(busquedaPromocion))
+  )
 
   return (
     <div style={{display: 'flex', flexDirection: 'column', gap: '2rem', padding: '2rem', width: '100%'}}>
@@ -230,7 +238,7 @@ export const PromocionesModule = () => {
         <h1 style={appStyles.pageTitle}> Promociones y Descuentos</h1>
         <div style={{display: 'flex', gap: '1rem'}}>
           <button
-            onClick={() => abrirFormulario()}
+            onClick={() => { abrirFormulario(); setBusquedaPromocion('') }}
             style={{...appStyles.btnPrimary}}
           >
             + Nueva Promoción
@@ -245,6 +253,11 @@ export const PromocionesModule = () => {
           <div style={{fontSize: '28px', fontWeight: 700, color: '#000', margin: '0.5rem 0'}}>{activas}</div>
           <div style={{fontSize: '12px', color: 'rgba(0,0,0,0.7)'}}>Disponibles ahora</div>
         </div>
+        <div style={{...appStyles.statCard, background: 'linear-gradient(135deg, #666 0%, #999 100%)'}}>
+          <div style={{fontSize: '12px', color: 'rgba(255,255,255,0.8)', fontWeight: 600}}>PAUSADAS</div>
+          <div style={{fontSize: '28px', fontWeight: 700, color: 'white', margin: '0.5rem 0'}}>{inactivas}</div>
+          <div style={{fontSize: '12px', color: 'rgba(255,255,255,0.8)'}}>En pausa</div>
+        </div>
         <div style={{...appStyles.statCard, background: 'linear-gradient(135deg, #2196F3 0%, #42A5F5 100%)'}}>
           <div style={{fontSize: '12px', color: 'rgba(255,255,255,0.8)', fontWeight: 600}}>TOTAL DE PROMOCIONES</div>
           <div style={{fontSize: '28px', fontWeight: 700, color: 'white', margin: '0.5rem 0'}}>{promociones.length}</div>
@@ -252,9 +265,23 @@ export const PromocionesModule = () => {
         </div>
       </div>
 
+      {/* Barra de búsqueda */}
+      <div style={{background: 'white', borderRadius: '12px', padding: '1.5rem', boxShadow: '0 2px 8px rgba(0,0,0,0.1)'}}>
+        <input 
+          type="text" 
+          value={busquedaPromocion} 
+          onChange={(e) => setBusquedaPromocion(e.target.value)}
+          placeholder="Buscar promoción por nombre o descripción..."
+          style={{width: '100%', padding: '1rem', border: '2px solid #e0e0e0', borderRadius: '8px', fontSize: '15px', boxSizing: 'border-box'}}
+          onFocus={(e) => e.target.style.borderColor = '#FF6F00'}
+          onBlur={(e) => e.target.style.borderColor = '#e0e0e0'}
+        />
+      </div>
+
       {/* Promociones */}
       <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem'}}>
-        {promociones.map(promo => (
+        {promocionesFiltradas.length > 0 ? (
+          promocionesFiltradas.map(promo => (
           <div key={promo.id} style={{
             background: 'white',
             borderRadius: '12px',
@@ -309,7 +336,7 @@ export const PromocionesModule = () => {
                 {promo.estado === 'activa' ? '⏸ Pausar' : '▶ Activar'}
               </button>
               <button
-                onClick={() => abrirFormulario(promo)}
+                onClick={() => { abrirFormulario(promo); setBusquedaPromocion('') }}
                 style={{
                   padding: '0.7rem',
                   background: '#2196F3',
@@ -343,7 +370,14 @@ export const PromocionesModule = () => {
                Eliminar
             </button>
           </div>
-        ))}
+          ))
+        ) : (
+          <div style={{gridColumn: '1 / -1', textAlign: 'center', padding: '3rem 2rem', background: 'white', borderRadius: '12px'}}>
+            <div style={{color: '#999', fontSize: '48px', marginBottom: '1rem'}}>🎯</div>
+            <p style={{color: '#999', fontSize: '16px', fontWeight: 600}}>No se encontraron promociones</p>
+            <p style={{color: '#bbb', fontSize: '14px'}}>Intenta con otro término de búsqueda</p>
+          </div>
+        )}
       </div>
 
       {/* Modal Nueva Promoción */}
@@ -572,7 +606,7 @@ export const PromocionesModule = () => {
                 </div>
               )}
               <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem'}}>
-                <button onClick={() => setMostrarFormulario(false)} style={{padding: '0.8rem', background: '#e0e0e0', color: '#333', border: 'none', borderRadius: '6px', fontWeight: 600, cursor: 'pointer'}}>Cancelar</button>
+                <button onClick={() => { setMostrarFormulario(false); setBusquedaPromocion('') }} style={{padding: '0.8rem', background: '#e0e0e0', color: '#333', border: 'none', borderRadius: '6px', fontWeight: 600, cursor: 'pointer'}}>Cancelar</button>
                 <button
                   onClick={guardarPromocion}
                   disabled={guardando}
