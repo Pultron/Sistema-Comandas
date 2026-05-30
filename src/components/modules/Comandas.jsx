@@ -95,6 +95,30 @@ const ChevronRightIcon = ({ size = 24, className = '' }) => (
   </IconShell>
 )
 
+const TrashSmallIcon = ({ size = 24, className = '' }) => (
+  <IconShell size={size} className={className}>
+    <path d="M3 6h18" />
+    <path d="M8 6V4h8v2" />
+    <path d="M19 6l-1 14H6L5 6" />
+    <path d="M10 11v5" />
+    <path d="M14 11v5" />
+  </IconShell>
+)
+
+const ClipboardEmptyIcon = ({ size = 24, className = '' }) => (
+  <IconShell size={size} className={className}>
+    <path d="M9 5a3 3 0 0 1 6 0h2a2 2 0 0 1 2 2v13H5V7a2 2 0 0 1 2-2h2z" />
+    <path d="M9 5h6" />
+    <path d="M9 13h6" />
+    <path d="M9 17h3" />
+  </IconShell>
+)
+
+const imageLooksValid = (src) => {
+  const value = String(src || '').trim()
+  return /^(https?:|data:image|blob:|\/|\.\/|\.\.\/)/i.test(value)
+}
+
 export const Comandas = ({
   comandas: comandasProp,
   mesas: mesasProp,
@@ -633,8 +657,9 @@ export const Comandas = ({
         })),
         id_mesa: comandaBaseCuenta?.id_mesa || null,
         cuentaSeparada: !!comandaBaseCuenta,
-        nombreCuenta: null,
-        idReservacion: comandaBaseCuenta?.idReservacion || null
+        nombreCuenta: comandaBaseCuenta ? nombreMesa.trim() : null,
+        idReservacion: comandaBaseCuenta?.idReservacion || null,
+        nombreReservacion: comandaBaseCuenta?.nombreReservacion || obtenerNombreReservacion(comandaBaseCuenta)
       })
     }
 
@@ -753,12 +778,35 @@ export const Comandas = ({
 
   const obtenerMesaVisible = (comanda) => {
     const numero = obtenerNumeroMesa(comanda)
-    return String(numero).toLowerCase().startsWith('mesa') ? numero : `Mesa ${numero}`
+    const mesaBase = String(numero).toLowerCase().startsWith('mesa') ? String(numero) : `Mesa ${numero}`
+    const nombreCuenta = String(comanda?.nombreCuenta || '').trim()
+    if (comanda?.cuentaSeparada && nombreCuenta) return `${mesaBase} - ${nombreCuenta}`
+    return mesaBase
   }
 
   const esComandaReservacion = (comanda) => {
-    const mesa = String(comanda.mesa || '')
-    return Boolean(comanda.esReservacion || (comanda.idReservacion && !comanda.cuentaSeparada) || /^Reservaci[oó]n/i.test(mesa))
+    return Boolean(comanda?.idReservacion)
+  }
+
+  const obtenerNombreReservacion = (comanda) => {
+    const directo = String(comanda?.nombreReservacion || '').trim()
+    if (directo) return directo
+
+    const mesa = String(comanda?.mesa || '')
+    const partes = mesa.split(' - ').map(parte => parte.trim()).filter(Boolean)
+    if (/^Reservaci[oó]n/i.test(partes[0] || '') && partes.length >= 3) {
+      return partes.slice(2).join(' - ')
+    }
+
+    const baseReservacion = comandas.find(item =>
+      item.idReservacion &&
+      item.idReservacion === comanda?.idReservacion &&
+      !item.cuentaSeparada &&
+      String(item.nombreReservacion || '').trim()
+    )
+    if (baseReservacion) return String(baseReservacion.nombreReservacion || '').trim()
+
+    return ''
   }
 
   const obtenerConteoProductos = (comanda) => Number(comanda.productos ?? comanda.items?.length ?? 0)
@@ -807,21 +855,12 @@ export const Comandas = ({
 
   return (
     <div className="comandas-active-module">
-      <section className="comandas-hero">
-        <div className="comandas-title-wrap">
-          <div className="comandas-title-icon">
-            <ComandIcon size={34} color="currentColor" />
-          </div>
-          <div>
-            <h1>Comandas Activas</h1>
-            <p>Resumen de comandas en curso y historial reciente</p>
-          </div>
-        </div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '15px 0' }}>
         <button className="comandas-new-button" onClick={abrirNuevaComanda}>
           <span aria-hidden="true">+</span>
           Nueva Comanda
         </button>
-      </section>
+      </div>
 
       <section className="comandas-kpis" aria-label="Resumen de comandas">
         <article className="comandas-kpi comandas-kpi--total">
@@ -862,8 +901,8 @@ export const Comandas = ({
         </article>
       </section>
 
-      <section className="comandas-filters comandas-filters--simple" aria-label="Filtros de comandas">
-        <label className="comandas-search">
+      <section className="comandas-filters comandas-filters--simple" style={{ gap: '0px', marginTop: '-5px', display: 'flex', alignItems: 'center', flexWrap: 'wrap' }} aria-label="Filtros de comandas">
+        <label className="comandas-search" style={{ flex: '0 1 auto' }}>
           <SearchIcon size={22} color="currentColor" />
           <input
             type="search"
@@ -876,7 +915,7 @@ export const Comandas = ({
           />
         </label>
 
-        <div className="comandas-quick-filters" role="group" aria-label="Filtros rapidos">
+        <div className="comandas-quick-filters" style={{ gap: '2px', display: 'flex', marginLeft: '2px' }} role="group" aria-label="Filtros rapidos">
           <button
             className={`comandas-filter-pill comandas-filter-pill--all ${filtroEstado === 'todas' ? 'is-active' : ''}`}
             onClick={() => {
@@ -943,7 +982,19 @@ export const Comandas = ({
                 {reservacion && (
                   <div className="comanda-reservation-pill">
                     <CalendarCheckIcon size={17} />
-                    Reservación
+                    Reservación{obtenerNombreReservacion(comanda) ? ` - ${obtenerNombreReservacion(comanda)}` : ''}
+                  </div>
+                )}
+
+                {comanda.cuentaSeparada && (
+                  <div className="comanda-split-info" title="Cuenta separada">
+                    <div className="comanda-split-pill">
+                      <UsersIcon size={17} />
+                      Cuenta separada
+                    </div>
+                    <div className="comanda-split-person">
+                      {String(comanda.nombreCuenta || '').trim() || 'Sin nombre asignado'}
+                    </div>
                   </div>
                 )}
 
@@ -975,19 +1026,21 @@ export const Comandas = ({
                   <strong>{comanda.total}</strong>
                 </div>
 
-                <div className="comanda-actions">
+                <div className={`comanda-actions ${comanda.cuentaSeparada ? 'comanda-actions--single' : ''}`}>
                   <button className="comanda-view-button" onClick={() => verComanda(comanda)}>
                     <EyeIcon size={19} />
                     Ver Comanda
                   </button>
-                  <button
-                    className="comanda-split-button"
-                    onClick={() => abrirCuentaSeparada(comanda)}
-                    title="Gestionar cuentas divididas"
-                  >
-                    <UsersIcon size={24} />
-                    <span>{obtenerTextoCuentaDividida(comanda)}</span>
-                  </button>
+                  {!comanda.cuentaSeparada && (
+                    <button
+                      className="comanda-split-button"
+                      onClick={() => abrirCuentaSeparada(comanda)}
+                      title="Gestionar cuentas divididas"
+                    >
+                      <UsersIcon size={24} />
+                      <span>{obtenerTextoCuentaDividida(comanda)}</span>
+                    </button>
+                  )}
                 </div>
               </article>
             )
@@ -1024,7 +1077,7 @@ export const Comandas = ({
 
       {/* Modal POS */}
       {showComandaForm && (
-        <div style={{
+        <div className="gs-pos-overlay" style={{
           position: 'fixed',
           top: 0,
           left: 0,
@@ -1036,7 +1089,7 @@ export const Comandas = ({
           justifyContent: 'center',
           zIndex: 1000
         }}>
-          <div style={{
+          <div className="gs-pos-modal" style={{
             width: '98vw',
             maxWidth: '1540px',
             height: '88vh',
@@ -1048,7 +1101,7 @@ export const Comandas = ({
             overflow: 'hidden'
           }}>
             {/* Header */}
-            <div style={{
+            <div className="gs-pos-header" style={{
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
@@ -1056,10 +1109,11 @@ export const Comandas = ({
               borderBottom: '2px solid #000',
               backgroundColor: '#FF6F00'
             }}>
-              <h2 style={{color: '#000', margin: 0}}>
+              <h2 className="gs-pos-title" style={{color: '#000', margin: 0}}>
+                <ComandIcon size={30} color="currentColor" />
                 {comandaAEditar ? 'Editar Comanda' : comandaBaseCuenta ? `Nueva Cuenta - Mesa ${numeroMesa}` : 'Nueva Comanda'}
               </h2>
-              <button onClick={cerrarComanda} style={{
+              <button className="gs-pos-close" onClick={cerrarComanda} style={{
                 background: 'none',
                 border: 'none',
                 color: '#000',
@@ -1069,12 +1123,12 @@ export const Comandas = ({
             </div>
 
             {/* Content */}
-            <div style={{display: 'flex', flex: 1, overflow: 'hidden', alignItems: 'stretch'}}>
+            <div className="gs-pos-content" style={{display: 'flex', flex: 1, overflow: 'hidden', alignItems: 'stretch'}}>
               {/* Left Side - Platillos */}
-              <div style={{flex: '1 1 780px', minWidth: '650px', display: 'flex', flexDirection: 'column', borderRight: '1px solid #000', overflow: 'hidden'}}>
+              <div className="gs-pos-menu-panel" style={{flex: '1 1 780px', minWidth: '650px', display: 'flex', flexDirection: 'column', borderRight: '1px solid #000', overflow: 'hidden'}}>
                 
                 {/* Categorías */}
-                <div style={{
+                <div className="gs-pos-tabs" style={{
                   display: 'flex',
                   gap: '0.3rem',
                   padding: '0.3rem 0.2rem',
@@ -1089,6 +1143,7 @@ export const Comandas = ({
                       <button
                         key={key}
                         onClick={() => setSelectedCategory(key)}
+                        className={`gs-pos-tab ${activeCategory === key ? 'is-active' : ''}`}
                         style={{
                           padding: '0.4rem 0.8rem',
                           border: '2px solid #000',
@@ -1108,8 +1163,13 @@ export const Comandas = ({
                   })}
                 </div>
 
+                <label className="gs-pos-product-search">
+                  <SearchIcon size={20} color="currentColor" />
+                  <input type="search" placeholder="Buscar producto..." aria-label="Buscar producto" />
+                </label>
+
                 {/* Grilla de Platillos */}
-                <div style={{
+                <div className="gs-pos-products" style={{
                   flex: 1,
                   overflowY: 'auto',
                   padding: '0.5rem',
@@ -1127,6 +1187,7 @@ export const Comandas = ({
                     <div
                       key={platillo.id}
                       onClick={() => agregarAlComanda(platillo)}
+                      className="gs-pos-product-card"
                       style={{
                         cursor: 'pointer',
                         border: '1px solid rgba(255,255,255,0.15)',
@@ -1156,7 +1217,14 @@ export const Comandas = ({
                         e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)'
                       }}
                     >
-                      <p style={{
+                      <div className="gs-pos-product-image">
+                        {imageLooksValid(platillo.imagen) ? (
+                          <img src={platillo.imagen} alt={platillo.nombre} />
+                        ) : (
+                          <span>{String(platillo.nombre || '?').charAt(0)}</span>
+                        )}
+                      </div>
+                      <p className="gs-pos-product-name" style={{
                         fontSize: '13px',
                         color: '#000',
                         margin: '0',
@@ -1166,16 +1234,17 @@ export const Comandas = ({
                       }}>
                         {platillo.nombre}
                       </p>
+                      <strong className="gs-pos-product-price">{platillo.precio}</strong>
                     </div>
                   ))}
                 </div>
               </div>
 
               {/* Right Side - Comanda (Carrito) */}
-              <div style={{width: '390px', minWidth: '360px', height: '100%', display: 'flex', flexDirection: 'column', backgroundColor: '#FF6F00', boxSizing: 'border-box'}}>
+              <div className="gs-pos-order-panel" style={{width: '390px', minWidth: '360px', height: '100%', display: 'flex', flexDirection: 'column', backgroundColor: '#FF6F00', boxSizing: 'border-box'}}>
                 
                 {/* Cabecera */}
-                <div style={{
+                <div className="gs-pos-panel-header" style={{
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
@@ -1189,6 +1258,7 @@ export const Comandas = ({
                   <button
                     onClick={eliminarTodo}
                     disabled={itemsComanda.length === 0}
+                    className="gs-pos-clear-button"
                     style={{
                       backgroundColor: itemsComanda.length === 0 ? '#ccc' : '#DC2626',
                       border: 'none',
@@ -1217,20 +1287,22 @@ export const Comandas = ({
                       }
                     }}
                   >
-                    🗑 Eliminar Todo
+                    Eliminar todo
                   </button>
                 </div>
 
                 {/* Lista de Items - Formato Tabla */}
-                <div style={{flex: 1, overflowY: 'auto', padding: '0', backgroundColor: '#FF6F00'}}>
+                <div className="gs-pos-order-body" style={{flex: 1, overflowY: 'auto', padding: '0', backgroundColor: '#FF6F00'}}>
                   {itemsComanda.length === 0 ? (
-                    <p style={{color: '#000', textAlign: 'center', fontSize: '14px', margin: '2rem 1rem'}}>
-                      Selecciona productos para agregar
-                    </p>
+                    <div className="gs-pos-empty-order">
+                      <ClipboardEmptyIcon size={78} />
+                      <strong>Aún no has agregado productos</strong>
+                      <span>Selecciona productos del menú para agregarlos a la comanda</span>
+                    </div>
                   ) : (
-                    <div style={{display: 'flex', flexDirection: 'column'}}>
+                    <div className="gs-pos-cart-list" style={{display: 'flex', flexDirection: 'column'}}>
                       {/* Encabezado */}
-                      <div style={{
+                      <div className="gs-pos-cart-heading" style={{
                         display: 'grid',
                         gridTemplateColumns: '50px 1fr 60px 60px',
                         gap: '8px',
@@ -1252,9 +1324,9 @@ export const Comandas = ({
 
                       {/* Items */}
                       {itemsComanda.map((item, index) => (
-                        <div key={item.id}>
+                        <div key={item.id} className="gs-pos-cart-item">
                           {/* Row Principal */}
-                          <div style={{
+                          <div className="gs-pos-cart-row" style={{
                             display: 'grid',
                             gridTemplateColumns: '50px 1fr 60px 60px',
                             gap: '8px',
@@ -1265,9 +1337,10 @@ export const Comandas = ({
                             fontSize: '13px'
                           }}>
                             {/* Cantidad con controles */}
-                            <div style={{display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px'}}>
+                            <div className="gs-pos-quantity" style={{display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px'}}>
                               <button
                                 onClick={() => decrementarCantidad(item.id)}
+                                className="gs-pos-qty-button"
                                 style={{
                                   background: '#FF6F00',
                                   border: '1px solid #000',
@@ -1291,6 +1364,7 @@ export const Comandas = ({
                               </span>
                               <button
                                 onClick={() => incrementarCantidad(item.id)}
+                                className="gs-pos-qty-button"
                                 style={{
                                   background: '#FF6F00',
                                   border: '1px solid #000',
@@ -1312,42 +1386,30 @@ export const Comandas = ({
                             </div>
 
                             {/* Descripción */}
-                            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                            <div className="gs-pos-cart-name" style={{display: 'flex', justifyContent: 'flex-start', alignItems: 'center'}}>
                               <span style={{fontWeight: 600, color: '#000'}}>
                                 {item.nombre}
                               </span>
-                              <button
-                                onClick={() => eliminarDelComanda(item.id)}
-                                style={{
-                                  background: 'none',
-                                  border: 'none',
-                                  color: '#DC2626',
-                                  cursor: 'pointer',
-                                  fontSize: '16px',
-                                  padding: '0',
-                                  fontWeight: 700,
-                                  transition: 'all 0.2s'
-                                }}
-                                onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.2)'}
-                                onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                              >
-                                ×
-                              </button>
-                            </div>
 
-                            {/* Precio Unitario */}
-                            <div style={{textAlign: 'right', fontWeight: 600, color: '#FF6F00'}}>
-                              {item.precio}
                             </div>
 
                             {/* Subtotal */}
-                            <div style={{textAlign: 'right', fontWeight: 700, color: '#4CAF50', fontSize: '14px'}}>
+                            <div className="gs-pos-subtotal" style={{textAlign: 'right', fontWeight: 700, color: '#4CAF50', fontSize: '14px'}}>
                               ${item.subtotal.toFixed(2)}
                             </div>
                           </div>
 
+                          <button
+                            onClick={() => eliminarDelComanda(item.id)}
+                            className="gs-pos-item-delete gs-pos-item-delete--corner"
+                            aria-label={`Eliminar ${item.nombre}`}
+                            type="button"
+                          >
+                            ×
+                          </button>
+
                           {/* Row Comentarios */}
-                          <div style={{
+                          <div className="gs-pos-comment-wrap" style={{
                             display: 'flex',
                             padding: '0.6rem 1rem',
                             backgroundColor: '#f9f9f9',
@@ -1358,6 +1420,7 @@ export const Comandas = ({
                               value={item.comentarios}
                               onChange={(e) => actualizarComentario(item.id, e.target.value)}
                               placeholder="Agregar comentario..."
+                              className={`gs-pos-comment ${item.comentarios ? 'has-value' : ''}`}
                               style={{
                                 width: '100%',
                                 padding: '0.4rem 0.6rem',
@@ -1378,20 +1441,20 @@ export const Comandas = ({
                 </div>
 
                 {/* Total y Botón Guardar */}
-                <div style={{padding: '1rem', borderTop: '2px solid #000', backgroundColor: '#FF6F00'}}>
+                <div className="gs-pos-order-footer" style={{padding: '1rem', borderTop: '2px solid #000', backgroundColor: '#FF6F00'}}>
                   {calcularDescuentoPromocion() > 0 && (
                     <>
-                      <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem'}}>
+                      <div className="gs-pos-total-line" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem'}}>
                         <span style={{color: '#000', fontWeight: 700, fontSize: '13px'}}>Subtotal:</span>
                         <span style={{color: '#000', fontWeight: 700, fontSize: '14px'}}>${calcularSubtotal().toFixed(2)}</span>
                       </div>
-                      <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.8rem'}}>
+                      <div className="gs-pos-total-line gs-pos-total-line--discount" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.8rem'}}>
                         <span style={{color: '#000', fontWeight: 700, fontSize: '13px'}}>Promo:</span>
                         <span style={{color: '#064E3B', fontWeight: 800, fontSize: '14px'}}>- ${calcularDescuentoPromocion().toFixed(2)}</span>
                       </div>
                     </>
                   )}
-                  <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem'}}>
+                  <div className="gs-pos-grand-total" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem'}}>
                     <span style={{color: '#000', fontWeight: 700, fontSize: '14px'}}>Total:</span>
                     <span style={{color: '#000', fontWeight: 700, fontSize: '18px'}}>
                       ${calcularTotal()}
@@ -1400,6 +1463,7 @@ export const Comandas = ({
                   <button
                     onClick={guardarComanda}
                     disabled={itemsComanda.length === 0}
+                    className="gs-pos-save-button"
                     style={{
                       width: '100%',
                       padding: '0.8rem',
@@ -1417,12 +1481,12 @@ export const Comandas = ({
                   </button>
                 </div>
               </div>
-              <div style={{width: '320px', minWidth: '300px', height: '100%', display: 'flex', flexDirection: 'column', backgroundColor: '#FF6F00', borderLeft: '2px solid #000', boxSizing: 'border-box'}}>
-                <div style={{padding: '1rem', minHeight: '68px', boxSizing: 'border-box', display: 'flex', alignItems: 'center', borderBottom: '2px solid #000'}}>
+              <div className="gs-pos-promos-panel" style={{width: '320px', minWidth: '300px', height: '100%', display: 'flex', flexDirection: 'column', backgroundColor: '#FF6F00', borderLeft: '2px solid #000', boxSizing: 'border-box'}}>
+                <div className="gs-pos-panel-header gs-pos-panel-header--promos" style={{padding: '1rem', minHeight: '68px', boxSizing: 'border-box', display: 'flex', alignItems: 'center', borderBottom: '2px solid #000'}}>
                   <h3 style={{color: '#000', margin: 0, fontSize: '16px', fontWeight: 800}}>Promociones</h3>
                 </div>
-                <div style={{flex: 1, overflowY: 'auto', padding: '1rem'}}>
-                  <div style={{background: '#fff', borderRadius: '8px', padding: '0.85rem', border: '1px solid #000'}}>
+                <div className="gs-pos-promos-body" style={{flex: 1, overflowY: 'auto', padding: '1rem'}}>
+                  <div className="gs-pos-promos-list" style={{background: '#fff', borderRadius: '8px', padding: '0.85rem', border: '1px solid #000'}}>
                     <div style={{display: 'grid', gap: '0.45rem'}}>
                       {promocionesAplicables.length === 0 ? (
                         <div style={{fontSize: '12px', color: '#666'}}>No hay promociones activas disponibles.</div>
@@ -1431,8 +1495,8 @@ export const Comandas = ({
                         const aplicada = calcularPromocionesAplicadas().find(aplicada => aplicada.promo.id === promo.id)
 
                         return (
-                          <div key={promo.id} style={{display: 'grid', gap: '0.45rem', background: promocionesSeleccionadasIds.includes(String(promo.id)) ? '#FFF7ED' : '#F8FAFC', border: '1px solid #E5E7EB', borderRadius: '6px', padding: '0.55rem'}}>
-                            <label style={{display: 'grid', gridTemplateColumns: 'auto 1fr', alignItems: 'start', gap: '0.5rem', fontSize: '12px', fontWeight: 700, color: '#111', cursor: 'pointer'}}>
+                          <div key={promo.id} className={`gs-pos-promo-card ${promocionesSeleccionadasIds.includes(String(promo.id)) ? 'is-selected' : ''}`} style={{display: 'grid', gap: '0.45rem', background: promocionesSeleccionadasIds.includes(String(promo.id)) ? '#FFF7ED' : '#F8FAFC', border: '1px solid #E5E7EB', borderRadius: '6px', padding: '0.55rem'}}>
+                            <label className="gs-pos-promo-check" style={{display: 'grid', gridTemplateColumns: 'auto 1fr', alignItems: 'start', gap: '0.5rem', fontSize: '12px', fontWeight: 700, color: '#111', cursor: 'pointer'}}>
                               <input
                                 type="checkbox"
                                 checked={promocionesSeleccionadasIds.includes(String(promo.id))}
@@ -1452,6 +1516,7 @@ export const Comandas = ({
                               <button
                                 type="button"
                                 onClick={() => agregarComboPromocion(promo)}
+                                className="gs-pos-combo-button"
                                 style={{padding: '0.45rem 0.55rem', background: '#16A34A', color: '#fff', border: 'none', borderRadius: '5px', fontSize: '12px', fontWeight: 800, cursor: 'pointer'}}
                               >
                                 + Agregar combo{aplicada?.combos > 0 ? ` (${aplicada.combos})` : ''}
@@ -1463,11 +1528,11 @@ export const Comandas = ({
                     </div>
 
                     {calcularPromocionesAplicadas().length > 0 && (
-                      <div style={{marginTop: '0.8rem', display: 'grid', gap: '0.65rem', fontSize: '12px', color: '#333'}}>
+                      <div className="gs-pos-applied-promos" style={{marginTop: '0.8rem', display: 'grid', gap: '0.65rem', fontSize: '12px', color: '#333'}}>
                         <div><strong>Modo pruebas:</strong> se puede aplicar aunque la fecha o dia no coincida.</div>
                         {calcularPromocionesAplicadas().map(aplicada => (
-                          <div key={aplicada.promo.id} style={{borderTop: '1px solid #E5E7EB', paddingTop: '0.6rem'}}>
-                            <div style={{display: 'flex', justifyContent: 'space-between', gap: '0.5rem', fontWeight: 800}}>
+                          <div key={aplicada.promo.id} className="gs-pos-applied-promo" style={{borderTop: '1px solid #E5E7EB', paddingTop: '0.6rem'}}>
+                            <div className="gs-pos-applied-promo-title" style={{display: 'flex', justifyContent: 'space-between', gap: '0.5rem', fontWeight: 800}}>
                               <span>{aplicada.promo.nombre}{aplicada.combos > 1 ? ` x${aplicada.combos}` : ''}</span>
                               <span>- ${aplicada.descuento.toFixed(2)}</span>
                             </div>
@@ -1477,7 +1542,7 @@ export const Comandas = ({
                               </div>
                             )}
                             {aplicada.items.length > 0 ? (
-                              <div style={{marginTop: '0.4rem', color: '#475569'}}>
+                              <div className="gs-pos-applied-items" style={{marginTop: '0.4rem', color: '#475569'}}>
                                 {aplicada.items.map(item => (
                                   <div key={`${aplicada.promo.id}-${item.id}`} style={{display: 'flex', justifyContent: 'space-between', gap: '0.5rem'}}>
                                     <span>{item.nombre}</span>
@@ -1757,11 +1822,11 @@ export const Comandas = ({
             <div style={{marginBottom: '1.5rem', fontSize: '14px', textAlign: 'left'}}>
               <div style={{marginBottom: '0.8rem'}}>
                 <span style={{fontWeight: 700}}>MESA:</span>
-                <span> {comandaSeleccionada.mesa}</span>
+                <span> {obtenerMesaVisible(comandaSeleccionada)}</span>
               </div>
               <div style={{marginBottom: '0.8rem'}}>
                 <span style={{fontWeight: 700}}>MESERO:</span>
-                <span> -</span>
+                <span> {comandaSeleccionada.mesero || '-'}</span>
               </div>
               <div>
                 <span style={{fontWeight: 700}}>COMANDA ID:</span>
@@ -1780,7 +1845,7 @@ export const Comandas = ({
                   <div key={idx} style={{marginBottom: '1rem', paddingBottom: '1rem', borderBottom: '1px solid #eee'}}>
                     <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem', fontSize: '13px'}}>
                       <span style={{fontWeight: 600}}>{item.nombre}</span>
-                      <span style={{color: '#FF6F00', fontWeight: 700}}>{item.cantidad} x {item.precio}</span>
+                      <span style={{color: '#FF6F00', fontWeight: 700}}>x{item.cantidad}</span>
                     </div>
                     {item.comentarios && (
                       <div style={{fontSize: '12px', color: '#666', fontStyle: 'italic', marginTop: '0.5rem'}}>

@@ -37,7 +37,8 @@ export const ProveedoresModule = () => {
     producto: '',
     cantidad: '',
     unidad: '',
-    precioUnitario: ''
+    precioUnitario: '',
+    piezasPorUnidad: ''
   })
   const [editandoItemId, setEditandoItemId] = useState(null)
 
@@ -101,13 +102,18 @@ export const ProveedoresModule = () => {
     )))
   }
 
-  const guardarProveedor = () => {
+  const guardarProveedor = async () => {
     if (!formData.nombre || !formData.contacto || !formData.telefono || !formData.email) {
       mostrarToast('Completa todos los campos')
       return
     }
-    guardarProveedorBd(formData, editando)
-    setMostrarFormulario(false)
+    try {
+      await guardarProveedorBd(formData, editando)
+      setMostrarFormulario(false)
+      mostrarToast(editando ? 'Proveedor actualizado exitosamente' : 'Se registró el nuevo proveedor exitosamente', 'success')
+    } catch (error) {
+      mostrarToast(`Error al guardar el proveedor: ${error.message}`)
+    }
   }
 
   const guardarPreciosProveedor = async () => {
@@ -149,6 +155,7 @@ export const ProveedoresModule = () => {
       producto: producto.nombre,
       unidad: primeraUnidad,
       precioUnitario: precioPrimera,
+      piezasPorUnidad: producto.piezasPorUnidad || '',
       cantidad: '1'
     }))
   }
@@ -173,11 +180,12 @@ export const ProveedoresModule = () => {
       cantidad,
       unidad: itemCompra.unidad,
       precioUnitario,
+      piezasPorUnidad: itemCompra.piezasPorUnidad,
       subtotal: cantidad * precioUnitario
     }
 
     setCompraData(prev => ({ ...prev, items: [...prev.items, nuevoItem] }))
-    setItemCompra({ productoId: '', producto: '', cantidad: '', unidad: '', precioUnitario: '' })
+    setItemCompra({ productoId: '', producto: '', cantidad: '', unidad: '', precioUnitario: '', piezasPorUnidad: '' })
     setEditandoItemId(null)
   }
 
@@ -193,21 +201,27 @@ export const ProveedoresModule = () => {
       producto: item.producto,
       cantidad: String(item.cantidad),
       unidad: item.unidad,
-      precioUnitario: item.precioUnitario
+      precioUnitario: item.precioUnitario,
+      piezasPorUnidad: item.piezasPorUnidad || ''
     })
     setCompraData(prev => ({ ...prev, items: prev.items.filter(i => i.id !== item.id) }))
   }
 
-  const registrarCompra = () => {
+  const registrarCompra = async () => {
     if (!compraData.proveedor || compraData.items.length === 0) {
       mostrarToast('Selecciona un proveedor y agrega al menos un producto')
       return
     }
-    registrarCompraBd({ ...compraData, total: totalCompra })
-    setCompraData({ proveedor: '', items: [] })
-    setItemCompra({ productoId: '', producto: '', cantidad: '', unidad: '', precioUnitario: '' })
-    setEditandoItemId(null)
-    setMostrarCompra(false)
+    try {
+      await registrarCompraBd({ ...compraData, total: totalCompra })
+      setCompraData({ proveedor: '', items: [] })
+      setItemCompra({ productoId: '', producto: '', cantidad: '', unidad: '', precioUnitario: '', piezasPorUnidad: '' })
+      setEditandoItemId(null)
+      setMostrarCompra(false)
+      mostrarToast('Se realizó la compra exitosamente', 'success')
+    } catch (error) {
+      mostrarToast(`Error al registrar la compra: ${error.message}`)
+    }
   }
 
   const eliminarProveedor = (id) => {
@@ -468,7 +482,7 @@ export const ProveedoresModule = () => {
               )}
 
               {/* Fila de campos */}
-              <div style={{display: 'grid', gridTemplateColumns: '1.2fr 0.7fr 0.7fr 0.7fr 0.8fr auto', gap: '0.8rem', alignItems: 'end'}}>
+              <div style={{display: 'grid', gridTemplateColumns: '1.2fr 0.7fr 0.6fr 0.7fr 0.6fr 0.8fr auto', gap: '0.8rem', alignItems: 'end'}}>
                 <div>
                   <label style={{display: 'block', fontWeight: 600, marginBottom: '0.5rem', color: '#333'}}>Producto</label>
                   <input type="text" value={itemCompra.producto} readOnly placeholder="Selecciona un item" style={{width: '100%', padding: '0.75rem', border: '2px solid #e0e0e0', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box', background: '#f8f8f8'}} />
@@ -500,6 +514,10 @@ export const ProveedoresModule = () => {
                   </select>
                 </div>
                 <div>
+                  <label style={{display: 'block', fontWeight: 600, marginBottom: '0.5rem', color: '#333'}}>Piezas</label>
+                  <input type="text" value={itemCompra.piezasPorUnidad} readOnly placeholder="—" style={{width: '100%', padding: '0.75rem', border: '2px solid #e0e0e0', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box', background: '#f8f8f8'}} />
+                </div>
+                <div>
                   <label style={{display: 'block', fontWeight: 600, marginBottom: '0.5rem', color: '#333'}}>Precio</label>
                   <input type="text" value={itemCompra.precioUnitario} readOnly placeholder="—" style={{width: '100%', padding: '0.75rem', border: '2px solid #e0e0e0', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box', background: '#f8f8f8'}} />
                 </div>
@@ -524,9 +542,11 @@ export const ProveedoresModule = () => {
 
               {/* Tabla de items */}
               <div style={{border: '1px solid #e5e5e5', borderRadius: '8px', overflow: 'hidden'}}>
-                <div style={{display: 'grid', gridTemplateColumns: '1.3fr 0.8fr 0.8fr 0.8fr 80px', gap: '0.5rem', padding: '0.75rem 1rem', background: '#f5f5f5', color: '#666', fontSize: '12px', fontWeight: 700}}>
+                <div style={{display: 'grid', gridTemplateColumns: '1.3fr 0.65fr 0.6fr 0.65fr 0.6fr 0.8fr 80px', gap: '0.5rem', padding: '0.75rem 1rem', background: '#f5f5f5', color: '#666', fontSize: '12px', fontWeight: 700}}>
                   <span>Producto</span>
                   <span>Cantidad</span>
+                  <span>Unidad</span>
+                  <span>Piezas</span>
                   <span>Precio</span>
                   <span>Subtotal</span>
                   <span></span>
@@ -535,9 +555,11 @@ export const ProveedoresModule = () => {
                   <div style={{padding: '1rem', color: '#777', fontSize: '13px'}}>Agrega productos a la compra.</div>
                 ) : (
                   compraData.items.map(item => (
-                    <div key={item.id} style={{display: 'grid', gridTemplateColumns: '1.3fr 0.8fr 0.8fr 0.8fr 80px', gap: '0.5rem', alignItems: 'center', padding: '0.75rem 1rem', borderTop: '1px solid #eee', fontSize: '13px'}}>
+                    <div key={item.id} style={{display: 'grid', gridTemplateColumns: '1.3fr 0.65fr 0.6fr 0.65fr 0.6fr 0.8fr 80px', gap: '0.5rem', alignItems: 'center', padding: '0.75rem 1rem', borderTop: '1px solid #eee', fontSize: '13px'}}>
                       <strong>{item.producto}</strong>
-                      <span>{item.cantidad} {item.unidad}</span>
+                      <span>{item.cantidad}</span>
+                      <span>{item.unidad}</span>
+                      <span>{item.piezasPorUnidad || '-'}</span>
                       <span>${item.precioUnitario.toFixed(2)}</span>
                       <strong>${item.subtotal.toFixed(2)}</strong>
                       <div style={{display: 'flex', gap: '0.4rem'}}>
@@ -565,7 +587,7 @@ export const ProveedoresModule = () => {
 
       {toast && (
         <div style={{
-          position: 'fixed', top: '5.5rem', left: '50%', transform: 'translateX(-50%)',
+          position: 'fixed', top: '8.5rem', left: '50%', transform: 'translateX(-50%)',
           background: toast.tipo === 'error' ? '#EF4444' : '#4CAF50',
           color: 'white', padding: '1rem 2rem', borderRadius: '10px',
           boxShadow: '0 4px 20px rgba(0,0,0,0.3)', fontWeight: 600,

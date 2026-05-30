@@ -6,7 +6,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 
 const fechaActualLocal = () => {
-  return new Date().toLocaleDateString('sv-SE')
+  return new Date().toISOString()
 }
 
 const avisarCambioComandas = () => {
@@ -121,6 +121,7 @@ export function useComandas() {
         *,
         usuarios(nombre),
         mesas(numero),
+        reservaciones(cliente),
         detalles_comanda(*, productos(nombre, precio))
       `)
       .not('estado', 'eq', 'cancelado')
@@ -152,6 +153,7 @@ export function useComandas() {
         rawTotal:  c.total,
         cuentaSeparada: c.cuenta_separada || false,
         nombreCuenta: c.nombre_cuenta || '',
+        nombreReservacion: c.reservaciones?.cliente || '',
         idReservacion: c.id_reservacion || null,
         limiteCuentas: c.limite_cuentas || null,
         esReservacion: !!c.id_reservacion && !c.cuenta_separada,
@@ -682,8 +684,8 @@ export function useInventario() {
     const { data } = await supabase
       .from('movimientos_inventario')
       .select('*, inventario(nombre)')
-      .order('fecha', { ascending: false })
-      .limit(50)
+      .order('id', { ascending: false })
+      .limit(100)
     if (data) setMovimientos(data.map(m => ({
       ...m,
       ingrediente: m.inventario?.nombre
@@ -779,7 +781,7 @@ export function useInventario() {
 
     await fetchInventario()
     await fetchMovimientos()
-    avisarCambioInventario()
+    window.dispatchEvent(new Event('inventario:changed'))
   }
 
   return { ingredientes, movimientos, loading, guardarIngrediente, eliminarIngrediente, registrarMovimiento, actualizarLimitesStock, refetch: fetchInventario }
@@ -979,18 +981,18 @@ export function useProveedores() {
     await ingresarCompraAInventario(compraData.items || [], prov.id, compraData.proveedor)
     await fetchHistorial()
     await fetchProveedores()
-    avisarCambioInventario()
+    window.dispatchEvent(new Event('inventario:changed'))
   }
 
   async function ingresarCompraAInventario(items, idProveedor, proveedorNombre) {
     for (const item of items) {
       const cantidad = parseFloat(item.cantidad) || 0
-      const contenidoCaja = parseFloat(item.contenidoCaja) || 0
-      const cantidadInventario = item.unidad === 'cajas' && contenidoCaja > 0
-        ? cantidad * contenidoCaja
+      const piezasPorCaja = parseFloat(item.piezasPorUnidad) || 0
+      const cantidadInventario = item.unidad === 'cajas' && piezasPorCaja > 0
+        ? cantidad * piezasPorCaja
         : cantidad
-      const motivoCompra = item.unidad === 'cajas'
-        ? `Compra realizada a ${proveedorNombre} (${cantidad} cajas x ${contenidoCaja} piezas)`
+      const motivoCompra = item.unidad === 'cajas' && piezasPorCaja > 0
+        ? `Compra realizada a ${proveedorNombre} (${cantidad} cajas x ${piezasPorCaja} piezas)`
         : `Compra realizada a ${proveedorNombre}`
       if (!item.producto || !cantidadInventario) continue
 
@@ -1342,7 +1344,8 @@ function formatProductoProveedor(producto) {
     nombre: producto.nombre,
     unidadesPermitidas: parseArrayField(producto.unidades_permitidas).filter(unidad => ['kilos', 'piezas', 'cajas'].includes(unidad)),
     preciosPorUnidad,
-    contenidoCaja: preciosPorUnidad.contenidoCaja || ''
+    contenidoCaja: preciosPorUnidad.contenidoCaja || '',
+    piezasPorUnidad: producto.piezas_por_caja || ''
   }
 }
 

@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
-import { appStyles } from '../../styles/styles'
+import { useEffect, useState } from 'react'
 import { useInventario, usePersonal } from '../../hooks/useSupabase'
+import '../../styles/Inventario.css'
 
 const crearFechaLocal = (fecha) => {
   if (!fecha) return new Date()
@@ -27,12 +27,10 @@ const formatoHora = (fecha) => {
   return date.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
 }
 
-function normalizar(texto) {
-  return String(texto || '')
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-}
+const normalizar = (texto) => String(texto || '')
+  .toLowerCase()
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
 
 export const InventarioModule = () => {
   const {
@@ -47,13 +45,14 @@ export const InventarioModule = () => {
   const [mostrarLimites, setMostrarLimites] = useState(false)
   const [busqueda, setBusqueda] = useState('')
   const [filtroProveedor, setFiltroProveedor] = useState('todos')
+  const [filtroEstado, setFiltroEstado] = useState('todos')
+  const [mostrarTodasAlertas, setMostrarTodasAlertas] = useState(false)
+  const [mostrarHistorialCompleto, setMostrarHistorialCompleto] = useState(false)
+  const [proveedoresAbiertos, setProveedoresAbiertos] = useState({})
   const [showToast, setShowToast] = useState(false)
   const [toastMsg, setToastMsg] = useState('')
-
-  // Estados separados para búsqueda en modales (no afectan la lista principal)
   const [busquedaMovimiento, setBusquedaMovimiento] = useState('')
   const [busquedaLimites, setBusquedaLimites] = useState('')
-
   const [movData, setMovData] = useState({
     ingredienteId: '',
     cantidad: '',
@@ -66,25 +65,33 @@ export const InventarioModule = () => {
     maximo: ''
   })
 
+  const obtenerEstadoInventario = (item) => {
+    const cantidad = Number(item.cantidad) || 0
+    const minimo = Number(item.minimo) || 0
+    if (cantidad <= 0) return 'agotado'
+    if (item.estado === 'bajo' || (minimo > 0 && cantidad <= minimo * 2)) return 'bajo'
+    return 'normal'
+  }
+
   const proveedores = [...new Set(ingredientes.map(item => item.proveedor || 'Sin proveedor'))].sort()
-  const bajos = ingredientes.filter(i => i.estado === 'bajo').length
+  const proveedorColores = ['#EF4444', '#F97316', '#22C55E', '#3B82F6', '#8B5CF6']
+  const alertasInventario = ingredientes.filter(item => ['agotado', 'bajo'].includes(obtenerEstadoInventario(item)))
   const personalActivo = personal.filter(persona => persona.estado !== 'inactivo')
   const ingredienteSeleccionado = ingredientes.find(item => String(item.id) === String(movData.ingredienteId))
   const ingredienteLimite = ingredientes.find(item => String(item.id) === String(limiteData.ingredienteId))
 
-  // Filtrado para la lista principal de inventario
   const ingredientesFiltrados = ingredientes.filter(item => {
     const coincideBusqueda = normalizar(item.nombre).includes(normalizar(busqueda))
     const coincideProveedor = filtroProveedor === 'todos' || item.proveedor === filtroProveedor
-    return coincideBusqueda && coincideProveedor
+    const estado = obtenerEstadoInventario(item)
+    const coincideEstado = filtroEstado === 'todos' || estado === filtroEstado
+    return coincideBusqueda && coincideProveedor && coincideEstado
   })
 
-  // Filtrado separado para el modal de movimiento
   const ingredientesFiltradosModal = ingredientes.filter(item =>
     normalizar(item.nombre).includes(normalizar(busquedaMovimiento))
   )
 
-  // Filtrado separado para el modal de límites
   const ingredientesFiltradosLimites = ingredientes.filter(item =>
     normalizar(item.nombre).includes(normalizar(busquedaLimites))
   )
@@ -107,7 +114,7 @@ export const InventarioModule = () => {
     try { vistas = JSON.parse(localStorage.getItem('notifs_vistas') || '[]') } catch {}
     const sinVer = nuevas.filter(m => !vistas.includes(m.id))
     if (sinVer.length > 0) {
-      setToastMsg(`${sinVer.length} compra(s) nueva(s) hoy — ${sinVer[0].ingrediente} +${sinVer[0].cantidad}`)
+      setToastMsg(`${sinVer.length} compra(s) nueva(s) hoy - ${sinVer[0].ingrediente} +${sinVer[0].cantidad}`)
       setShowToast(true)
       localStorage.setItem('notifs_vistas', JSON.stringify([...vistas, ...sinVer.map(m => m.id)]))
       setTimeout(() => setShowToast(false), 4000)
@@ -149,448 +156,331 @@ export const InventarioModule = () => {
     setMostrarLimites(false)
   }
 
-  const limpiarMotivoMovimiento = (motivo) => {
-    const texto = String(motivo || '')
-    if (texto.toLowerCase().includes('compra realizada')) return ''
-    return texto
+  const toggleProveedor = (proveedor) => {
+    setProveedoresAbiertos(prev => ({
+      ...prev,
+      [proveedor]: !(prev[proveedor] ?? proveedor === gruposInventario[0]?.proveedor)
+    }))
   }
 
-  // Agrupa movimientos y los ordena: Hoy primero, Ayer segundo, luego fechas más recientes
-  const agruparPorFecha = (movs) => {
-    const hoy = new Date()
-    const ayer = new Date()
-    ayer.setDate(ayer.getDate() - 1)
-    const fmtLocal = (d) => {
-      const y = d.getFullYear()
-      const m = String(d.getMonth() + 1).padStart(2, '0')
-      const day = String(d.getDate()).padStart(2, '0')
-      return `${y}-${m}-${day}`
-    }
+  const obtenerUnidad = (item) => item?.unidad || 'kg'
 
-    const grupos = {}
-    movs.slice(0, 50).forEach(m => {
-      const fechaMov = String(m.fecha || '').slice(0, 10)
-      let label
-      if (fechaMov === fmtLocal(hoy)) label = '__hoy__'
-      else if (fechaMov === fmtLocal(ayer)) label = '__ayer__'
-      else label = fechaMov
-      if (!grupos[label]) grupos[label] = []
-      grupos[label].push(m)
-    })
+  const formatearCantidad = (cantidad, unidad = 'kg') => `${Number(cantidad || 0).toFixed(2)} ${unidad}`
 
-    // Invertir orden dentro de cada grupo para que los más recientes salgan primero
-    Object.keys(grupos).forEach(label => {
-      grupos[label].reverse()
-    })
-
-    // Ordenar: hoy primero, ayer segundo, luego por fecha descendente
-    const ordenados = Object.entries(grupos).sort(([a], [b]) => {
-      if (a === '__hoy__') return -1
-      if (b === '__hoy__') return 1
-      if (a === '__ayer__') return -1
-      if (b === '__ayer__') return 1
-      return b.localeCompare(a)
-    })
-
-    return ordenados
+  const textoEstado = (estado) => {
+    if (estado === 'agotado') return 'Agotado'
+    if (estado === 'bajo') return 'Stock bajo'
+    return 'Stock normal'
   }
 
-  const getLabelVisible = (key) => {
-    if (key === '__hoy__') {
-      const d = new Date()
-      return { texto: `Hoy — ${d.getDate()} ${d.toLocaleString('es-MX', {month:'short'})} ${d.getFullYear()}`, esHoy: true, esAyer: false }
-    }
-    if (key === '__ayer__') {
-      const d = new Date()
-      d.setDate(d.getDate() - 1)
-      return { texto: `Ayer — ${d.getDate()} ${d.toLocaleString('es-MX', {month:'short'})} ${d.getFullYear()}`, esHoy: false, esAyer: true }
-    }
-    const d = new Date(key + 'T00:00:00')
-    return { texto: `${d.getDate()} ${d.toLocaleString('es-MX', {month:'short'})} ${d.getFullYear()}`, esHoy: false, esAyer: false }
+  const obtenerProveedorMovimiento = (mov) => (
+    ingredientes.find(item => String(item.nombre) === String(mov.ingrediente))?.proveedor || 'Sin proveedor'
+  )
+
+  const obtenerUnidadMovimiento = (mov) => (
+    ingredientes.find(item => String(item.nombre) === String(mov.ingrediente))?.unidad || 'kg'
+  )
+
+  const obtenerEmpleadoMovimiento = (mov) => {
+    const retiro = String(mov.motivo || '').match(/Retiro:\s*([^|]+)/i)
+    if (retiro?.[1]) return retiro[1].trim()
+    return mov.usuario || mov.empleado || 'Hector Paul'
   }
 
-  const gruposMovimientos = agruparPorFecha(movimientos)
+  const fechaMovimiento = (mov) => {
+    const hoy = fechaClaveLocal()
+    const fecha = fechaClaveLocal(mov.fecha)
+    if (fecha === hoy) return `Hoy, ${formatoHora(mov.fecha) || '09:30 AM'}`
+    return `${fecha || 'Ayer'}, ${formatoHora(mov.fecha)}`
+  }
+
+  const alertasVisibles = mostrarTodasAlertas ? alertasInventario : alertasInventario.slice(0, 3)
+  const movimientosVisibles = mostrarHistorialCompleto ? movimientos : movimientos.slice(0, 5)
 
   return (
-    <div style={{display: 'flex', flexDirection: 'column', gap: '1rem', padding: '1.5rem', width: '100%', background: '#ECEFF1', minHeight: '100%'}}>
-      {showToast && (
-        <div style={{
-          background: '#065F46', color: '#6EE7B7', borderRadius: '8px',
-          padding: '10px 16px', marginBottom: '1rem', fontSize: '13px',
-          display: 'flex', alignItems: 'center', gap: '8px'
-        }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-            stroke="#6EE7B7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M20 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/>
-            <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+    <div className="inventory-page">
+      {showToast && <div className="inventory-toast">{toastMsg}</div>}
+
+      <div className="inventory-top-actions">
+        <button className="inventory-action inventory-action--edit" onClick={abrirLimites}>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 20h9" />
+            <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
           </svg>
-          {toastMsg}
-        </div>
-      )}
-
-      <div style={{display:'flex', alignItems:'center', justifyContent:'flex-end', marginBottom:'1.5rem'}}>
-        <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
-          <button onClick={abrirLimites} style={{
-            border:'none', borderRadius:'6px',
-            padding:'0 28px', height:'45px', fontSize:'15px',
-            fontWeight:700, background:'#2196F3', color: '#000000', cursor:'pointer',
-            display:'flex', alignItems:'center', gap:'6px',
-            boxShadow: '0 8px 20px rgba(33, 150, 243, 0.28)', transition: 'all 0.2s'
-          }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-              stroke="#000000" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 20h9"/>
-              <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>
-            </svg>
-            Editar stock
-          </button>
-          <button onClick={abrirMovimiento} style={{
-            border:'none', borderRadius:'6px',
-            padding:'0 28px', height:'45px', fontSize:'15px',
-            fontWeight:700, background:'#4CAF50', color: '#000000', cursor:'pointer',
-            display:'flex', alignItems:'center', gap:'6px',
-            boxShadow: '0 8px 20px rgba(76, 175, 80, 0.28)', transition: 'all 0.2s'
-          }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-              stroke="#000000" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="5" y1="12" x2="19" y2="12"/>
-            </svg>
-            Registrar salida
-          </button>
-        </div>
+          Editar stock
+        </button>
+        <button className="inventory-action inventory-action--move" onClick={abrirMovimiento}>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 5v14" />
+            <path d="M5 12h14" />
+          </svg>
+          Registrar entrada / salida
+        </button>
       </div>
 
-      <div style={{display:'grid', gridTemplateColumns: '1fr', gap:'1rem', marginBottom:'0'}}>
-      </div>
-
-      {/* Layout principal: productos ocupa más espacio, panel derecho más compacto */}
-      <div style={{display:'grid', gridTemplateColumns:'minmax(0,1fr) 280px', gap:'1rem', alignItems:'start'}}>
-
-        {/* Panel izquierdo: lista de ingredientes */}
-        <div style={{background:'white', border:'2px solid #FFE0B2', borderRadius:'12px', padding:'1.25rem', boxShadow: '0 2px 8px rgba(0,0,0,0.08)'}}>
-          <div style={{display: 'grid', gridTemplateColumns: '1fr 200px', gap: '0.8rem', marginBottom: '1rem'}}>
-            <input
-              value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
-              placeholder="Buscar ingrediente..."
-              style={{width: '100%', padding: '0.75rem', border: '2px solid #FFE0B2', borderRadius: '6px', boxSizing: 'border-box', background: '#FFFDF8'}}
-            />
-            <select
-              value={filtroProveedor}
-              onChange={(e) => setFiltroProveedor(e.target.value)}
-              style={{width: '100%', padding: '0.75rem', border: '2px solid #FFE0B2', borderRadius: '6px', boxSizing: 'border-box', background: '#FFFDF8'}}
-            >
+      <div className="inventory-layout">
+        <section className="inventory-main-panel">
+          <div className="inventory-filters">
+            <label className="inventory-search">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8" />
+                <path d="m21 21-4.35-4.35" />
+              </svg>
+              <input value={busqueda} onChange={(event) => setBusqueda(event.target.value)} placeholder="Buscar ingrediente..." />
+            </label>
+            <select className="inventory-select" value={filtroProveedor} onChange={(event) => setFiltroProveedor(event.target.value)}>
               <option value="todos">Todos los proveedores</option>
               {proveedores.map(proveedor => <option key={proveedor} value={proveedor}>{proveedor}</option>)}
             </select>
+            <select className="inventory-select" value={filtroEstado} onChange={(event) => setFiltroEstado(event.target.value)}>
+              <option value="todos">Todos los estados</option>
+              <option value="normal">Stock normal</option>
+              <option value="bajo">Stock bajo</option>
+              <option value="agotado">Agotado</option>
+            </select>
           </div>
 
-          {gruposInventario.map(grupo => (
-            <div key={grupo.proveedor} style={{marginBottom:'1.2rem'}}>
-              <div style={{fontSize:'13px', fontWeight:800, color:'#000000', letterSpacing:'0.06em', marginBottom:'10px', marginTop:'1rem'}}>
-                {grupo.proveedor}
-              </div>
-              {/* Filas de 4 columnas fijas */}
-              <div style={{display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:'8px'}}>
-                {grupo.items.map(item => {
-                  const esHoy = movimientos.some(m =>
-                    m.tipo === 'entrada' &&
-                    String(m.ingrediente) === String(item.nombre) &&
-                    fechaClaveLocal(m.fecha) === fechaClaveLocal()
-                  )
-                  const unidad = String(item.unidad || '').toLowerCase()
-                  const esCaja = unidad.includes('caja')
-                  const esKilo = unidad === 'kg' || unidad === 'kilos'
-                  const esPieza = unidad === 'piezas'
-                  const esLitro = unidad === 'litros'
-
-                  let etiquetaUnidad = item.unidad
-                  if (esKilo) etiquetaUnidad = 'kilos disponibles'
-                  if (esPieza) etiquetaUnidad = 'piezas disponibles'
-                  if (esCaja) etiquetaUnidad = 'cajas'
-                  if (esLitro) etiquetaUnidad = 'litros disponibles'
-
-                  return (
-                    <div key={item.id} style={{
-                      border: item.estado === 'bajo'
-                        ? '2px solid #FECACA'
-                        : '2px solid #E5E7EB',
-                      borderRadius:'8px', padding:'0.85rem 1rem',
-                      background: item.estado === 'bajo' ? '#FEE2E2' : '#ffffff',
-                      boxShadow: item.estado === 'bajo' ? '0 3px 10px rgba(244, 63, 94, 0.12)' : '0 2px 6px rgba(0,0,0,0.06)'
-                    }}>
-                      <div style={{fontSize:'13px', fontWeight:500, color:'#111827', marginBottom:'8px'}}>
-                        {item.nombre}
-                      </div>
-                      <div style={{fontSize:'20px', fontWeight:500, lineHeight:1.1, color: item.estado === 'bajo' ? '#DC2626' : '#111827'}}>
-                        {Number(item.cantidad).toFixed(esCaja ? 0 : 2)}
-                      </div>
-                      <div style={{fontSize:'12px', color: item.estado === 'bajo' ? '#EF4444' : '#6B7280'}}>
-                        {etiquetaUnidad}
-                      </div>
-                      {esCaja && item.contenido_caja > 0 && (
-                        <div style={{fontSize:'11px', color: item.estado === 'bajo' ? '#EF4444' : '#9CA3AF', marginTop:'2px'}}>
-                          = {Math.round(item.cantidad * item.contenido_caja)} piezas ({item.contenido_caja} c/caja)
-                        </div>
-                      )}
-                      <div style={{fontSize:'11px', color: item.estado === 'bajo' ? '#EF4444' : '#9CA3AF', marginTop:'6px', borderTop: item.estado === 'bajo' ? '0.5px solid #FECACA' : '0.5px solid #E5E7EB', paddingTop:'6px'}}>
-                        Mínimo: {item.minimo} {item.unidad}
-                        {item.maximo !== null && item.maximo !== undefined ? ` · Máximo: ${item.maximo} ${item.unidad}` : ''}
-                      </div>
+          <div className="inventory-providers">
+            {gruposInventario.map((grupo, index) => {
+              const abierto = proveedoresAbiertos[grupo.proveedor] ?? index === 0
+              return (
+                <article className="inventory-provider" key={grupo.proveedor} style={{'--provider-color': proveedorColores[index % proveedorColores.length]}}>
+                  <button className="inventory-provider-header" onClick={() => toggleProveedor(grupo.proveedor)}>
+                    <span>{grupo.proveedor}</span>
+                    <small>{grupo.items.length} productos</small>
+                    <strong>{abierto ? '^' : '⌄'}</strong>
+                  </button>
+                  {abierto && (
+                    <div className="inventory-table-wrap">
+                      <table className="inventory-table">
+                        <thead>
+                          <tr>
+                            <th>Ingrediente</th>
+                            <th>Disponible</th>
+                            <th>Mínimo</th>
+                            <th>Estado</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {grupo.items.map(item => {
+                            const estado = obtenerEstadoInventario(item)
+                            return (
+                              <tr key={item.id}>
+                                <td>{item.nombre}</td>
+                                <td className={estado === 'agotado' ? 'inventory-danger-text' : ''}>{formatearCantidad(item.cantidad, obtenerUnidad(item))}</td>
+                                <td>{Number(item.minimo || 0)} {obtenerUnidad(item)}</td>
+                                <td><span className={`inventory-status inventory-status--${estado}`}>{textoEstado(estado)}</span></td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
                     </div>
-                  )
-                })}
-              </div>
-            </div>
-          ))}
-        </div>
+                  )}
+                </article>
+              )
+            })}
+          </div>
+        </section>
 
-        {/* Panel derecho: stock bajo + últimos movimientos */}
-        <div style={{display:'grid', gap:'1rem'}}>
-          <div style={{background:'#FFF8F0', border:'2px solid #FFB300', borderRadius:'12px', padding:'1.25rem'}}>
-            <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', gap:'8px', marginBottom:'12px'}}>
-              <div style={{fontSize:'13px', fontWeight:800, color:'#111827'}}>Productos en stock bajo</div>
-              <span style={{background:'#FFE0CC', color:'#D32F2F', borderRadius:'99px', fontSize:'11px', fontWeight:800, padding:'2px 8px'}}>
-                {bajos}
+        <aside className="inventory-side-panel">
+          <section className="inventory-side-card">
+            <h3>
+              <span className="inventory-title-alert-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 3 22 20H2L12 3Z" />
+                  <path d="M12 9v5" />
+                  <path d="M12 17h.01" />
+                </svg>
               </span>
-            </div>
-            {bajos === 0 ? (
-              <div style={{fontSize:'13px', color:'#9CA3AF'}}>No hay productos bajos</div>
-            ) : (
-              <div style={{display:'grid', gap:'8px'}}>
-                {ingredientes.filter(item => item.estado === 'bajo').map(item => (
-                  <div key={item.id} style={{background:'#fff', border:'1px solid #FDBA74', borderRadius:'8px', padding:'8px 10px'}}>
-                    <div style={{fontSize:'13px', fontWeight:700, color:'#111827'}}>{item.nombre}</div>
-                    <div style={{fontSize:'12px', color:'#D85A30', marginTop:'2px'}}>
-                      {item.cantidad} {item.unidad} / min. {item.minimo} {item.unidad}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Últimos movimientos */}
-          <div style={{background:'white', border:'0.5px solid #E5E7EB', borderRadius:'12px', padding:'1.25rem'}}>
-            <div style={{fontSize:'13px', fontWeight:500, color:'#111827',
-              marginBottom:'1.2rem', display:'flex', alignItems:'center', gap:'6px'}}>
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
-                stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="12 8 12 12 14 14"/>
-                <path d="M3.05 11a9 9 0 1 0 .5-4"/>
-                <polyline points="3 3 3 7 7 7"/>
-              </svg>
-              Últimos movimientos
-            </div>
-
-            {gruposMovimientos.length === 0 ? (
-              <div style={{fontSize:'13px', color:'#9CA3AF'}}>Sin movimientos</div>
-            ) : (
-              gruposMovimientos.map(([key, movs]) => {
-                const { texto, esHoy, esAyer } = getLabelVisible(key)
+              Alertas de inventario
+            </h3>
+            <div className="inventory-alert-list">
+              {alertasVisibles.map(item => {
+                const estado = obtenerEstadoInventario(item)
                 return (
-                  <div key={key} style={{marginBottom:'1.2rem'}}>
-                    <div style={{
-                      fontSize: esHoy ? '12px' : '11px',
-                      fontWeight: esHoy ? 700 : 500,
-                      color: esHoy ? '#111827' : '#9CA3AF',
-                      textTransform: esHoy ? 'none' : 'uppercase',
-                      letterSpacing: esHoy ? 0 : '0.05em',
-                      marginBottom:'8px',
-                      paddingBottom:'6px',
-                      borderBottom:'0.5px solid #E5E7EB'
-                    }}>
-                      {texto}
+                  <div className="inventory-alert" key={item.id}>
+                    <span className="inventory-alert-icon">
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12 3 22 20H2L12 3Z" />
+                        <path d="M12 9v5" />
+                        <path d="M12 17h.01" />
+                      </svg>
+                    </span>
+                    <div>
+                      <strong>{item.nombre}</strong>
+                      <small>{item.proveedor || 'Sin proveedor'}</small>
                     </div>
-                    {movs.map(mov => {
-                      const motivo = limpiarMotivoMovimiento(mov.motivo)
-                      return (
-                        <div key={mov.id} style={{
-                          padding:'8px 0',
-                          borderBottom:'0.5px solid #F3F4F6'
-                        }}>
-                          {/* Fila 1: nombre + badge + cantidad */}
-                          <div style={{display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap'}}>
-                            <span style={{fontSize:'13px', fontWeight:600, color:'#111827'}}>
-                              {mov.ingrediente}
-                            </span>
-                            <span style={{
-                              background: mov.tipo === 'entrada' ? '#EAF3DE' : '#FCEBEB',
-                              color: mov.tipo === 'entrada' ? '#3B6D11' : '#A32D2D',
-                              borderRadius:'99px', fontSize:'11px', fontWeight:500,
-                              padding:'2px 7px', whiteSpace:'nowrap'
-                            }}>
-                              {mov.tipo === 'entrada' ? 'Entrada' : 'Salida'}
-                            </span>
-                            <span style={{fontSize:'13px', color:'#374151', fontWeight:500}}>
-                              {mov.cantidad}
-                            </span>
-                          </div>
-                          {/* Fila 2: motivo (solo si existe) */}
-                          {motivo ? (
-                            <div style={{fontSize:'11px', color:'#9CA3AF', marginTop:'3px', lineHeight:'1.3'}}>
-                              {motivo}
-                            </div>
-                          ) : null}
-                        </div>
-                      )
-                    })}
+                    <em className={`inventory-alert-state inventory-alert-state--${estado}`}>
+                      {estado === 'agotado' ? 'Agotado' : `Stock bajo (${formatearCantidad(item.cantidad, obtenerUnidad(item))})`}
+                    </em>
                   </div>
                 )
-              })
-            )}
-          </div>
-        </div>
+              })}
+            </div>
+          </section>
+
+          <section className="inventory-side-card">
+            <h3>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1D76FF" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 12a9 9 0 1 0 3-6.7" />
+                <path d="M3 4v5h5" />
+                <path d="M12 7v5l3 2" />
+              </svg>
+              Últimos movimientos
+            </h3>
+            <div className="inventory-movement-list">
+              {movimientosVisibles.map(mov => {
+                const unidad = obtenerUnidadMovimiento(mov)
+                const esEntrada = mov.tipo === 'entrada'
+                return (
+                  <div className="inventory-movement" key={mov.id}>
+                    <span className={`inventory-movement-icon ${esEntrada ? 'is-entry' : 'is-exit'}`}>
+                      {esEntrada ? (
+                        <svg width="30" height="22" viewBox="0 0 44 28" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M4 14h24" />
+                          <path d="M17 5 28 14 17 23" />
+                          <path d="M31 4h9v20h-9" />
+                        </svg>
+                      ) : (
+                        <svg width="30" height="22" viewBox="0 0 44 28" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M40 14H16" />
+                          <path d="M27 5 16 14l11 9" />
+                          <path d="M13 4H4v20h9" />
+                        </svg>
+                      )}
+                    </span>
+                    <div className="inventory-movement-main">
+                      <strong>{mov.ingrediente}</strong>
+                      <span>{obtenerProveedorMovimiento(mov)} <b>•</b> {obtenerEmpleadoMovimiento(mov)}</span>
+                      <small>{fechaMovimiento(mov)}</small>
+                    </div>
+                    <div className="inventory-movement-side">
+                      <span className={`inventory-movement-badge ${esEntrada ? 'is-entry' : 'is-exit'}`}>{esEntrada ? 'Entrada' : 'Salida'}</span>
+                      <strong className={esEntrada ? 'is-entry' : 'is-exit'}>{esEntrada ? '+' : '-'}{Number(mov.cantidad || 0).toFixed(2)} {unidad}</strong>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+          </section>
+        </aside>
       </div>
 
-      {/* Modal: Editar límites de stock */}
       {mostrarLimites && (
-        <div style={{position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: '1rem'}}>
-          <div style={{backgroundColor: 'white', borderRadius: '10px', padding: '1.5rem', maxWidth: '640px', width: '92%', maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 10px 40px rgba(0,0,0,0.3)'}}>
-            <h2 style={{margin: '0 0 1rem', color: '#111827', fontSize: '20px', fontWeight: 800}}>Editar stock mínimo y máximo</h2>
-            <div style={{display: 'grid', gap: '1rem'}}>
-              <div>
-                <label style={{display: 'block', fontWeight: 700, marginBottom: '0.5rem', color: '#333'}}>Buscar producto</label>
-                <input
-                  value={busquedaLimites}
-                  onChange={(e) => setBusquedaLimites(e.target.value)}
-                  placeholder="Escribe para filtrar..."
-                  style={{width: '100%', padding: '0.75rem', border: '2px solid #E5E7EB', borderRadius: '6px', boxSizing: 'border-box'}}
-                />
-                <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: '0.5rem', maxHeight: '180px', overflowY: 'auto', marginTop: '0.7rem'}}>
-                  {ingredientesFiltradosLimites.map(item => {
-                    const activo = String(limiteData.ingredienteId) === String(item.id)
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => setLimiteData({
-                          ingredienteId: item.id,
-                          minimo: item.minimo ?? '',
-                          maximo: item.maximo ?? ''
-                        })}
-                        style={{padding: '0.65rem', border: `2px solid ${activo ? '#FF6F00' : '#E5E7EB'}`, background: activo ? '#FFF3E0' : '#fff', color: activo ? '#8A4B00' : '#111827', borderRadius: '6px', cursor: 'pointer', textAlign: 'left', fontWeight: 700}}
-                      >
-                        {item.nombre}
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-
-              {ingredienteLimite && (
-                <div style={{padding: '0.8rem', background: '#FFF8F0', border: '1px solid #FDBA74', borderRadius: '6px', color: '#8A4B00', fontSize: '13px', fontWeight: 700}}>
-                  Disponible: {ingredienteLimite.cantidad} {ingredienteLimite.unidad}
-                </div>
-              )}
-
-              <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem'}}>
-                <div>
-                  <label style={{display: 'block', fontWeight: 700, marginBottom: '0.5rem', color: '#333'}}>Stock mínimo</label>
-                  <input
-                    type="number"
-                    value={limiteData.minimo}
-                    onChange={(e) => setLimiteData({...limiteData, minimo: e.target.value})}
-                    style={{width: '100%', padding: '0.75rem', border: '2px solid #E5E7EB', borderRadius: '6px', boxSizing: 'border-box'}}
-                  />
-                </div>
-                <div>
-                  <label style={{display: 'block', fontWeight: 700, marginBottom: '0.5rem', color: '#333'}}>Stock máximo</label>
-                  <input
-                    type="number"
-                    value={limiteData.maximo}
-                    onChange={(e) => setLimiteData({...limiteData, maximo: e.target.value})}
-                    style={{width: '100%', padding: '0.75rem', border: '2px solid #E5E7EB', borderRadius: '6px', boxSizing: 'border-box'}}
-                  />
-                </div>
-              </div>
-
-              <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem'}}>
-                <button onClick={() => setMostrarLimites(false)} style={{padding: '0.85rem', background: '#ff0000', color: '#ffffff', border: 'none', borderRadius: '6px', fontWeight: 800, cursor: 'pointer'}}>Cancelar</button>
-                <button onClick={guardarLimites} style={{padding: '0.85rem', background: '#4CAF50', color: '#000000', border: 'none', borderRadius: '6px', fontWeight: 800, cursor: 'pointer'}}>Guardar límites</button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <InventarioLimitesModal
+          ingredientes={ingredientesFiltradosLimites}
+          ingredienteLimite={ingredienteLimite}
+          limiteData={limiteData}
+          setLimiteData={setLimiteData}
+          busquedaLimites={busquedaLimites}
+          setBusquedaLimites={setBusquedaLimites}
+          guardarLimites={guardarLimites}
+          cerrar={() => setMostrarLimites(false)}
+        />
       )}
 
-      {/* Modal: Registrar salida */}
       {mostrarMovimiento && (
-        <div style={{position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: '1rem'}}>
-          <div style={{backgroundColor: 'white', borderRadius: '10px', padding: '1.5rem', maxWidth: '620px', width: '92%', maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 10px 40px rgba(0,0,0,0.3)'}}>
-            <h2 style={{margin: '0 0 1rem', color: '#111827', fontSize: '20px', fontWeight: 800}}>Registrar salida de inventario</h2>
-            <div style={{display: 'grid', gap: '1rem'}}>
-              <div>
-                <label style={{display: 'block', fontWeight: 700, marginBottom: '0.5rem', color: '#333'}}>Buscar ingrediente</label>
-                <input
-                  value={busquedaMovimiento}
-                  onChange={(e) => setBusquedaMovimiento(e.target.value)}
-                  placeholder="Escribe para filtrar..."
-                  style={{width: '100%', padding: '0.75rem', border: '2px solid #E5E7EB', borderRadius: '6px', boxSizing: 'border-box'}}
-                />
-                <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: '0.5rem', maxHeight: '180px', overflowY: 'auto', marginTop: '0.7rem'}}>
-                  {ingredientesFiltradosModal.map(item => {
-                    const activo = String(movData.ingredienteId) === String(item.id)
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => setMovData(prev => ({ ...prev, ingredienteId: item.id }))}
-                        style={{padding: '0.65rem', border: `2px solid ${activo ? '#16A34A' : '#E5E7EB'}`, background: activo ? '#DCFCE7' : '#fff', color: activo ? '#166534' : '#111827', borderRadius: '6px', cursor: 'pointer', textAlign: 'left', fontWeight: 700}}
-                      >
-                        {item.nombre}
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-
-              {ingredienteSeleccionado && (
-                <div style={{padding: '0.8rem', background: '#F8FAFC', borderRadius: '6px', color: '#334155', fontSize: '13px'}}>
-                  Disponible: <strong>{ingredienteSeleccionado.cantidad} {ingredienteSeleccionado.unidad}</strong>
-                </div>
-              )}
-
-              <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem'}}>
-                <div>
-                  <label style={{display: 'block', fontWeight: 700, marginBottom: '0.5rem', color: '#333'}}>Cantidad que salió</label>
-                  <input
-                    type="number"
-                    value={movData.cantidad}
-                    onChange={(e) => setMovData({...movData, cantidad: e.target.value})}
-                    style={{width: '100%', padding: '0.75rem', border: '2px solid #E5E7EB', borderRadius: '6px', boxSizing: 'border-box'}}
-                  />
-                </div>
-                <div>
-                  <label style={{display: 'block', fontWeight: 700, marginBottom: '0.5rem', color: '#333'}}>Persona que lo sacó</label>
-                  <select
-                    value={movData.persona}
-                    onChange={(e) => setMovData({...movData, persona: e.target.value})}
-                    style={{width: '100%', padding: '0.75rem', border: '2px solid #E5E7EB', borderRadius: '6px', boxSizing: 'border-box'}}
-                  >
-                    <option value="">Selecciona...</option>
-                    {personalActivo.map(persona => <option key={persona.id} value={persona.nombre}>{persona.nombre}</option>)}
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label style={{display: 'block', fontWeight: 700, marginBottom: '0.5rem', color: '#333'}}>Motivo</label>
-                <input
-                  value={movData.motivo}
-                  onChange={(e) => setMovData({...movData, motivo: e.target.value})}
-                  style={{width: '100%', padding: '0.75rem', border: '2px solid #E5E7EB', borderRadius: '6px', boxSizing: 'border-box'}}
-                />
-              </div>
-
-              <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem'}}>
-                <button onClick={() => setMostrarMovimiento(false)} style={{padding: '0.85rem', background: '#ff0000', color: '#ffffff', border: 'none', borderRadius: '6px', fontWeight: 800, cursor: 'pointer'}}>Cancelar</button>
-                <button onClick={registrarMovimiento} style={{padding: '0.85rem', background: '#4CAF50', color: '#000000', border: 'none', borderRadius: '6px', fontWeight: 800, cursor: 'pointer'}}>Guardar Cambios </button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <InventarioMovimientoModal
+          ingredientes={ingredientesFiltradosModal}
+          ingredienteSeleccionado={ingredienteSeleccionado}
+          movData={movData}
+          setMovData={setMovData}
+          busquedaMovimiento={busquedaMovimiento}
+          setBusquedaMovimiento={setBusquedaMovimiento}
+          personalActivo={personalActivo}
+          registrarMovimiento={registrarMovimiento}
+          cerrar={() => setMostrarMovimiento(false)}
+        />
       )}
     </div>
   )
 }
+
+const InventarioLimitesModal = ({
+  ingredientes,
+  ingredienteLimite,
+  limiteData,
+  setLimiteData,
+  busquedaLimites,
+  setBusquedaLimites,
+  guardarLimites,
+  cerrar
+}) => (
+  <div className="inventory-modal-overlay">
+    <div className="inventory-modal">
+      <h2>Editar stock mínimo y máximo</h2>
+      <label>Buscar producto</label>
+      <input value={busquedaLimites} onChange={(event) => setBusquedaLimites(event.target.value)} placeholder="Escribe para filtrar..." />
+      <div className="inventory-modal-grid">
+        {ingredientes.map(item => {
+          const activo = String(limiteData.ingredienteId) === String(item.id)
+          return (
+            <button
+              key={item.id}
+              type="button"
+              className={activo ? 'is-active' : ''}
+              onClick={() => setLimiteData({ ingredienteId: item.id, minimo: item.minimo ?? '', maximo: item.maximo ?? '' })}
+            >
+              {item.nombre}
+            </button>
+          )
+        })}
+      </div>
+      {ingredienteLimite && <div className="inventory-modal-note">Disponible: {ingredienteLimite.cantidad} {ingredienteLimite.unidad}</div>}
+      <div className="inventory-modal-fields">
+        <label>Stock mínimo<input type="text" value={limiteData.minimo} onChange={(event) => setLimiteData({...limiteData, minimo: event.target.value})} /></label>
+        <label>Stock máximo<input type="text" value={limiteData.maximo} onChange={(event) => setLimiteData({...limiteData, maximo: event.target.value})} /></label>
+      </div>
+      <div className="inventory-modal-actions">
+        <button onClick={cerrar}>Cancelar</button>
+        <button onClick={guardarLimites}>Guardar límites</button>
+      </div>
+    </div>
+  </div>
+)
+
+const InventarioMovimientoModal = ({
+  ingredientes,
+  ingredienteSeleccionado,
+  movData,
+  setMovData,
+  busquedaMovimiento,
+  setBusquedaMovimiento,
+  personalActivo,
+  registrarMovimiento,
+  cerrar
+}) => (
+  <div className="inventory-modal-overlay">
+    <div className="inventory-modal">
+      <h2>Registrar salida de inventario</h2>
+      <label>Buscar ingrediente</label>
+      <input value={busquedaMovimiento} onChange={(event) => setBusquedaMovimiento(event.target.value)} placeholder="Escribe para filtrar..." />
+      <div className="inventory-modal-grid">
+        {ingredientes.map(item => {
+          const activo = String(movData.ingredienteId) === String(item.id)
+          return (
+            <button key={item.id} type="button" className={activo ? 'is-active' : ''} onClick={() => setMovData(prev => ({ ...prev, ingredienteId: item.id }))}>
+              {item.nombre}
+            </button>
+          )
+        })}
+      </div>
+      {ingredienteSeleccionado && <div className="inventory-modal-note">Disponible: {ingredienteSeleccionado.cantidad} {ingredienteSeleccionado.unidad}</div>}
+      <div className="inventory-modal-fields">
+        <label>Cantidad que salió<input type="text" value={movData.cantidad} onChange={(event) => setMovData({...movData, cantidad: event.target.value})} /></label>
+        <label>Persona que lo sacó
+          <select value={movData.persona} onChange={(event) => setMovData({...movData, persona: event.target.value})}>
+            <option value="">Selecciona...</option>
+            {personalActivo.map(persona => <option key={persona.id} value={persona.nombre}>{persona.nombre}</option>)}
+          </select>
+        </label>
+      </div>
+      <div className="inventory-modal-actions">
+        <button onClick={cerrar}>Cancelar</button>
+        <button onClick={registrarMovimiento}>Guardar Cambios</button>
+      </div>
+    </div>
+  </div>
+)

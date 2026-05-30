@@ -256,7 +256,9 @@ export const Pagos = ({ comandas: comandasProp = [] }) => {
                 >
                   <div>
                     <div style={{color: '#FF6F00', fontWeight: 800, fontSize: '13px'}}>Comanda #{cuenta.id}</div>
-                    <div style={{color: '#111827', fontWeight: 800, fontSize: '17px', marginTop: '0.25rem'}}>{cuenta.mesa}</div>
+                    <div style={{color: '#111827', fontWeight: 800, fontSize: '17px', marginTop: '0.25rem'}}>
+                      {cuenta.cuentaSeparada && cuenta.nombreCuenta ? `${cuenta.mesa} - ${cuenta.nombreCuenta}` : cuenta.mesa}
+                    </div>
                     <div style={{display: 'flex', gap: '1rem', flexWrap: 'wrap', marginTop: '0.6rem', color: '#555', fontSize: '13px'}}>
                       <span>{cuenta.productos} productos</span>
                       <span>{formatearFecha(cuenta.fecha)}</span>
@@ -366,8 +368,7 @@ export const Pagos = ({ comandas: comandasProp = [] }) => {
               >
                 {/* Header */}
                 <div style={{textAlign: 'center', borderBottom: '2px solid #000', paddingBottom: '1rem', marginBottom: '1rem'}}>
-                  <div style={{fontSize: '16px', fontWeight: 700}}>🍴 GASTROSOFT</div>
-                  <div style={{fontSize: '11px', color: '#666', marginTop: '0.3rem'}}>Sistema de Gestión de Restaurante</div>
+                  <img src="/LogoGastroSoftHeader.png" alt="GastroSoft" style={{height: '80px'}} />
                 </div>
 
                 {/* Info Comanda */}

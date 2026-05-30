@@ -1,34 +1,180 @@
 import { useState } from 'react'
-import { appStyles } from '../../styles/styles'
 import { supabase } from '../../supabase'
 import { useClientes, useComandas, useMesas } from '../../hooks/useSupabase'
+import '../../styles/Reservaciones.css'
+
+const IconShell = ({ children, size = 22, className = '' }) => (
+  <svg
+    className={className}
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    {children}
+  </svg>
+)
+
+const CalendarIcon = (props) => (
+  <IconShell {...props}>
+    <path d="M8 2v4" />
+    <path d="M16 2v4" />
+    <rect x="3" y="4" width="18" height="18" rx="3" />
+    <path d="M3 10h18" />
+  </IconShell>
+)
+
+const UsersIcon = (props) => (
+  <IconShell {...props}>
+    <path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2" />
+    <circle cx="9.5" cy="7" r="4" />
+    <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+  </IconShell>
+)
+
+const UserIcon = (props) => (
+  <IconShell {...props}>
+    <path d="M20 21a8 8 0 0 0-16 0" />
+    <circle cx="12" cy="7" r="4" />
+  </IconShell>
+)
+
+const CheckIcon = (props) => (
+  <IconShell {...props}>
+    <circle cx="12" cy="12" r="10" />
+    <path d="m8.5 12.5 2.3 2.3 4.8-5.1" />
+  </IconShell>
+)
+
+const XCircleIcon = (props) => (
+  <IconShell {...props}>
+    <circle cx="12" cy="12" r="10" />
+    <path d="m15 9-6 6" />
+    <path d="m9 9 6 6" />
+  </IconShell>
+)
+
+const SearchIcon = (props) => (
+  <IconShell {...props}>
+    <circle cx="11" cy="11" r="7" />
+    <path d="m20 20-3.5-3.5" />
+  </IconShell>
+)
+
+const ClockIcon = (props) => (
+  <IconShell {...props}>
+    <circle cx="12" cy="12" r="10" />
+    <path d="M12 6v6l4 2" />
+  </IconShell>
+)
+
+const TableIcon = (props) => (
+  <IconShell {...props}>
+    <path d="M4 10h16" />
+    <path d="M6 10l-2 9" />
+    <path d="M18 10l2 9" />
+    <path d="M8 10l1 9" />
+    <path d="M16 10l-1 9" />
+    <path d="M7 6h10" />
+  </IconShell>
+)
+
+const PhoneIcon = (props) => (
+  <IconShell {...props}>
+    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.2 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.32 1.78.6 2.62a2 2 0 0 1-.45 2.11L8 9.7a16 16 0 0 0 6.3 6.3l1.25-1.25a2 2 0 0 1 2.11-.45c.84.28 1.72.48 2.62.6A2 2 0 0 1 22 16.92Z" />
+  </IconShell>
+)
+
+const EditIcon = (props) => (
+  <IconShell {...props}>
+    <path d="M12 20h9" />
+    <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+  </IconShell>
+)
+
+const TrashIcon = (props) => (
+  <IconShell {...props}>
+    <path d="M3 6h18" />
+    <path d="M8 6V4h8v2" />
+    <path d="M19 6l-1 14H6L5 6" />
+    <path d="M10 11v5" />
+    <path d="M14 11v5" />
+  </IconShell>
+)
+
+const normalizar = (texto) => String(texto || '')
+  .toLowerCase()
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+
+const fechaClaveLocal = (fecha = new Date()) => {
+  const date = fecha instanceof Date ? fecha : new Date(`${fecha}T00:00:00`)
+  if (Number.isNaN(date.getTime())) return ''
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+const formatearFecha = (fecha) => {
+  if (!fecha) return '-'
+  const date = new Date(`${fecha}T00:00:00`)
+  if (Number.isNaN(date.getTime())) return fecha
+  const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+  return `${String(date.getDate()).padStart(2, '0')} ${meses[date.getMonth()]} ${date.getFullYear()}`
+}
+
+const obtenerDia = (fecha) => {
+  if (!fecha) return '-'
+  const hoy = fechaClaveLocal()
+  if (fecha === hoy) return 'Hoy'
+  const date = new Date(`${fecha}T00:00:00`)
+  if (Number.isNaN(date.getTime())) return ''
+  const dias = ['Domingo', 'Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado']
+  return dias[date.getDay()]
+}
+
+const formatearHora = (hora) => {
+  if (!hora) return { hora: '-', periodo: '' }
+  const [hh = '0', mm = '00'] = String(hora).split(':')
+  const numeroHora = Number(hh)
+  const hora12 = numeroHora % 12 || 12
+  return {
+    hora: `${String(hora12).padStart(2, '0')}:${mm}`,
+    periodo: numeroHora >= 12 ? 'PM' : 'AM'
+  }
+}
+
+const estadoVisual = (estado, esHistorial = false) => {
+  const valor = normalizar(estado)
+  if (valor.includes('cancel')) return { label: 'Cancelada', tone: 'danger' }
+  if (valor.includes('termin') || valor.includes('final')) return { label: 'Finalizada', tone: 'success' }
+  if (valor.includes('pend')) return { label: 'Pendiente', tone: 'warning' }
+  return esHistorial
+    ? { label: 'Finalizada', tone: 'success' }
+    : { label: 'Confirmada', tone: 'success' }
+}
 
 export const ClientesModule = () => {
   const {
-    clientes,
     reservaciones,
-    guardarCliente: guardarClienteBd,
-    eliminarCliente: eliminarClienteBd,
     guardarReservacion: guardarReservacionBd,
     refetchReservaciones
   } = useClientes()
   const { mesas, refetch: refetchMesas } = useMesas()
   const { comandas } = useComandas()
 
-  const [pestana] = useState('reservaciones')
-
-  const [mostrarFormulario, setMostrarFormulario] = useState(false)
   const [mostrarReservacion, setMostrarReservacion] = useState(false)
   const [editando, setEditando] = useState(null)
-  const [mostrarDetalles, setMostrarDetalles] = useState(null)
-  const [formData, setFormData] = useState({
-    nombre: '',
-    email: '',
-    telefono: '',
-    tipoCliente: 'regular',
-    capitalConsumable: 0
-  })
-
+  const [busqueda, setBusqueda] = useState('')
+  const [filtroEstado, setFiltroEstado] = useState('todas')
+  const [filtroFecha, setFiltroFecha] = useState('hoy')
   const [reservaData, setReservaData] = useState({
     cliente: '',
     fecha: '',
@@ -38,8 +184,10 @@ export const ClientesModule = () => {
     telefono: ''
   })
 
-  const reservacionesTerminadas = reservaciones.filter(reserva => reserva.estado === 'terminada')
-  const reservacionesActivas = reservaciones.filter(reserva => reserva.estado !== 'terminada')
+  const mesasPorId = mesas.reduce((acc, mesa) => {
+    acc[mesa.id] = mesa
+    return acc
+  }, {})
 
   const obtenerComandaActiva = (mesa) => {
     return comandas.find(c => {
@@ -113,57 +261,6 @@ export const ClientesModule = () => {
     }
 
     avisarCambioComandas()
-  }
-
-  const abrirFormulario = (cliente = null) => {
-    if (cliente) {
-      setEditando(cliente)
-      setFormData({
-        nombre: cliente.nombre,
-        email: cliente.email,
-        telefono: cliente.telefono,
-        tipoCliente: cliente.tipoCliente,
-        capitalConsumable: cliente.capitalConsumable
-      })
-    } else {
-      setFormData({
-        nombre: '',
-        email: '',
-        telefono: '',
-        tipoCliente: 'regular',
-        capitalConsumable: 0
-      })
-      setEditando(null)
-    }
-    setMostrarFormulario(true)
-  }
-
-  const guardarCliente = () => {
-    if (!formData.nombre || !formData.email || !formData.telefono) {
-      alert('Por favor completa todos los campos')
-      return
-    }
-
-    guardarClienteBd(formData, editando)
-
-    setMostrarFormulario(false)
-    setFormData({
-      nombre: '',
-      email: '',
-      telefono: '',
-      tipoCliente: 'regular',
-      capitalConsumable: 0
-    })
-  }
-
-  const eliminarCliente = (id) => {
-    if (confirm('¿Estás seguro de que deseas eliminar este cliente?')) {
-      eliminarClienteBd(id)
-    }
-  }
-
-  const registrarVisita = async () => {
-    alert('El historial de visitas ya no esta activo')
   }
 
   const abrirReservacion = (reserva = null) => {
@@ -266,847 +363,294 @@ export const ClientesModule = () => {
     }
   }
 
-  const renderTarjetaReservacion = (reserva, terminada = false) => (
-    <div key={reserva.id} style={{
-      background: terminada ? '#F8FAFC' : 'white',
-      borderRadius: '12px',
-      padding: '1.5rem',
-      border: `2px solid ${terminada ? '#22C55E' : '#FFC107'}`,
-      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-      display: 'grid',
-      gridTemplateColumns: terminada ? '1fr' : '1fr auto',
-      gap: '1.5rem',
-      alignItems: 'center'
-    }}>
-      <div>
-        <div style={{display: 'flex', alignItems: 'center', gap: '0.8rem', flexWrap: 'wrap', marginBottom: '1rem'}}>
-          <div style={{fontSize: '18px', fontWeight: 700, color: '#333'}}>
-            {reserva.cliente}
-          </div>
-          {terminada && (
-            <span style={{
-              display: 'inline-block',
-              padding: '0.35rem 0.7rem',
-              background: '#DCFCE7',
-              color: '#166534',
-              borderRadius: '999px',
-              fontWeight: 700,
-              fontSize: '12px'
-            }}>
-              Terminada
-            </span>
-          )}
+  const hoy = fechaClaveLocal()
+  const esHistorial = (reserva) => {
+    const estado = normalizar(reserva.estado)
+    return estado.includes('termin') || estado.includes('final') || estado.includes('cancel')
+  }
+
+  const pasaFiltros = (reserva) => {
+    const texto = normalizar(`${reserva.cliente} ${reserva.telefono} ${reserva.mesa}`)
+    const estado = normalizar(reserva.estado)
+    const coincideBusqueda = !busqueda || texto.includes(normalizar(busqueda))
+    const coincideEstado =
+      filtroEstado === 'todas' ||
+      (filtroEstado === 'finalizadas' && (estado.includes('termin') || estado.includes('final'))) ||
+      estado.includes(filtroEstado)
+    const coincideFecha = filtroFecha === 'todas-fechas' || reserva.fecha === hoy
+    return coincideBusqueda && coincideEstado && coincideFecha
+  }
+
+  const reservacionesFiltradas = reservaciones.filter(pasaFiltros)
+  const reservacionesActivas = reservacionesFiltradas.filter(reserva => !esHistorial(reserva))
+  const historialReservaciones = reservacionesFiltradas.filter(esHistorial)
+  const finalizadas = reservaciones.filter(reserva => {
+    const estado = normalizar(reserva.estado)
+    return estado.includes('termin') || estado.includes('final')
+  })
+  const canceladas = reservaciones.filter(reserva => normalizar(reserva.estado).includes('cancel'))
+  const mesActual = hoy.slice(0, 7)
+  const canceladasEsteMes = canceladas.filter(reserva => String(reserva.fecha || '').startsWith(mesActual))
+  const reservacionesHoy = reservaciones.filter(reserva => reserva.fecha === hoy)
+
+  const renderReserva = (reserva, historial = false) => {
+    const estado = estadoVisual(reserva.estado, historial)
+    const hora = formatearHora(reserva.hora)
+    const mesa = mesasPorId[reserva.idMesa || reserva.id_mesa]
+    const ubicacion = mesa?.ubicacion || reserva.ubicacion || 'Interior'
+
+    return (
+      <article className={`reserva-row ${estado.tone}`} key={reserva.id}>
+        <div className={`reserva-avatar ${estado.tone}`}>
+          <UserIcon size={34} />
         </div>
-        <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem'}}>
-          <div>
-            <div style={{fontSize: '12px', color: '#999', fontWeight: 600}}>FECHA</div>
-            <div style={{fontSize: '16px', fontWeight: 700, color: '#333'}}> {reserva.fecha}</div>
+
+        <div className="reserva-client">
+          <div className="reserva-client-name">{reserva.cliente || 'Cliente sin nombre'}</div>
+          <span className={`reserva-status ${estado.tone}`}>{estado.label}</span>
+        </div>
+
+        <div className="reserva-detail-grid">
+          <div className="reserva-info-item">
+            <CalendarIcon className="reserva-info-icon" />
+            <div>
+              <span>Fecha</span>
+              <strong>{formatearFecha(reserva.fecha)}</strong>
+              <small>{obtenerDia(reserva.fecha)}</small>
+            </div>
           </div>
-          <div>
-            <div style={{fontSize: '12px', color: '#999', fontWeight: 600}}>HORA</div>
-            <div style={{fontSize: '16px', fontWeight: 700, color: '#333'}}> {reserva.hora}</div>
+
+          <div className="reserva-info-item">
+            <ClockIcon className="reserva-info-icon" />
+            <div>
+              <span>Hora</span>
+              <strong>{hora.hora}</strong>
+              <small>{hora.periodo}</small>
+            </div>
           </div>
-          <div>
-            <div style={{fontSize: '12px', color: '#999', fontWeight: 600}}>PERSONAS</div>
-            <div style={{fontSize: '16px', fontWeight: 700, color: '#333'}}> {reserva.personas}</div>
+
+          <div className="reserva-info-item">
+            <UsersIcon className="reserva-info-icon" />
+            <div>
+              <span>Personas</span>
+              <strong>{reserva.personas || 0}</strong>
+              <small>Adultos</small>
+            </div>
           </div>
-          <div>
-            <div style={{fontSize: '12px', color: '#999', fontWeight: 600}}>MESA</div>
-            <div style={{fontSize: '16px', fontWeight: 700, color: terminada ? '#166534' : '#FF6F00'}}> #{reserva.mesa}</div>
+
+          <div className="reserva-info-item">
+            <TableIcon className="reserva-info-icon" />
+            <div>
+              <span>Mesa</span>
+              <strong className="reserva-table-number">#{reserva.mesa || '-'}</strong>
+              <small>{ubicacion}</small>
+            </div>
           </div>
-          <div>
-            <div style={{fontSize: '12px', color: '#999', fontWeight: 600}}>TELEFONO</div>
-            <div style={{fontSize: '14px', color: '#333'}}>{reserva.telefono}</div>
+
+          <div className="reserva-info-item">
+            <PhoneIcon className="reserva-info-icon" />
+            <div>
+              <span>Telefono</span>
+              <strong>{reserva.telefono || '-'}</strong>
+            </div>
           </div>
         </div>
-      </div>
-      {!terminada && (
-        <div style={{display: 'flex', flexDirection: 'column', gap: '0.8rem', minWidth: '120px'}}>
-          <button
-            onClick={() => abrirReservacion(reserva)}
-            style={{
-              padding: '0.7rem 1rem',
-              background: '#2196F3',
-              color: 'white',
-              border: 'none',
-              borderRadius: '6px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              fontSize: '13px'
-            }}
-          >
+
+        <div className="reserva-actions">
+          <button className="reserva-btn edit" onClick={() => abrirReservacion(reserva)}>
+            <EditIcon size={18} />
             Editar
           </button>
-          <button
-            onClick={() => cancelarReservacion(reserva)}
-            style={{
-              padding: '0.7rem 1rem',
-              background: '#EF4444',
-              color: 'white',
-              border: 'none',
-              borderRadius: '6px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              fontSize: '13px'
-            }}
-          >
-             Cancelar
+          <button className="reserva-btn cancel" onClick={() => cancelarReservacion(reserva)}>
+            <TrashIcon size={18} />
+            Cancelar
           </button>
         </div>
-      )}
-    </div>
-  )
+      </article>
+    )
+  }
 
   return (
-    <div style={{display: 'flex', flexDirection: 'column', gap: '2rem', padding: '2rem', width: '100%'}}>
-      {/* Header */}
-      <div style={appStyles.pageHeader}>
-        <h1 style={appStyles.pageTitle}>
-          Reservaciones
-        </h1>
-        <button
-          onClick={() => abrirReservacion()}
-          style={{...appStyles.btnPrimary}}
-        >
-          + Nueva Reservación
+    <div className="reservaciones-page">
+      <div className="reservaciones-top-actions">
+        <button className="nueva-reserva-btn" onClick={() => abrirReservacion()}>
+          <span>+</span>
+          Nueva Reservación
         </button>
       </div>
 
-      {/* SECCIÓN CLIENTES */}
-      {pestana === 'clientes' && (
-      <>
-      {/* Grid de Clientes */}
-      <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem'}}>
-        {clientes.map(cliente => {
-          const capitalDisponible = cliente.capitalConsumable - cliente.capitalUtilizado
-          const porcentajeUtilizado = cliente.capitalConsumable > 0 
-            ? ((cliente.capitalUtilizado / cliente.capitalConsumable) * 100).toFixed(1)
-            : 0
-          
-          return (
-            <div
-              key={cliente.id}
-              style={{
-                background: 'white',
-                borderRadius: '12px',
-                padding: '1.5rem',
-                border: cliente.tipoCliente === 'vip' ? '2px solid #FFB300' : '2px solid #e0e0e0',
-                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-                transition: 'all 0.3s ease'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.boxShadow = '0 4px 15px rgba(0, 0, 0, 0.2)'
-                e.currentTarget.style.transform = 'translateY(-2px)'
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)'
-                e.currentTarget.style.transform = 'translateY(0)'
-              }}
-            >
-              {/* Encabezado */}
-              <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem'}}>
-                <div>
-                  <div style={{
-                    fontSize: '18px',
-                    fontWeight: 700,
-                    color: '#333',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem'
-                  }}>
-                    {cliente.nombre}
-                    {cliente.tipoCliente === 'vip' && <span style={{fontSize: '16px'}}></span>}
-                  </div>
-                  <div style={{fontSize: '12px', color: '#999', marginTop: '0.3rem'}}>
-                    ID: #{cliente.id}
-                  </div>
-                </div>
-              </div>
-
-              {/* Detalles */}
-              <div style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '0.8rem',
-                marginBottom: '1rem',
-                paddingBottom: '1rem',
-                borderBottom: '1px solid #e0e0e0'
-              }}>
-                <div style={{fontSize: '13px', color: '#666'}}>
-                   {cliente.email}
-                </div>
-                <div style={{fontSize: '13px', color: '#666'}}>
-                  {cliente.telefono}
-                </div>
-              </div>
-
-              {/* Capital Consumible (solo para VIP) */}
-              {cliente.tipoCliente === 'vip' && (
-                <div style={{
-                  background: '#FFF8F0',
-                  borderRadius: '8px',
-                  padding: '1rem',
-                  marginBottom: '1rem',
-                  border: '1px solid #FFE0B2'
-                }}>
-                  <div style={{fontSize: '12px', color: '#999', fontWeight: 600, marginBottom: '0.5rem'}}>
-                    CAPITAL CONSUMIBLE
-                  </div>
-                  <div style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    marginBottom: '0.5rem'
-                  }}>
-                    <div style={{fontSize: '16px', fontWeight: 700, color: '#FF6F00'}}>
-                      ${cliente.capitalConsumable.toLocaleString()}
-                    </div>
-                    <div style={{fontSize: '12px', color: '#999'}}>
-                      Utilizado: ${cliente.capitalUtilizado.toLocaleString()}
-                    </div>
-                  </div>
-
-                  {/* Barra de progreso */}
-                  <div style={{
-                    background: '#e0e0e0',
-                    borderRadius: '6px',
-                    height: '8px',
-                    overflow: 'hidden'
-                  }}>
-                    <div style={{
-                      background: 'linear-gradient(90deg, #FF6F00 0%, #FFB300 100%)',
-                      height: '100%',
-                      width: `${porcentajeUtilizado}%`,
-                      transition: 'width 0.3s'
-                    }} />
-                  </div>
-                  <div style={{fontSize: '11px', color: '#999', marginTop: '0.3rem'}}>
-                    Disponible: ${capitalDisponible.toLocaleString()}
-                  </div>
-                </div>
-              )}
-
-              {/* Últimas Visitas */}
-              <div style={{marginBottom: '1rem'}}>
-                <div style={{fontSize: '12px', color: '#999', fontWeight: 600, marginBottom: '0.5rem'}}>
-                  VISITAS RECIENTES
-                </div>
-                <div style={{display: 'flex', flexDirection: 'column', gap: '0.3rem'}}>
-                  {cliente.fechasVisitas.slice(0, 3).map((fecha, idx) => (
-                    <div key={idx} style={{fontSize: '12px', color: '#333', padding: '0.3rem 0'}}>
-                      📅 {fecha}
-                    </div>
-                  ))}
-                  {cliente.fechasVisitas.length === 0 && (
-                    <div style={{fontSize: '12px', color: '#999', fontStyle: 'italic'}}>
-                      Sin visitas registradas
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Botones */}
-              <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.8rem'}}>
-                <button
-                  onClick={() => registrarVisita(cliente.id)}
-                  style={{
-                    padding: '0.6rem',
-                    background: '#4CAF50',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '6px',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    fontSize: '12px',
-                    transition: 'all 0.2s'
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = '#388E3C'}
-                  onMouseLeave={(e) => e.currentTarget.style.background = '#4CAF50'}
-                >
-                  Visita Hoy
-                </button>
-                <button
-                  onClick={() => setMostrarDetalles(cliente)}
-                  style={{
-                    padding: '0.6rem',
-                    background: '#2196F3',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '6px',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    fontSize: '12px',
-                    transition: 'all 0.2s'
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = '#1976D2'}
-                  onMouseLeave={(e) => e.currentTarget.style.background = '#2196F3'}
-                >
-                 Detalles
-                </button>
-              </div>
-
-              {/* Botones Editar/Eliminar */}
-              <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.8rem', marginTop: '0.8rem'}}>
-                <button
-                  onClick={() => abrirFormulario(cliente)}
-                  style={{
-                    padding: '0.6rem',
-                    background: '#FFC107',
-                    color: '#333',
-                    border: 'none',
-                    borderRadius: '6px',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    fontSize: '12px',
-                    transition: 'all 0.2s'
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.opacity = '0.8'}
-                  onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
-                >
-                   Editar
-                </button>
-                <button
-                  onClick={() => eliminarCliente(cliente.id)}
-                  style={{
-                    padding: '0.6rem',
-                    background: '#EF4444',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '6px',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    fontSize: '12px',
-                    transition: 'all 0.2s'
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = '#DC2626'}
-                  onMouseLeave={(e) => e.currentTarget.style.background = '#EF4444'}
-                >
-                   Eliminar
-                </button>
-              </div>
-            </div>
-          )
-        })}
-      </div>
-      </>
-      )}
-
-      {/* SECCIÓN RESERVACIONES */}
-      {pestana === 'reservaciones' && (
-      <div style={{display: 'grid', gridTemplateColumns: '1fr', gap: '1.5rem'}}>
-        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap'}}>
-          <h2 style={{margin: 0, color: '#333', fontSize: '20px', fontWeight: 800}}>Reservaciones activas</h2>
-          <span style={{fontSize: '13px', fontWeight: 700, color: '#666'}}>{reservacionesActivas.length} activas</span>
+      <section className="reservas-kpis">
+        <div className="reserva-kpi-card">
+          <div className="kpi-icon orange"><CalendarIcon /></div>
+          <div>
+            <span>Reservaciones hoy</span>
+            <strong>{reservacionesHoy.length}</strong>
+            <small>{formatearFecha(hoy)}</small>
+          </div>
         </div>
-        {reservacionesActivas.length === 0 && (
-          <div style={{padding: '2rem', background: 'white', borderRadius: '12px', border: '2px dashed #D1D5DB', color: '#777', textAlign: 'center'}}>
-            No hay reservaciones activas
-          </div>
-        )}
-        {reservacionesActivas.map(reserva => (
-          <div key={reserva.id} style={{
-            background: 'white',
-            borderRadius: '12px',
-            padding: '1.5rem',
-            border: '2px solid #FFC107',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-            display: 'grid',
-            gridTemplateColumns: '1fr auto',
-            gap: '1.5rem',
-            alignItems: 'center'
-          }}>
-            <div>
-              <div style={{fontSize: '18px', fontWeight: 700, color: '#333', marginBottom: '1rem'}}>
-                {reserva.cliente}
-              </div>
-              <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem'}}>
-                <div>
-                  <div style={{fontSize: '12px', color: '#999', fontWeight: 600}}>FECHA</div>
-                  <div style={{fontSize: '16px', fontWeight: 700, color: '#333'}}> {reserva.fecha}</div>
-                </div>
-                <div>
-                  <div style={{fontSize: '12px', color: '#999', fontWeight: 600}}>HORA</div>
-                  <div style={{fontSize: '16px', fontWeight: 700, color: '#333'}}> {reserva.hora}</div>
-                </div>
-                <div>
-                  <div style={{fontSize: '12px', color: '#999', fontWeight: 600}}>PERSONAS</div>
-                  <div style={{fontSize: '16px', fontWeight: 700, color: '#333'}}> {reserva.personas}</div>
-                </div>
-                <div>
-                  <div style={{fontSize: '12px', color: '#999', fontWeight: 600}}>MESA</div>
-                  <div style={{fontSize: '16px', fontWeight: 700, color: '#FF6F00'}}> #{reserva.mesa}</div>
-                </div>
-                <div>
-                  <div style={{fontSize: '12px', color: '#999', fontWeight: 600}}>TELÉFONO</div>
-                  <div style={{fontSize: '14px', color: '#333'}}>{reserva.telefono}</div>
-                </div>
-              </div>
-            </div>
-            <div style={{display: 'flex', flexDirection: 'column', gap: '0.8rem', minWidth: '120px'}}>
-              <button
-                onClick={() => abrirReservacion(reserva)}
-                style={{
-                  padding: '0.7rem 1rem',
-                  background: '#2196F3',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '6px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  fontSize: '13px'
-                }}
-              >
-                Editar
-              </button>
-              <button
-                onClick={() => cancelarReservacion(reserva)}
-                style={{
-                  padding: '0.7rem 1rem',
-                  background: '#EF4444',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '6px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  fontSize: '13px'
-                }}
-              >
-                 Cancelar
-              </button>
-            </div>
-          </div>
-        ))}
 
-        <div style={{height: '1px', background: '#E5E7EB', margin: '0.5rem 0'}} />
-
-        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap'}}>
-          <h2 style={{margin: 0, color: '#333', fontSize: '20px', fontWeight: 800}}>Reservaciones terminadas</h2>
-          <span style={{fontSize: '13px', fontWeight: 700, color: '#166534'}}>{reservacionesTerminadas.length} terminadas</span>
+        <div className="reserva-kpi-card">
+          <div className="kpi-icon orange"><UsersIcon /></div>
+          <div>
+            <span>Activas</span>
+            <strong>{reservaciones.filter(reserva => !esHistorial(reserva)).length}</strong>
+            <small>En proceso</small>
+          </div>
         </div>
-        {reservacionesTerminadas.length === 0 ? (
-          <div style={{padding: '2rem', background: '#F8FAFC', borderRadius: '12px', border: '2px dashed #BBF7D0', color: '#166534', textAlign: 'center'}}>
-            Las reservaciones pagadas apareceran aqui
-          </div>
-        ) : (
-          reservacionesTerminadas.map(reserva => renderTarjetaReservacion(reserva, true))
-        )}
-      </div>
-      )}
 
-      {/* Modal Formulario Clientes */}
-      {mostrarFormulario && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.8)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 2000
-        }}>
-          <div style={{
-            backgroundColor: 'white',
-            borderRadius: '12px',
-            padding: '2rem',
-            maxWidth: '500px',
-            width: '90%',
-            boxShadow: '0 10px 40px rgba(0, 0, 0, 0.3)',
-            maxHeight: '90vh',
-            overflow: 'auto'
-          }}>
-            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem'}}>
-              <h2 style={{color: '#333', margin: 0, fontSize: '20px', fontWeight: 700}}>
-                {editando ? 'Editar Cliente' : 'Agregar Nuevo Cliente'}
-              </h2>
-              <button
-                onClick={() => setMostrarFormulario(false)}
-                style={{background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', color: '#999'}}
-              >
-                ×
-              </button>
+        <div className="reserva-kpi-card">
+          <div className="kpi-icon green"><CheckIcon /></div>
+          <div>
+            <span>Finalizadas</span>
+            <strong>{finalizadas.length}</strong>
+            <small>Completadas</small>
+          </div>
+        </div>
+
+        <div className="reserva-kpi-card">
+          <div className="kpi-icon red"><XCircleIcon /></div>
+          <div>
+            <span>Canceladas</span>
+            <strong>{canceladasEsteMes.length}</strong>
+            <small>Este mes</small>
+          </div>
+        </div>
+      </section>
+
+      <section className="reservas-filters">
+        <label className="reserva-search">
+          <SearchIcon size={21} />
+          <input
+            type="search"
+            value={busqueda}
+            onChange={(event) => setBusqueda(event.target.value)}
+            placeholder="Buscar cliente, teléfono o mesa..."
+          />
+        </label>
+
+        <select value={filtroEstado} onChange={(event) => setFiltroEstado(event.target.value)}>
+          <option value="todas">Todas las reservas</option>
+          <option value="activa">Confirmadas</option>
+          <option value="pend">Pendientes</option>
+          <option value="finalizadas">Finalizadas</option>
+          <option value="cancel">Canceladas</option>
+        </select>
+
+        <select value={filtroFecha} onChange={(event) => setFiltroFecha(event.target.value)}>
+          <option value="hoy">Hoy</option>
+          <option value="todas-fechas">Todas las fechas</option>
+        </select>
+      </section>
+
+      <section className="reservas-section">
+        <div className="reservas-section-header">
+          <h2>Reservaciones activas</h2>
+          <span className="section-badge orange">{reservacionesActivas.length}</span>
+        </div>
+        <div className="reservas-list">
+          {reservacionesActivas.map(reserva => renderReserva(reserva))}
+          {reservacionesActivas.length === 0 && (
+            <div className="reservas-empty">No hay reservaciones activas con los filtros actuales.</div>
+          )}
+        </div>
+      </section>
+
+      <section className="reservas-section history">
+        <div className="reservas-section-header">
+          <h2>Historial de reservaciones</h2>
+          <span className="section-badge gray">{historialReservaciones.length}</span>
+        </div>
+        <div className="reservas-list">
+          {historialReservaciones.map(reserva => renderReserva(reserva, true))}
+          {historialReservaciones.length === 0 && (
+            <div className="reservas-empty">No hay reservaciones en el historial con los filtros actuales.</div>
+          )}
+        </div>
+      </section>
+
+      {mostrarReservacion && (
+        <div className="reserva-modal-overlay">
+          <div className="reserva-modal">
+            <div className="reserva-modal-header">
+              <h2>{editando ? 'Editar Reservación' : 'Nueva Reservación'}</h2>
+              <button onClick={() => setMostrarReservacion(false)} aria-label="Cerrar">×</button>
             </div>
 
-            <div style={{display: 'flex', flexDirection: 'column', gap: '1rem'}}>
-              <div>
-                <label style={{display: 'block', fontWeight: 600, marginBottom: '0.5rem', color: '#333'}}>
-                  Nombre
-                </label>
+            <div className="reserva-form">
+              <label>
+                <span>Cliente</span>
                 <input
                   type="text"
-                  value={formData.nombre}
-                  onChange={(e) => setFormData({...formData, nombre: e.target.value})}
-                  style={{
-                    width: '100%',
-                    padding: '0.8rem',
-                    border: '2px solid #e0e0e0',
-                    borderRadius: '6px',
-                    fontSize: '14px',
-                    boxSizing: 'border-box'
-                  }}
-                  onFocus={(e) => e.target.style.borderColor = '#FF6F00'}
-                  onBlur={(e) => e.target.style.borderColor = '#e0e0e0'}
+                  value={reservaData.cliente}
+                  onChange={(event) => setReservaData({ ...reservaData, cliente: event.target.value })}
+                  placeholder="Nombre del cliente"
                 />
-              </div>
+              </label>
 
-              <div>
-                <label style={{display: 'block', fontWeight: 600, marginBottom: '0.5rem', color: '#333'}}>
-                  Email
+              <div className="reserva-form-grid">
+                <label>
+                  <span>Fecha</span>
+                  <input
+                    type="date"
+                    value={reservaData.fecha}
+                    onChange={(event) => setReservaData({ ...reservaData, fecha: event.target.value })}
+                  />
                 </label>
-                <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({...formData, email: e.target.value})}
-                  style={{
-                    width: '100%',
-                    padding: '0.8rem',
-                    border: '2px solid #e0e0e0',
-                    borderRadius: '6px',
-                    fontSize: '14px',
-                    boxSizing: 'border-box'
-                  }}
-                  onFocus={(e) => e.target.style.borderColor = '#FF6F00'}
-                  onBlur={(e) => e.target.style.borderColor = '#e0e0e0'}
-                />
-              </div>
-
-              <div>
-                <label style={{display: 'block', fontWeight: 600, marginBottom: '0.5rem', color: '#333'}}>
-                  Teléfono
+                <label>
+                  <span>Hora</span>
+                  <input
+                    type="time"
+                    value={reservaData.hora}
+                    onChange={(event) => setReservaData({ ...reservaData, hora: event.target.value })}
+                  />
                 </label>
-                <input
-                  type="text"
-                  value={formData.telefono}
-                  onChange={(e) => setFormData({...formData, telefono: e.target.value})}
-                  style={{
-                    width: '100%',
-                    padding: '0.8rem',
-                    border: '2px solid #e0e0e0',
-                    borderRadius: '6px',
-                    fontSize: '14px',
-                    boxSizing: 'border-box'
-                  }}
-                  onFocus={(e) => e.target.style.borderColor = '#FF6F00'}
-                  onBlur={(e) => e.target.style.borderColor = '#e0e0e0'}
-                />
               </div>
 
-              <div>
-                <label style={{display: 'block', fontWeight: 600, marginBottom: '0.5rem', color: '#333'}}>
-                  Tipo de Cliente
-                </label>
-                <select
-                  value={formData.tipoCliente}
-                  onChange={(e) => setFormData({...formData, tipoCliente: e.target.value})}
-                  style={{
-                    width: '100%',
-                    padding: '0.8rem',
-                    border: '2px solid #e0e0e0',
-                    borderRadius: '6px',
-                    fontSize: '14px',
-                    boxSizing: 'border-box'
-                  }}
-                  onFocus={(e) => e.target.style.borderColor = '#FF6F00'}
-                  onBlur={(e) => e.target.style.borderColor = '#e0e0e0'}
-                >
-                  <option value="regular">Cliente Regular</option>
-                  <option value="vip">Cliente VIP</option>
-                </select>
-              </div>
-
-              {formData.tipoCliente === 'vip' && (
-                <div>
-                  <label style={{display: 'block', fontWeight: 600, marginBottom: '0.5rem', color: '#333'}}>
-                    Capital Consumible ($)
-                  </label>
+              <div className="reserva-form-grid">
+                <label>
+                  <span>Personas</span>
                   <input
                     type="number"
-                    value={formData.capitalConsumable}
-                    onChange={(e) => setFormData({...formData, capitalConsumable: e.target.value})}
-                    placeholder="Ej: 50000"
-                    style={{
-                      width: '100%',
-                      padding: '0.8rem',
-                      border: '2px solid #e0e0e0',
-                      borderRadius: '6px',
-                      fontSize: '14px',
-                      boxSizing: 'border-box'
-                    }}
-                    onFocus={(e) => e.target.style.borderColor = '#FF6F00'}
-                    onBlur={(e) => e.target.style.borderColor = '#e0e0e0'}
+                    value={reservaData.personas}
+                    onChange={(event) => setReservaData({ ...reservaData, personas: event.target.value })}
+                    min="1"
                   />
-                </div>
-              )}
-
-              <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem'}}>
-                <button
-                  onClick={() => setMostrarFormulario(false)}
-                  style={{
-                    padding: '0.8rem',
-                    background: '#e0e0e0',
-                    color: '#333',
-                    border: 'none',
-                    borderRadius: '6px',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    fontSize: '14px'
-                  }}
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={guardarCliente}
-                  style={{
-                    padding: '0.8rem',
-                    background: 'linear-gradient(90deg, #FF6F00 0%, #FFB300 50%, #FF9800 100%)',
-                    color: '#000',
-                    border: 'none',
-                    borderRadius: '6px',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    fontSize: '14px'
-                  }}
-                >
-                  Guardar
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal Detalles */}
-      {mostrarDetalles && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.8)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 2000
-        }}>
-          <div style={{
-            backgroundColor: 'white',
-            borderRadius: '12px',
-            padding: '2rem',
-            maxWidth: '500px',
-            width: '90%',
-            boxShadow: '0 10px 40px rgba(0, 0, 0, 0.3)',
-            maxHeight: '90vh',
-            overflow: 'auto'
-          }}>
-            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem'}}>
-              <h2 style={{color: '#333', margin: 0, fontSize: '20px', fontWeight: 700}}>
-                {mostrarDetalles.nombre}
-              </h2>
-              <button
-                onClick={() => setMostrarDetalles(null)}
-                style={{background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', color: '#999'}}
-              >
-                
-              </button>
-            </div>
-
-            <div style={{display: 'flex', flexDirection: 'column', gap: '1.5rem'}}>
-              <div>
-                <div style={{fontSize: '12px', color: '#999', fontWeight: 600, marginBottom: '0.5rem'}}>EMAIL</div>
-                <div style={{fontSize: '16px', color: '#333', fontWeight: 600}}>{mostrarDetalles.email}</div>
-              </div>
-
-              <div>
-                <div style={{fontSize: '12px', color: '#999', fontWeight: 600, marginBottom: '0.5rem'}}>TELÉFONO</div>
-                <div style={{fontSize: '16px', color: '#333', fontWeight: 600}}>{mostrarDetalles.telefono}</div>
-              </div>
-
-              <div>
-                <div style={{fontSize: '12px', color: '#999', fontWeight: 600, marginBottom: '0.5rem'}}>TIPO DE CLIENTE</div>
-                <div style={{
-                  display: 'inline-block',
-                  padding: '0.4rem 0.8rem',
-                  background: mostrarDetalles.tipoCliente === 'vip' ? '#FFE082' : '#E0E0E0',
-                  color: mostrarDetalles.tipoCliente === 'vip' ? '#FF6F00' : '#666',
-                  borderRadius: '4px',
-                  fontWeight: 600,
-                  fontSize: '12px'
-                }}>
-                  {mostrarDetalles.tipoCliente === 'vip' ? ' VIP' : ' Regular'}
-                </div>
-              </div>
-
-              {mostrarDetalles.tipoCliente === 'vip' && (
-                <>
-                  <div>
-                    <div style={{fontSize: '12px', color: '#999', fontWeight: 600, marginBottom: '0.5rem'}}>CAPITAL CONSUMIBLE</div>
-                    <div style={{fontSize: '20px', color: '#FF6F00', fontWeight: 700}}>
-                      ${mostrarDetalles.capitalConsumible.toLocaleString()}
-                    </div>
-                  </div>
-
-                  <div>
-                    <div style={{fontSize: '12px', color: '#999', fontWeight: 600, marginBottom: '0.5rem'}}>UTILIZADO</div>
-                    <div style={{fontSize: '20px', color: '#333', fontWeight: 700}}>
-                      ${mostrarDetalles.capitalUtilizado.toLocaleString()}
-                    </div>
-                  </div>
-
-                  <div>
-                    <div style={{fontSize: '12px', color: '#999', fontWeight: 600, marginBottom: '0.5rem'}}>DISPONIBLE</div>
-                    <div style={{fontSize: '20px', color: '#4CAF50', fontWeight: 700}}>
-                      ${(mostrarDetalles.capitalConsumible - mostrarDetalles.capitalUtilizado).toLocaleString()}
-                    </div>
-                  </div>
-                </>
-              )}
-
-              <div>
-                <div style={{fontSize: '12px', color: '#999', fontWeight: 600, marginBottom: '0.8rem'}}>HISTORIAL DE VISITAS</div>
-                <div style={{display: 'flex', flexDirection: 'column', gap: '0.5rem'}}>
-                  {mostrarDetalles.fechasVisitas.map((fecha, idx) => (
-                    <div key={idx} style={{
-                      padding: '0.8rem',
-                      background: '#F5F5F5',
-                      borderRadius: '6px',
-                      fontSize: '14px',
-                      color: '#333'
-                    }}>
-                      📅 {fecha}
-                    </div>
-                  ))}
-                  {mostrarDetalles.fechasVisitas.length === 0 && (
-                    <div style={{color: '#999', fontStyle: 'italic'}}>Sin visitas registradas</div>
-                  )}
-                </div>
-              </div>
-
-              <button
-                onClick={() => setMostrarDetalles(null)}
-                style={{
-                  padding: '0.8rem',
-                  background: '#e0e0e0',
-                  color: '#333',
-                  border: 'none',
-                  borderRadius: '6px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                  marginTop: '1rem'
-                }}
-              >
-                Cerrar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal Reservación */}
-      {mostrarReservacion && (
-        <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000}}>
-          <div style={{backgroundColor: 'white', borderRadius: '12px', padding: '2rem', maxWidth: '600px', width: '90%', boxShadow: '0 10px 40px rgba(0, 0, 0, 0.3)', maxHeight: '90vh', overflowY: 'auto'}}>
-            <h2 style={{color: '#333', margin: '0 0 1.5rem 0', fontSize: '20px', fontWeight: 700}}>
-              {editando ? 'Editar Reservación' : 'Nueva Reservación'}
-            </h2>
-            <div style={{display: 'flex', flexDirection: 'column', gap: '1rem'}}>
-              <div>
-                <label style={{display: 'block', fontWeight: 600, marginBottom: '0.5rem', color: '#333'}}>Cliente</label>
-                <input
-                  type="text"
-                  value={reservaData.cliente} 
-                  onChange={(e) => setReservaData({...reservaData, cliente: e.target.value})} 
-                  placeholder="Nombre del cliente"
-                  style={{width: '100%', padding: '0.8rem', border: '2px solid #e0e0e0', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box'}} 
-                  onFocus={(e) => e.target.style.borderColor = '#FF6F00'} 
-                  onBlur={(e) => e.target.style.borderColor = '#e0e0e0'}
-                />
-              </div>
-              <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem'}}>
-                <div>
-                  <label style={{display: 'block', fontWeight: 600, marginBottom: '0.5rem', color: '#333'}}>Fecha</label>
-                  <input 
-                    type="date" 
-                    value={reservaData.fecha} 
-                    onChange={(e) => setReservaData({...reservaData, fecha: e.target.value})} 
-                    style={{width: '100%', padding: '0.8rem', border: '2px solid #e0e0e0', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box'}} 
-                    onFocus={(e) => e.target.style.borderColor = '#FF6F00'} 
-                    onBlur={(e) => e.target.style.borderColor = '#e0e0e0'}
-                  />
-                </div>
-                <div>
-                  <label style={{display: 'block', fontWeight: 600, marginBottom: '0.5rem', color: '#333'}}>Hora</label>
-                  <input 
-                    type="time" 
-                    value={reservaData.hora} 
-                    onChange={(e) => setReservaData({...reservaData, hora: e.target.value})} 
-                    style={{width: '100%', padding: '0.8rem', border: '2px solid #e0e0e0', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box'}} 
-                    onFocus={(e) => e.target.style.borderColor = '#FF6F00'} 
-                    onBlur={(e) => e.target.style.borderColor = '#e0e0e0'}
-                  />
-                </div>
-              </div>
-              <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem'}}>
-                <div>
-                  <label style={{display: 'block', fontWeight: 600, marginBottom: '0.5rem', color: '#333'}}>Personas</label>
-                  <input 
-                    type="number" 
-                    value={reservaData.personas} 
-                    onChange={(e) => setReservaData({...reservaData, personas: e.target.value})} 
-                    style={{width: '100%', padding: '0.8rem', border: '2px solid #e0e0e0', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box'}} 
-                    onFocus={(e) => e.target.style.borderColor = '#FF6F00'} 
-                    onBlur={(e) => e.target.style.borderColor = '#e0e0e0'}
-                  />
-                </div>
-                <div>
-                  <label style={{display: 'block', fontWeight: 600, marginBottom: '0.5rem', color: '#333'}}>Mesa</label>
+                </label>
+                <label>
+                  <span>Mesa</span>
                   <select
-                    value={reservaData.mesa} 
-                    onChange={(e) => setReservaData({...reservaData, mesa: e.target.value})} 
+                    value={reservaData.mesa}
+                    onChange={(event) => setReservaData({ ...reservaData, mesa: event.target.value })}
                     disabled={mesasDisponibles.length === 0}
-                    style={{width: '100%', padding: '0.8rem', border: '2px solid #e0e0e0', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box'}} 
-                    onFocus={(e) => e.target.style.borderColor = '#FF6F00'} 
-                    onBlur={(e) => e.target.style.borderColor = '#e0e0e0'}
                   >
                     <option value="">Selecciona una mesa</option>
                     {mesasDisponibles.map(mesa => (
                       <option key={mesa.id} value={mesa.id}>
-                        Mesa {mesa.numero} - {mesa.ubicacion}
+                        Mesa {mesa.numero} - {mesa.ubicacion || 'Interior'}
                       </option>
                     ))}
                   </select>
                   {mesasDisponibles.length === 0 && (
-                    <div style={{color: '#7F1D1D', fontSize: '13px', fontWeight: 700, marginTop: '0.5rem'}}>
-                      No hay mesas disponibles en este momento.
-                    </div>
+                    <small className="reserva-form-warning">No hay mesas disponibles en este momento.</small>
                   )}
-                </div>
+                </label>
               </div>
-              <div>
-                <label style={{display: 'block', fontWeight: 600, marginBottom: '0.5rem', color: '#333'}}>Teléfono</label>
-                <input 
-                  type="text" 
-                  value={reservaData.telefono} 
-                  onChange={(e) => setReservaData({...reservaData, telefono: e.target.value})} 
-                  style={{width: '100%', padding: '0.8rem', border: '2px solid #e0e0e0', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box'}} 
-                  onFocus={(e) => e.target.style.borderColor = '#FF6F00'} 
-                  onBlur={(e) => e.target.style.borderColor = '#e0e0e0'}
+
+              <label>
+                <span>Telefono</span>
+                <input
+                  type="text"
+                  value={reservaData.telefono}
+                  onChange={(event) => setReservaData({ ...reservaData, telefono: event.target.value })}
+                  placeholder="Numero telefonico"
                 />
-              </div>
-              <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem'}}>
-                <button 
-                  onClick={() => setMostrarReservacion(false)} 
-                  style={{padding: '0.8rem', background: '#e0e0e0', color: '#333', border: 'none', borderRadius: '6px', fontWeight: 600, cursor: 'pointer'}}
-                >
+              </label>
+
+              <div className="reserva-form-actions">
+                <button className="secondary" onClick={() => setMostrarReservacion(false)}>
                   Cancelar
                 </button>
-                <button 
-                  onClick={guardarReservacion} 
-                  style={{padding: '0.8rem', background: 'linear-gradient(90deg, #FF6F00 0%, #FFB300 50%, #FF9800 100%)', color: '#000', border: 'none', borderRadius: '6px', fontWeight: 600, cursor: 'pointer'}}
-                >
+                <button className="primary" onClick={guardarReservacion}>
                   Guardar
                 </button>
               </div>
