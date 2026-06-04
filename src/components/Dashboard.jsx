@@ -118,7 +118,7 @@ export const Dashboard = ({
       )}
 
       {activeModule === 'caja' && (
-        <CajaModule comandas={comandasActivas} />
+        <CajaModule comandas={comandasActivas} currentUser={currentUser} />
       )}
 
       {activeModule === 'configuracion' && (
@@ -126,7 +126,7 @@ export const Dashboard = ({
       )}
 
       {activeModule === 'pagos' && (
-        <Pagos comandas={comandas} />
+        <Pagos comandas={comandas} currentUser={currentUser} />
       )}
 
       {activeModule !== 'dashboard' && activeModule !== 'comandas' && activeModule !== 'menu' && 

@@ -1328,7 +1328,7 @@ export const Comandas = ({
                           {/* Row Principal */}
                           <div className="gs-pos-cart-row" style={{
                             display: 'grid',
-                            gridTemplateColumns: '50px 1fr 60px 60px',
+                            gridTemplateColumns: '50px 1fr 60px 28px',
                             gap: '8px',
                             padding: '0.8rem 1rem',
                             backgroundColor: '#fff',
@@ -1393,8 +1393,8 @@ export const Comandas = ({
 
                             </div>
 
-                            {/* Subtotal */}
-                            <div className="gs-pos-subtotal" style={{textAlign: 'right', fontWeight: 700, color: '#4CAF50', fontSize: '14px'}}>
+                            {/* Subtotal por item oculto por bug visual en vista compacta */}
+                            <div className="gs-pos-subtotal" style={{display: 'none'}}>
                               ${item.subtotal.toFixed(2)}
                             </div>
                           </div>

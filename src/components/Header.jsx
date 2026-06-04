@@ -25,8 +25,8 @@ export const Header = ({ modules, activeModule, onModuleChange, onLogout, curren
     })
   }
 
-  const inicialUsuario = currentUser?.nombre?.charAt(0)?.toUpperCase() || 'U'
-  const activeModuleName = modules.find(module => module.id === activeModule)?.name || 'GastroSoft'
+  const nombreUsuario = currentUser?.nombre || 'Héctor Paul'
+  const inicialUsuario = nombreUsuario?.charAt(0)?.toUpperCase() || 'U'
 
   const cambiarFotoPerfil = (event) => {
     const file = event.target.files?.[0]
@@ -71,13 +71,13 @@ export const Header = ({ modules, activeModule, onModuleChange, onLogout, curren
     <>
       {/* SECCIÓN SUPERIOR - FIJA */}
       <div style={{
-        background: 'linear-gradient(90deg, #FF6F00 0%, #FFB300 50%, #FF9800 100%)',
-        padding: '0.7rem 2rem',
+        background: 'linear-gradient(90deg, #F97316 0%, #FF8A00 52%, #FFB020 100%)',
+        padding: '0.65rem 2rem',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
         gap: '1.5rem',
-        boxShadow: '0 4px 12px rgba(255, 111, 0, 0.2)',
+        boxShadow: '0 10px 24px rgba(249, 115, 22, 0.2)',
         position: 'sticky',
         top: 0,
         zIndex: 100,
@@ -117,7 +117,7 @@ export const Header = ({ modules, activeModule, onModuleChange, onLogout, curren
         }}>
           <div style={{
             width: '132px',
-            height: '42px',
+            height: '44px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'flex-start',
@@ -125,17 +125,13 @@ export const Header = ({ modules, activeModule, onModuleChange, onLogout, curren
           }}>
           </div>
           <div style={{
-            height: '28px',
-            width: '1px',
-            background: 'rgba(0,0,0,0.22)',
-          }} />
-          <div style={{
-            color: '#2b2b2b',
-            fontSize: '0.95rem',
-            fontWeight: 700,
+            color: '#111827',
+            fontSize: '1.25rem',
+            fontWeight: 900,
             whiteSpace: 'nowrap',
+            letterSpacing: '0',
           }}>
-            {activeModuleName}
+            GastroSoft
           </div>
         </div>
 
@@ -148,7 +144,7 @@ export const Header = ({ modules, activeModule, onModuleChange, onLogout, curren
         }}>
           {/* Hora */}
           <div style={{
-            color: '#000000',
+            color: '#111827',
             fontSize: '1.08rem',
             fontWeight: 800,
             minWidth: '92px',
@@ -159,11 +155,11 @@ export const Header = ({ modules, activeModule, onModuleChange, onLogout, curren
 
           {/* Usuario */}
           <button style={{
-            background: 'rgba(255, 255, 255, 0.1)',
-            border: '1px solid rgba(255, 255, 255, 0.3)',
-            color: '#000000',
-            borderRadius: '6px',
-            padding: '0.5rem 0.8rem',
+            background: 'rgba(255, 255, 255, 0.72)',
+            border: '1px solid rgba(255, 255, 255, 0.75)',
+            color: '#111827',
+            borderRadius: '8px',
+            padding: '0.45rem 0.75rem',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
@@ -192,17 +188,17 @@ export const Header = ({ modules, activeModule, onModuleChange, onLogout, curren
             ) : (
               <UserIcon size={16} color="#000000" />
             )}
-            {currentUser?.nombre || 'Usuario'}
+            {nombreUsuario}
           </button>
 
           {/* Salir */}
           <button
             style={{
-              background: 'rgba(255, 255, 255, 0.1)',
-              border: '1px solid rgba(255, 255, 255, 0.3)',
-              color: '#000000',
-              borderRadius: '6px',
-              padding: '0.5rem 0.8rem',
+              background: 'rgba(255, 255, 255, 0.72)',
+              border: '1px solid rgba(255, 255, 255, 0.75)',
+              color: '#111827',
+              borderRadius: '8px',
+              padding: '0.45rem 0.75rem',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
@@ -233,13 +229,13 @@ export const Header = ({ modules, activeModule, onModuleChange, onLogout, curren
 
       {/* SECCIÓN INFERIOR - DESPLAZABLE */}
       <header style={{
-        background: 'linear-gradient(90deg, #FF6F00 0%, #FFB300 50%, #FF9800 100%)',
-        borderBottom: '3px solid #FF6F00',
+        background: 'linear-gradient(90deg, #F97316 0%, #FF8A00 52%, #FFB020 100%)',
+        borderBottom: '1px solid rgba(255,255,255,0.35)',
         padding: '0.55rem 2rem',
         display: 'flex',
         alignItems: 'center',
         gap: '1rem',
-        boxShadow: '0 4px 12px rgba(255, 111, 0, 0.2)',
+        boxShadow: '0 8px 18px rgba(249, 115, 22, 0.15)',
         overflowX: 'auto',
         overflowY: 'visible',
         position: 'sticky',
@@ -282,11 +278,11 @@ export const Header = ({ modules, activeModule, onModuleChange, onLogout, curren
               key={module.id}
               style={{
                 background: activeModule === module.id 
-                  ? 'rgba(255, 255, 255, 0.25)' 
-                  : 'rgba(255, 255, 255, 0.12)',
-                color: '#000000',
-                border: '1.5px solid rgba(255, 255, 255, 0.4)',
-                borderRadius: '6px',
+                  ? '#ffffff' 
+                  : 'rgba(255, 255, 255, 0.22)',
+                color: activeModule === module.id ? '#F97316' : '#111827',
+                border: activeModule === module.id ? '1.5px solid #ffffff' : '1.5px solid rgba(255, 255, 255, 0.45)',
+                borderRadius: '8px',
                 padding: '0.6rem 0.9rem',
                 cursor: 'pointer',
                 fontSize: '0.9rem',
@@ -295,7 +291,7 @@ export const Header = ({ modules, activeModule, onModuleChange, onLogout, curren
                 alignItems: 'center',
                 gap: '0.5rem',
                 transition: 'all 0.3s ease',
-                boxShadow: activeModule === module.id ? '0 4px 12px rgba(255, 111, 0, 0.3)' : 'none',
+                boxShadow: activeModule === module.id ? '0 8px 18px rgba(15, 23, 42, 0.16)' : 'none',
                 whiteSpace: 'nowrap',
                 flexShrink: 0,
               }}
@@ -315,7 +311,7 @@ export const Header = ({ modules, activeModule, onModuleChange, onLogout, curren
               }}
             >
               <span style={{fontSize: '1.1rem', display: 'flex', alignItems: 'center'}}>
-                <module.icon size={18} color="#000000" />
+                <module.icon size={18} color={activeModule === module.id ? '#F97316' : '#111827'} />
               </span>
               {module.name}
             </button>

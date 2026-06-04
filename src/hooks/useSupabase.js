@@ -150,6 +150,9 @@ export function useComandas() {
         subtotal:  c.subtotal,
         descuento: c.descuento,
         impuesto:  c.impuesto,
+        propina:   c.propina,
+        fechaPago: c.fecha_pago,
+        metodoPago: c.metodo_pago,
         rawTotal:  c.total,
         cuentaSeparada: c.cuenta_separada || false,
         nombreCuenta: c.nombre_cuenta || '',
@@ -246,17 +249,46 @@ export function useComandas() {
     avisarCambioComandas()
   }
 
-  async function actualizarEstadoComanda(id, nuevoEstado) {
+  async function actualizarEstadoComanda(id, nuevoEstado, extras = {}) {
     const { data: comanda } = await supabase
       .from('comandas')
       .select('id_mesa, id_reservacion')
       .eq('id', id)
       .single()
 
-    await supabase
+    const payload = {
+      estado: nuevoEstado,
+      updated_at: new Date().toISOString(),
+      ...extras
+    }
+
+    if (nuevoEstado === 'pagado' && !payload.fecha_pago) {
+      payload.fecha_pago = new Date().toISOString()
+    }
+
+    const { error: updateError } = await supabase
       .from('comandas')
-      .update({ estado: nuevoEstado, updated_at: new Date().toISOString() })
+      .update(payload)
       .eq('id', id)
+
+    if (updateError) {
+      const payloadSinMetodo = { ...payload }
+      delete payloadSinMetodo.metodo_pago
+      delete payloadSinMetodo.fecha_pago
+      delete payloadSinMetodo.propina
+
+      const { error: retryError } = await supabase
+        .from('comandas')
+        .update(payloadSinMetodo)
+        .eq('id', id)
+
+      if (retryError) {
+        await supabase
+          .from('comandas')
+          .update({ estado: nuevoEstado, updated_at: new Date().toISOString() })
+          .eq('id', id)
+      }
+    }
 
     if (nuevoEstado === 'pagado' && comanda?.id_mesa) {
       await liberarMesaSiNoTieneCuentasActivas(comanda.id_mesa)

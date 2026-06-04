@@ -1,0 +1,847 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Manual de Usuario GastroSoft con Capturas</title>
+  <style>
+    @page { size: letter; margin: 13mm; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #f4f5f7;
+      color: #111827;
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 12.2px;
+      line-height: 1.45;
+    }
+    .page {
+      min-height: 252mm;
+      margin: 0 auto 16px;
+      padding: 28px;
+      background: #fff;
+      page-break-after: always;
+      position: relative;
+      overflow: hidden;
+    }
+    .page:last-child { page-break-after: auto; }
+    .cover {
+      padding: 42px 44px;
+      color: #000;
+    }
+    .school-head {
+      display: grid;
+      grid-template-columns: 112px 1fr;
+      gap: 28px;
+      align-items: start;
+      margin: 0 8px 54px;
+    }
+    .uadeo-logo {
+      width: 112px;
+      height: 112px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: #8b1238;
+      color: #fff;
+      text-align: center;
+      font-weight: 800;
+      line-height: 1;
+    }
+    .uadeo-logo .seal {
+      width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid #fff;
+      border-radius: 50%;
+      margin-bottom: 7px;
+      font-size: 20px;
+    }
+    .uadeo-logo strong { font-size: 18px; }
+    .uadeo-logo small { display: block; margin-top: 3px; font-size: 8px; }
+    .school-text {
+      padding-top: 2px;
+      text-align: center;
+      font-weight: 900;
+      font-size: 16px;
+      line-height: 1.12;
+    }
+    .school-text .career {
+      display: block;
+      margin-top: 18px;
+      font-size: 14px;
+    }
+    .cover-title {
+      text-align: center;
+      margin-top: 28px;
+      font-weight: 900;
+    }
+    .cover-title h1 {
+      margin: 0 0 18px;
+      font-size: 18px;
+    }
+    .cover-title h2 {
+      max-width: 480px;
+      margin: 0 auto;
+      font-size: 16px;
+      line-height: 1.75;
+      font-weight: 900;
+    }
+    .cover-data {
+      position: absolute;
+      left: 44px;
+      right: 44px;
+      bottom: 58px;
+      display: grid;
+      gap: 12px;
+      font-size: 13px;
+      font-weight: 900;
+    }
+    .cover-data span { font-weight: 700; }
+    .header-line {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding-bottom: 12px;
+      margin-bottom: 16px;
+      border-bottom: 3px solid #ff7a00;
+    }
+    .header-line img {
+      width: 58px;
+      height: 50px;
+      object-fit: contain;
+    }
+    h1, h2, h3 { margin: 0; color: #101828; }
+    h1 { font-size: 25px; font-weight: 900; }
+    h2 { font-size: 19px; font-weight: 900; margin: 16px 0 9px; }
+    h3 { font-size: 15px; font-weight: 900; margin: 12px 0 8px; }
+    p { margin: 0 0 8px; color: #475467; font-weight: 600; }
+    .footer {
+      position: absolute;
+      left: 28px;
+      right: 28px;
+      bottom: 14px;
+      display: flex;
+      justify-content: space-between;
+      padding-top: 8px;
+      border-top: 1px solid #e4e7ec;
+      color: #98a2b3;
+      font-size: 10px;
+      font-weight: 800;
+    }
+    .toc {
+      display: grid;
+      gap: 8px;
+      margin-top: 14px;
+    }
+    .toc-row {
+      display: grid;
+      grid-template-columns: 34px 1fr auto;
+      gap: 10px;
+      align-items: center;
+      padding: 9px 12px;
+      border: 1px solid #e4e7ec;
+      border-radius: 10px;
+      background: #fcfcfd;
+      font-weight: 900;
+    }
+    .toc-row span:first-child {
+      width: 28px;
+      height: 28px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      background: #ff7a00;
+      color: #fff;
+    }
+    .note {
+      padding: 12px 14px;
+      border-left: 5px solid #ff7a00;
+      border-radius: 10px;
+      background: #fff7ed;
+      color: #7c2d12;
+      font-weight: 800;
+      margin: 12px 0;
+    }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin: 12px 0;
+    }
+    .box {
+      padding: 13px 14px;
+      border: 1px solid #e4e7ec;
+      border-radius: 12px;
+      background: #fff;
+      box-shadow: 0 7px 18px rgba(15, 23, 42, 0.045);
+      break-inside: avoid;
+    }
+    .steps {
+      list-style: none;
+      padding: 0;
+      margin: 10px 0 12px;
+      display: grid;
+      gap: 8px;
+    }
+    .steps li {
+      display: grid;
+      grid-template-columns: 28px 1fr;
+      gap: 9px;
+      align-items: start;
+      padding: 9px 10px;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      background: #fff;
+      font-weight: 650;
+      color: #344054;
+    }
+    .num {
+      width: 28px;
+      height: 28px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      background: #ff7a00;
+      color: #fff;
+      font-weight: 900;
+    }
+    .photo-wrap {
+      position: relative;
+      margin: 13px 0 14px;
+      border: 1px solid #d9e1ea;
+      border-radius: 14px;
+      overflow: hidden;
+      background: #f5f6f8;
+      box-shadow: 0 16px 34px rgba(15, 23, 42, 0.13);
+    }
+    .photo-wrap img {
+      width: 100%;
+      display: block;
+    }
+    .marker {
+      position: absolute;
+      width: 26px;
+      height: 26px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      background: #ef4444;
+      color: #fff;
+      font-weight: 900;
+      font-size: 12px;
+      box-shadow: 0 4px 10px rgba(239, 68, 68, 0.36);
+    }
+    .legend {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin: 8px 0 0;
+    }
+    .legend div {
+      padding: 9px;
+      border-radius: 10px;
+      background: #f9fafb;
+      border: 1px solid #e4e7ec;
+      font-size: 10.5px;
+      font-weight: 800;
+      color: #475467;
+    }
+    .legend b { color: #ff5a00; }
+    .mini-title {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: #fff1e5;
+      color: #ff5a00;
+      font-weight: 900;
+      font-size: 11px;
+      margin-bottom: 8px;
+    }
+  </style>
+</head>
+<body>
+  <section class="page cover">
+    <div class="school-head">
+      <div class="uadeo-logo">
+        <div class="seal">U</div>
+        <strong>UAdeO</strong>
+        <small>UNIVERSIDAD<br>AUTÓNOMA DE<br>OCCIDENTE</small>
+      </div>
+      <div class="school-text">
+        UNIVERSIDAD AUTÓNOMA DE<br>
+        OCCIDENTE<br>
+        UNIDAD REGIONAL<br>
+        CULIACÁN
+        <span class="career">INGENIERÍA DE SOFTWARE</span>
+      </div>
+    </div>
+    <div class="cover-title">
+      <h1>MANUAL DE USUARIO:</h1>
+      <h2>“Manual de Usuario: Sistema de Gestión para Restaurantes GastroSoft”</h2>
+    </div>
+    <div class="cover-data">
+      <div>NOMBRE: <span>Héctor Paul Vizcarra Astorga</span></div>
+      <div>MATRÍCULA: <span>23040013</span></div>
+      <div>ASIGNATURA: <span>Innovación de ingeniería de software</span></div>
+      <div>FECHA: <span>29/05/2026</span></div>
+    </div>
+  </section>
+
+  <section class="page">
+    <div class="header-line"><img src="../public/LogoGastroSoftHeader.png" alt="GastroSoft"><h1>Índice</h1></div>
+    <p>Este manual utiliza capturas reales del sistema GastroSoft. Cada pantalla incluye puntos numerados para explicar dónde hacer clic y qué función cumple cada zona.</p>
+    <div class="toc">
+      <div class="toc-row"><span>1</span><div>Introducción y navegación general</div><b>3</b></div>
+      <div class="toc-row"><span>2</span><div>Login / Acceso al sistema</div><b>4</b></div>
+      <div class="toc-row"><span>3</span><div>Dashboard</div><b>6</b></div>
+      <div class="toc-row"><span>4</span><div>Comandas</div><b>8</b></div>
+      <div class="toc-row"><span>5</span><div>Menú</div><b>10</b></div>
+      <div class="toc-row"><span>6</span><div>Mesas</div><b>12</b></div>
+      <div class="toc-row"><span>7</span><div>Personal y asistencia</div><b>14</b></div>
+      <div class="toc-row"><span>8</span><div>Pagos, caja y reportes</div><b>18</b></div>
+      <div class="toc-row"><span>9</span><div>Inventario y proveedores</div><b>24</b></div>
+      <div class="toc-row"><span>10</span><div>Clientes / Reservaciones</div><b>28</b></div>
+      <div class="toc-row"><span>11</span><div>Promociones y configuración</div><b>30</b></div>
+      <div class="toc-row"><span>12</span><div>Preguntas frecuentes y glosario</div><b>33</b></div>
+    </div>
+    <div class="footer"><span>GastroSoft · Manual de Usuario con Capturas</span><span>Página 2</span></div>
+  </section>
+
+  <section class="page">
+    <div class="header-line"><img src="../public/LogoGastroSoftHeader.png" alt="GastroSoft"><h1>1. Introducción y navegación general</h1></div>
+    <p>GastroSoft es un sistema web para administrar la operación diaria de un restaurante. Permite controlar mesas, comandas, productos, reservaciones, pagos, inventario, empleados, proveedores, caja y reportes desde una sola plataforma.</p>
+    <div class="grid-2">
+      <div class="box"><h3>Objetivo del sistema</h3><p>Ayudar al personal a trabajar más rápido y con menos errores, manteniendo toda la información del restaurante organizada.</p></div>
+      <div class="box"><h3>Usuarios del sistema</h3><p>Meseros, cajeros, gerentes y administradores. Cada usuario puede ver módulos según sus permisos.</p></div>
+      <div class="box"><h3>Barra superior</h3><p>Desde la barra naranja se cambia de módulo, se revisa el usuario activo y se cierra sesión.</p></div>
+      <div class="box"><h3>Botones y colores</h3><p>Verde confirma, azul edita, rojo cancela o elimina, naranja destaca acciones principales.</p></div>
+    </div>
+    <div class="note">Recomendación: un usuario nuevo debe iniciar revisando Dashboard, después Mesas y finalmente Comandas, Pagos o Reservaciones según su tarea.</div>
+    <div class="footer"><span>GastroSoft · Manual de Usuario con Capturas</span><span>Página 3</span></div>
+  </section>
+
+  <section class="page">
+    <div class="header-line"><img src="../public/LogoGastroSoftHeader.png" alt="GastroSoft"><h1>2. Login / Acceso al sistema</h1></div>
+    <span class="mini-title">Captura real del sistema</span>
+    <p>Esta es la pantalla inicial. Aquí el usuario ingresa sus credenciales para entrar a GastroSoft.</p>
+    <div class="photo-wrap">
+      <img src="FotosSistemaModulos/FotosSistemaModulos/login.png" alt="Login GastroSoft">
+      <span class="marker" style="left:42%;top:33%;">1</span>
+      <span class="marker" style="left:42%;top:48%;">2</span>
+      <span class="marker" style="left:48%;top:63%;">3</span>
+    </div>
+    <div class="legend">
+      <div><b>1.</b> Campo para escribir el usuario asignado.</div>
+      <div><b>2.</b> Campo para escribir la contraseña.</div>
+      <div><b>3.</b> Botón para ingresar al sistema.</div>
+    </div>
+    <div class="footer"><span>GastroSoft · Manual de Usuario con Capturas</span><span>Página 4</span></div>
+  </section>
+
+  <section class="page">
+    <div class="header-line"><img src="../public/LogoGastroSoftHeader.png" alt="GastroSoft"><h1>2.1 Pasos para iniciar sesión</h1></div>
+    <ol class="steps">
+      <li><span class="num">1</span><div>Abra el sistema GastroSoft desde el navegador del equipo.</div></li>
+      <li><span class="num">2</span><div>Escriba su usuario en el primer campo.</div></li>
+      <li><span class="num">3</span><div>Escriba su contraseña en el segundo campo.</div></li>
+      <li><span class="num">4</span><div>Presione el botón de ingreso.</div></li>
+      <li><span class="num">5</span><div>Si aparece un error, revise que no existan espacios, mayúsculas incorrectas o datos mal escritos.</div></li>
+    </ol>
+    <div class="note">No comparta sus credenciales. Las acciones realizadas dentro del sistema pueden quedar asociadas al usuario que inició sesión.</div>
+    <div class="grid-2">
+      <div class="box"><h3>Si no puede entrar</h3><p>Confirme usuario y contraseña. Si el problema continúa, avise al administrador.</p></div>
+      <div class="box"><h3>Al terminar</h3><p>Use el botón Salir para cerrar sesión y evitar que otra persona use su cuenta.</p></div>
+    </div>
+    <div class="footer"><span>GastroSoft · Manual de Usuario con Capturas</span><span>Página 5</span></div>
+  </section>
+
+  <section class="page">
+    <div class="header-line"><img src="../public/LogoGastroSoftHeader.png" alt="GastroSoft"><h1>3. Dashboard</h1></div>
+    <span class="mini-title">Captura real del módulo Dashboard</span>
+    <p>El Dashboard muestra un resumen general de la operación: ventas, comandas, mesas, actividad y alertas importantes.</p>
+    <div class="photo-wrap">
+      <img src="FotosSistemaModulos/FotosSistemaModulos/Dashboard.png" alt="Dashboard GastroSoft">
+      <span class="marker" style="left:7%;top:4%;">1</span>
+      <span class="marker" style="left:17%;top:18%;">2</span>
+      <span class="marker" style="left:55%;top:49%;">3</span>
+      <span class="marker" style="left:84%;top:12%;">4</span>
+    </div>
+    <div class="legend">
+      <div><b>1.</b> Menú de módulos.</div>
+      <div><b>2.</b> Tarjetas de resumen.</div>
+      <div><b>3.</b> Información o gráficas del día.</div>
+    </div>
+    <div class="footer"><span>GastroSoft · Manual de Usuario con Capturas</span><span>Página 6</span></div>
+  </section>
+
+  <section class="page">
+    <div class="header-line"><img src="../public/LogoGastroSoftHeader.png" alt="GastroSoft"><h1>3.1 Cómo usar Dashboard</h1></div>
+    <ol class="steps">
+      <li><span class="num">1</span><div>Revise las tarjetas superiores para conocer el estado actual del restaurante.</div></li>
+      <li><span class="num">2</span><div>Si hay alertas, entre al módulo correspondiente para resolverlas.</div></li>
+      <li><span class="num">3</span><div>Use la barra superior para cambiar a Comandas, Mesas, Pagos o Inventario.</div></li>
+      <li><span class="num">4</span><div>Consulte el Dashboard al inicio y cierre del turno para validar la operación.</div></li>
+    </ol>
+    <div class="grid-2">
+      <div class="box"><h3>Uso principal</h3><p>Sirve como pantalla de supervisión. No sustituye la revisión detallada de cada módulo.</p></div>
+      <div class="box"><h3>Consejo</h3><p>Si un número parece incorrecto, revise el módulo relacionado antes de modificar datos.</p></div>
+    </div>
+    <div class="footer"><span>GastroSoft · Manual de Usuario con Capturas</span><span>Página 7</span></div>
+  </section>
+
+  <section class="page">
+    <div class="header-line"><img src="../public/LogoGastroSoftHeader.png" alt="GastroSoft"><h1>4. Comandas</h1></div>
+    <span class="mini-title">Captura real del módulo Comandas</span>
+    <p>Comandas muestra las órdenes activas, pendientes o pagadas. Cada tarjeta representa una mesa o cuenta separada.</p>
+    <div class="photo-wrap">
+      <img src="FotosSistemaModulos/FotosSistemaModulos/Comandas%20.png" alt="Comandas GastroSoft">
+      <span class="marker" style="left:22%;top:5%;">1</span>
+      <span class="marker" style="left:7%;top:22%;">2</span>
+      <span class="marker" style="left:42%;top:22%;">3</span>
+      <span class="marker" style="left:18%;top:58%;">4</span>
+      <span class="marker" style="left:36%;top:82%;">5</span>
+    </div>
+    <div class="legend">
+      <div><b>1.</b> Botón Nueva Comanda.</div>
+      <div><b>2.</b> Buscador por mesa o cliente.</div>
+      <div><b>3.</b> Filtros rápidos.</div>
+    </div>
+    <div class="footer"><span>GastroSoft · Manual de Usuario con Capturas</span><span>Página 8</span></div>
+  </section>
+
+  <section class="page">
+    <div class="header-line"><img src="../public/LogoGastroSoftHeader.png" alt="GastroSoft"><h1>4.1 Cómo usar Comandas</h1></div>
+    <ol class="steps">
+      <li><span class="num">1</span><div>Presione <b>Nueva Comanda</b> para crear una orden nueva.</div></li>
+      <li><span class="num">2</span><div>Use el buscador si necesita localizar una mesa o cliente específico.</div></li>
+      <li><span class="num">3</span><div>Filtre por todas, pendientes o pagadas para reducir resultados.</div></li>
+      <li><span class="num">4</span><div>Revise en cada tarjeta la mesa, mesero, hora, productos y total.</div></li>
+      <li><span class="num">5</span><div>Presione <b>Ver Comanda</b> para consultar el detalle o editar productos.</div></li>
+      <li><span class="num">6</span><div>Use el botón de cuentas separadas cuando cada cliente pagará por separado.</div></li>
+    </ol>
+    <div class="note">Si una tarjeta muestra reservación, el sistema indica el nombre del cliente relacionado para evitar confusiones.</div>
+    <div class="footer"><span>GastroSoft · Manual de Usuario con Capturas</span><span>Página 9</span></div>
+  </section>
+
+  <section class="page">
+    <div class="header-line"><img src="../public/LogoGastroSoftHeader.png" alt="GastroSoft"><h1>5. Menú</h1></div>
+    <span class="mini-title">Captura real del módulo Menú</span>
+    <p>Menú contiene los productos del restaurante. Desde aquí se consultan categorías, imágenes, precios y disponibilidad.</p>
+    <div class="photo-wrap">
+      <img src="FotosSistemaModulos/FotosSistemaModulos/MENU.png" alt="Menú GastroSoft">
+      <span class="marker" style="left:20%;top:5%;">1</span>
+      <span class="marker" style="left:7%;top:22%;">2</span>
+      <span class="marker" style="left:28%;top:42%;">3</span>
+      <span class="marker" style="left:84%;top:22%;">4</span>
+    </div>
+    <div class="legend">
+      <div><b>1.</b> Acceso al módulo Menú.</div>
+      <div><b>2.</b> Categorías o filtros.</div>
+      <div><b>3.</b> Tarjetas de productos.</div>
+    </div>
+    <div class="footer"><span>GastroSoft · Manual de Usuario con Capturas</span><span>Página 10</span></div>
+  </section>
+
+  <section class="page">
+    <div class="header-line"><img src="../public/LogoGastroSoftHeader.png" alt="GastroSoft"><h1>5.1 Cómo usar Menú</h1></div>
+    <ol class="steps">
+      <li><span class="num">1</span><div>Entre al módulo <b>Menú</b> desde la barra superior.</div></li>
+      <li><span class="num">2</span><div>Seleccione una categoría para ver sus productos.</div></li>
+      <li><span class="num">3</span><div>Revise nombre, imagen, descripción y precio.</div></li>
+      <li><span class="num">4</span><div>Si tiene permiso, edite o agregue productos cuando cambie el menú del restaurante.</div></li>
+    </ol>
+    <div class="grid-2">
+      <div class="box"><h3>Uso en comandas</h3><p>Los productos visibles aquí son los que después se agregan en Nueva Comanda.</p></div>
+      <div class="box"><h3>Revisión</h3><p>Antes de iniciar servicio, confirme que precios y productos estén correctos.</p></div>
+    </div>
+    <div class="footer"><span>GastroSoft · Manual de Usuario con Capturas</span><span>Página 11</span></div>
+  </section>
+
+  <section class="page">
+    <div class="header-line"><img src="../public/LogoGastroSoftHeader.png" alt="GastroSoft"><h1>6. Mesas</h1></div>
+    <span class="mini-title">Captura real del módulo Mesas</span>
+    <p>Mesas muestra la disponibilidad del restaurante. Ayuda a saber si una mesa está libre, ocupada o reservada.</p>
+    <div class="photo-wrap">
+      <img src="FotosSistemaModulos/FotosSistemaModulos/Mesas.png" alt="Mesas GastroSoft">
+      <span class="marker" style="left:24%;top:5%;">1</span>
+      <span class="marker" style="left:8%;top:24%;">2</span>
+      <span class="marker" style="left:30%;top:44%;">3</span>
+      <span class="marker" style="left:75%;top:44%;">4</span>
+    </div>
+    <div class="legend">
+      <div><b>1.</b> Acceso al módulo Mesas.</div>
+      <div><b>2.</b> Indicadores o filtros.</div>
+      <div><b>3.</b> Tarjetas de mesa.</div>
+    </div>
+    <div class="footer"><span>GastroSoft · Manual de Usuario con Capturas</span><span>Página 12</span></div>
+  </section>
+
+  <section class="page">
+    <div class="header-line"><img src="../public/LogoGastroSoftHeader.png" alt="GastroSoft"><h1>6.1 Cómo usar Mesas</h1></div>
+    <ol class="steps">
+      <li><span class="num">1</span><div>Revise el número de mesa.</div></li>
+      <li><span class="num">2</span><div>Verifique el estado: disponible, ocupada o reservada.</div></li>
+      <li><span class="num">3</span><div>Confirme capacidad y ubicación antes de asignarla.</div></li>
+      <li><span class="num">4</span><div>Si está ocupada, abra Comandas para revisar la orden relacionada.</div></li>
+    </ol>
+    <div class="note">Antes de crear una reservación, confirme que la mesa no tenga comanda activa ni otra reservación.</div>
+    <div class="footer"><span>GastroSoft · Manual de Usuario con Capturas</span><span>Página 13</span></div>
+  </section>
+
+  <section class="page">
+    <div class="header-line"><img src="../public/LogoGastroSoftHeader.png" alt="GastroSoft"><h1>7. Personal</h1></div>
+    <span class="mini-title">Captura real del módulo Personal</span>
+    <p>Personal permite consultar empleados, roles, estado y datos relacionados con la operación del restaurante.</p>
+    <div class="photo-wrap">
+      <img src="FotosSistemaModulos/FotosSistemaModulos/Personal.png" alt="Personal GastroSoft">
+      <span class="marker" style="left:31%;top:5%;">1</span>
+      <span class="marker" style="left:8%;top:23%;">2</span>
+      <span class="marker" style="left:28%;top:44%;">3</span>
+      <span class="marker" style="left:83%;top:44%;">4</span>
+    </div>
+    <div class="legend">
+      <div><b>1.</b> Módulo Personal.</div>
+      <div><b>2.</b> Buscador o filtros.</div>
+      <div><b>3.</b> Datos del empleado.</div>
+    </div>
+    <div class="footer"><span>GastroSoft · Manual de Usuario con Capturas</span><span>Página 14</span></div>
+  </section>
+
+  <section class="page">
+    <div class="header-line"><img src="../public/LogoGastroSoftHeader.png" alt="GastroSoft"><h1>7.1 Cómo usar Personal</h1></div>
+    <ol class="steps">
+      <li><span class="num">1</span><div>Busque al empleado por nombre.</div></li>
+      <li><span class="num">2</span><div>Revise rol, estado y datos principales.</div></li>
+      <li><span class="num">3</span><div>Si tiene permiso, agregue o edite empleados.</div></li>
+      <li><span class="num">4</span><div>Verifique que el empleado esté activo para poder asignarlo correctamente.</div></li>
+    </ol>
+    <div class="grid-2">
+      <div class="box"><h3>Roles</h3><p>El rol define qué módulos puede usar cada persona.</p></div>
+      <div class="box"><h3>Mesero asignado</h3><p>El nombre del empleado aparece en comandas y reportes.</p></div>
+    </div>
+    <div class="footer"><span>GastroSoft · Manual de Usuario con Capturas</span><span>Página 15</span></div>
+  </section>
+
+  <section class="page">
+    <div class="header-line"><img src="../public/LogoGastroSoftHeader.png" alt="GastroSoft"><h1>7.2 Asistencia</h1></div>
+    <span class="mini-title">Captura real del módulo Asistencia</span>
+    <p>Asistencia permite revisar entradas, salidas y estado de los empleados durante el turno.</p>
+    <div class="photo-wrap">
+      <img src="FotosSistemaModulos/FotosSistemaModulos/Asistencia.png" alt="Asistencia GastroSoft">
+      <span class="marker" style="left:34%;top:5%;">1</span>
+      <span class="marker" style="left:8%;top:22%;">2</span>
+      <span class="marker" style="left:35%;top:46%;">3</span>
+      <span class="marker" style="left:78%;top:46%;">4</span>
+    </div>
+    <div class="legend">
+      <div><b>1.</b> Acceso a asistencia.</div>
+      <div><b>2.</b> Filtros de empleado o fecha.</div>
+      <div><b>3.</b> Registros de asistencia.</div>
+    </div>
+    <div class="footer"><span>GastroSoft · Manual de Usuario con Capturas</span><span>Página 16</span></div>
+  </section>
+
+  <section class="page">
+    <div class="header-line"><img src="../public/LogoGastroSoftHeader.png" alt="GastroSoft"><h1>7.3 Registro de asistencia</h1></div>
+    <span class="mini-title">Captura real de registro</span>
+    <p>Esta pantalla sirve para registrar entrada o salida de un empleado.</p>
+    <div class="photo-wrap">
+      <img src="FotosSistemaModulos/FotosSistemaModulos/RegistroAsistencia.png" alt="Registro de asistencia GastroSoft">
+      <span class="marker" style="left:42%;top:26%;">1</span>
+      <span class="marker" style="left:42%;top:44%;">2</span>
+      <span class="marker" style="left:48%;top:62%;">3</span>
+    </div>
+    <ol class="steps">
+      <li><span class="num">1</span><div>Seleccione o confirme el empleado.</div></li>
+      <li><span class="num">2</span><div>Revise si registrará entrada o salida.</div></li>
+      <li><span class="num">3</span><div>Guarde el registro para que quede reflejado en asistencia.</div></li>
+    </ol>
+    <div class="footer"><span>GastroSoft · Manual de Usuario con Capturas</span><span>Página 17</span></div>
+  </section>
+
+  <section class="page">
+    <div class="header-line"><img src="../public/LogoGastroSoftHeader.png" alt="GastroSoft"><h1>8. Pagos</h1></div>
+    <span class="mini-title">Captura real del módulo Pagos</span>
+    <p>Pagos permite cobrar comandas y cerrar una venta correctamente.</p>
+    <div class="photo-wrap">
+      <img src="FotosSistemaModulos/FotosSistemaModulos/Pagos.png" alt="Pagos GastroSoft">
+      <span class="marker" style="left:35%;top:5%;">1</span>
+      <span class="marker" style="left:8%;top:24%;">2</span>
+      <span class="marker" style="left:45%;top:43%;">3</span>
+      <span class="marker" style="left:80%;top:70%;">4</span>
+    </div>
+    <div class="legend">
+      <div><b>1.</b> Módulo Pagos.</div>
+      <div><b>2.</b> Comandas por cobrar.</div>
+      <div><b>3.</b> Detalle y total.</div>
+    </div>
+    <div class="footer"><span>GastroSoft · Manual de Usuario con Capturas</span><span>Página 18</span></div>
+  </section>
+
+  <section class="page">
+    <div class="header-line"><img src="../public/LogoGastroSoftHeader.png" alt="GastroSoft"><h1>8.1 Cómo usar Pagos</h1></div>
+    <ol class="steps">
+      <li><span class="num">1</span><div>Seleccione la comanda que se va a cobrar.</div></li>
+      <li><span class="num">2</span><div>Revise mesa, productos, cantidades y total.</div></li>
+      <li><span class="num">3</span><div>Seleccione o confirme el método de pago si el sistema lo solicita.</div></li>
+      <li><span class="num">4</span><div>Confirme el pago solo cuando el cliente haya pagado.</div></li>
+      <li><span class="num">5</span><div>Verifique que la comanda quede marcada como pagada.</div></li>
+    </ol>
+    <div class="note">Antes de cobrar, revise si la mesa tiene cuentas separadas para evitar cobrar productos a la persona equivocada.</div>
+    <div class="footer"><span>GastroSoft · Manual de Usuario con Capturas</span><span>Página 19</span></div>
+  </section>
+
+  <section class="page">
+    <div class="header-line"><img src="../public/LogoGastroSoftHeader.png" alt="GastroSoft"><h1>9. Caja</h1></div>
+    <span class="mini-title">Captura real del módulo Caja</span>
+    <p>Caja ayuda a controlar el dinero del turno, movimientos, entradas, salidas y cierre.</p>
+    <div class="photo-wrap">
+      <img src="FotosSistemaModulos/FotosSistemaModulos/Caja.png" alt="Caja GastroSoft">
+      <span class="marker" style="left:42%;top:5%;">1</span>
+      <span class="marker" style="left:8%;top:22%;">2</span>
+      <span class="marker" style="left:45%;top:42%;">3</span>
+      <span class="marker" style="left:82%;top:22%;">4</span>
+    </div>
+    <div class="legend">
+      <div><b>1.</b> Módulo Caja.</div>
+      <div><b>2.</b> Resumen de dinero.</div>
+      <div><b>3.</b> Movimientos del turno.</div>
+    </div>
+    <div class="footer"><span>GastroSoft · Manual de Usuario con Capturas</span><span>Página 20</span></div>
+  </section>
+
+  <section class="page">
+    <div class="header-line"><img src="../public/LogoGastroSoftHeader.png" alt="GastroSoft"><h1>9.1 Cómo usar Caja</h1></div>
+    <ol class="steps">
+      <li><span class="num">1</span><div>Revise el fondo inicial del turno.</div></li>
+      <li><span class="num">2</span><div>Consulte entradas y salidas registradas.</div></li>
+      <li><span class="num">3</span><div>Compare el total del sistema con el dinero físico.</div></li>
+      <li><span class="num">4</span><div>Realice el cierre de caja al terminar el turno.</div></li>
+    </ol>
+    <div class="grid-2">
+      <div class="box"><h3>Importante</h3><p>No cierre caja si todavía existen comandas pendientes de pago.</p></div>
+      <div class="box"><h3>Revisión</h3><p>Si hay diferencia, revise movimientos, pagos y cancelaciones.</p></div>
+    </div>
+    <div class="footer"><span>GastroSoft · Manual de Usuario con Capturas</span><span>Página 21</span></div>
+  </section>
+
+  <section class="page">
+    <div class="header-line"><img src="../public/LogoGastroSoftHeader.png" alt="GastroSoft"><h1>10. Reportes</h1></div>
+    <span class="mini-title">Captura real del módulo Reportes</span>
+    <p>Reportes permite revisar resultados de ventas, comandas, pagos y operación general.</p>
+    <div class="photo-wrap">
+      <img src="FotosSistemaModulos/FotosSistemaModulos/Reportes.png" alt="Reportes GastroSoft">
+      <span class="marker" style="left:52%;top:5%;">1</span>
+      <span class="marker" style="left:8%;top:22%;">2</span>
+      <span class="marker" style="left:42%;top:42%;">3</span>
+      <span class="marker" style="left:80%;top:42%;">4</span>
+    </div>
+    <div class="legend">
+      <div><b>1.</b> Módulo Reportes.</div>
+      <div><b>2.</b> Filtros o rango de fechas.</div>
+      <div><b>3.</b> Resultados del reporte.</div>
+    </div>
+    <div class="footer"><span>GastroSoft · Manual de Usuario con Capturas</span><span>Página 22</span></div>
+  </section>
+
+  <section class="page">
+    <div class="header-line"><img src="../public/LogoGastroSoftHeader.png" alt="GastroSoft"><h1>10.1 Cómo usar Reportes</h1></div>
+    <ol class="steps">
+      <li><span class="num">1</span><div>Seleccione el tipo de reporte que desea revisar.</div></li>
+      <li><span class="num">2</span><div>Elija fechas o filtros disponibles.</div></li>
+      <li><span class="num">3</span><div>Revise totales, ventas, comandas o información mostrada.</div></li>
+      <li><span class="num">4</span><div>Use la información para cierres, control interno o toma de decisiones.</div></li>
+    </ol>
+    <div class="note">Los reportes dependen de que las comandas, pagos e inventario se registren correctamente durante el día.</div>
+    <div class="footer"><span>GastroSoft · Manual de Usuario con Capturas</span><span>Página 23</span></div>
+  </section>
+
+  <section class="page">
+    <div class="header-line"><img src="../public/LogoGastroSoftHeader.png" alt="GastroSoft"><h1>11. Inventario</h1></div>
+    <span class="mini-title">Captura real del módulo Inventario</span>
+    <p>Inventario permite controlar ingredientes, cantidades disponibles, mínimos y alertas.</p>
+    <div class="photo-wrap">
+      <img src="FotosSistemaModulos/FotosSistemaModulos/Inventario.png" alt="Inventario GastroSoft">
+      <span class="marker" style="left:45%;top:5%;">1</span>
+      <span class="marker" style="left:8%;top:22%;">2</span>
+      <span class="marker" style="left:34%;top:44%;">3</span>
+      <span class="marker" style="left:80%;top:28%;">4</span>
+    </div>
+    <div class="legend">
+      <div><b>1.</b> Módulo Inventario.</div>
+      <div><b>2.</b> Buscador y filtros.</div>
+      <div><b>3.</b> Tabla de ingredientes.</div>
+    </div>
+    <div class="footer"><span>GastroSoft · Manual de Usuario con Capturas</span><span>Página 24</span></div>
+  </section>
+
+  <section class="page">
+    <div class="header-line"><img src="../public/LogoGastroSoftHeader.png" alt="GastroSoft"><h1>11.1 Cómo usar Inventario</h1></div>
+    <ol class="steps">
+      <li><span class="num">1</span><div>Busque el ingrediente por nombre.</div></li>
+      <li><span class="num">2</span><div>Filtre por proveedor o estado si necesita ubicarlo más rápido.</div></li>
+      <li><span class="num">3</span><div>Revise disponible, mínimo y estado.</div></li>
+      <li><span class="num">4</span><div>Registre entradas cuando llegue mercancía.</div></li>
+      <li><span class="num">5</span><div>Registre salidas cuando se descuente producto por uso, merma o ajuste autorizado.</div></li>
+    </ol>
+    <div class="grid-2">
+      <div class="box"><h3>Stock normal</h3><p>Hay cantidad suficiente para operar.</p></div>
+      <div class="box"><h3>Agotado o bajo</h3><p>Debe revisarse antes de vender productos relacionados.</p></div>
+    </div>
+    <div class="footer"><span>GastroSoft · Manual de Usuario con Capturas</span><span>Página 25</span></div>
+  </section>
+
+  <section class="page">
+    <div class="header-line"><img src="../public/LogoGastroSoftHeader.png" alt="GastroSoft"><h1>12. Proveedores</h1></div>
+    <span class="mini-title">Captura real del módulo Proveedores</span>
+    <p>Proveedores almacena la información de quienes surten ingredientes o productos al restaurante.</p>
+    <div class="photo-wrap">
+      <img src="FotosSistemaModulos/FotosSistemaModulos/Proveedores.png" alt="Proveedores GastroSoft">
+      <span class="marker" style="left:52%;top:5%;">1</span>
+      <span class="marker" style="left:8%;top:23%;">2</span>
+      <span class="marker" style="left:30%;top:44%;">3</span>
+      <span class="marker" style="left:82%;top:23%;">4</span>
+    </div>
+    <div class="legend">
+      <div><b>1.</b> Módulo Proveedores.</div>
+      <div><b>2.</b> Buscador o filtros.</div>
+      <div><b>3.</b> Tarjetas/listado de proveedores.</div>
+    </div>
+    <div class="footer"><span>GastroSoft · Manual de Usuario con Capturas</span><span>Página 26</span></div>
+  </section>
+
+  <section class="page">
+    <div class="header-line"><img src="../public/LogoGastroSoftHeader.png" alt="GastroSoft"><h1>12.1 Cómo usar Proveedores</h1></div>
+    <ol class="steps">
+      <li><span class="num">1</span><div>Busque el proveedor por nombre.</div></li>
+      <li><span class="num">2</span><div>Revise datos de contacto y productos relacionados.</div></li>
+      <li><span class="num">3</span><div>Agregue proveedores nuevos si tiene permiso.</div></li>
+      <li><span class="num">4</span><div>Actualice datos cuando cambie teléfono, contacto o nombre comercial.</div></li>
+    </ol>
+    <div class="note">Mantener proveedores correctos ayuda a controlar mejor el inventario y las compras.</div>
+    <div class="footer"><span>GastroSoft · Manual de Usuario con Capturas</span><span>Página 27</span></div>
+  </section>
+
+  <section class="page">
+    <div class="header-line"><img src="../public/LogoGastroSoftHeader.png" alt="GastroSoft"><h1>13. Clientes / Reservaciones</h1></div>
+    <span class="mini-title">Captura real del módulo Clientes - Reservaciones</span>
+    <p>Este módulo gestiona las reservaciones del restaurante y permite buscar por cliente, teléfono o mesa.</p>
+    <div class="photo-wrap">
+      <img src="FotosSistemaModulos/FotosSistemaModulos/Clientes-Reservaciones.png" alt="Clientes y Reservaciones GastroSoft">
+      <span class="marker" style="left:82%;top:15%;">1</span>
+      <span class="marker" style="left:8%;top:30%;">2</span>
+      <span class="marker" style="left:18%;top:55%;">3</span>
+      <span class="marker" style="left:80%;top:55%;">4</span>
+    </div>
+    <div class="legend">
+      <div><b>1.</b> Botón Nueva Reservación.</div>
+      <div><b>2.</b> Buscador y filtros.</div>
+      <div><b>3.</b> Datos de la reservación.</div>
+    </div>
+    <div class="footer"><span>GastroSoft · Manual de Usuario con Capturas</span><span>Página 28</span></div>
+  </section>
+
+  <section class="page">
+    <div class="header-line"><img src="../public/LogoGastroSoftHeader.png" alt="GastroSoft"><h1>13.1 Cómo usar Reservaciones</h1></div>
+    <ol class="steps">
+      <li><span class="num">1</span><div>Presione <b>Nueva Reservación</b>.</div></li>
+      <li><span class="num">2</span><div>Capture cliente, teléfono, fecha, hora, personas y mesa.</div></li>
+      <li><span class="num">3</span><div>Guarde la reservación.</div></li>
+      <li><span class="num">4</span><div>Use Editar si cambia la hora, mesa o número de personas.</div></li>
+      <li><span class="num">5</span><div>Use Cancelar si el cliente ya no asistirá.</div></li>
+    </ol>
+    <div class="grid-2">
+      <div class="box"><h3>Reservación activa</h3><p>Indica que el cliente todavía tiene una reserva pendiente.</p></div>
+      <div class="box"><h3>Historial</h3><p>Muestra reservaciones finalizadas o canceladas para consulta.</p></div>
+    </div>
+    <div class="footer"><span>GastroSoft · Manual de Usuario con Capturas</span><span>Página 29</span></div>
+  </section>
+
+  <section class="page">
+    <div class="header-line"><img src="../public/LogoGastroSoftHeader.png" alt="GastroSoft"><h1>14. Promociones</h1></div>
+    <p>El módulo Promociones permite manejar descuentos, combos y ofertas. En el ZIP recibido no venía una captura separada de Promociones, por eso esta página explica el uso funcional y se apoya en la operación de comandas y menú.</p>
+    <div class="grid-2">
+      <div class="box"><h3>¿Qué hace?</h3><p>Permite consultar o administrar promociones que pueden aplicarse a productos o combos.</p></div>
+      <div class="box"><h3>¿Dónde se usan?</h3><p>Al crear una comanda, las promociones disponibles aparecen para agregarlas como combo o descuento.</p></div>
+      <div class="box"><h3>Ejemplos</h3><p>Hora feliz, 2x1 en pizzas, menú del día o menú infantil.</p></div>
+      <div class="box"><h3>Precaución</h3><p>Revise que la promoción esté activa antes de aplicarla al cliente.</p></div>
+    </div>
+    <ol class="steps">
+      <li><span class="num">1</span><div>Entre al módulo Promociones desde la barra superior.</div></li>
+      <li><span class="num">2</span><div>Revise nombre, descripción y estado.</div></li>
+      <li><span class="num">3</span><div>Al crear una comanda, seleccione la promoción correspondiente si aplica.</div></li>
+      <li><span class="num">4</span><div>Confirme el total antes de guardar o cobrar.</div></li>
+    </ol>
+    <div class="note">Si me pasas una captura de Promociones, puedo reemplazar esta página por una guía visual con puntos sobre la foto real.</div>
+    <div class="footer"><span>GastroSoft · Manual de Usuario con Capturas</span><span>Página 30</span></div>
+  </section>
+
+  <section class="page">
+    <div class="header-line"><img src="../public/LogoGastroSoftHeader.png" alt="GastroSoft"><h1>15. Configuración</h1></div>
+    <span class="mini-title">Captura real del módulo Configuración</span>
+    <p>Configuración concentra ajustes importantes del sistema. Debe utilizarse solamente por usuarios autorizados.</p>
+    <div class="photo-wrap">
+      <img src="FotosSistemaModulos/FotosSistemaModulos/Configuracion.png" alt="Configuración GastroSoft">
+      <span class="marker" style="left:72%;top:5%;">1</span>
+      <span class="marker" style="left:8%;top:23%;">2</span>
+      <span class="marker" style="left:35%;top:45%;">3</span>
+      <span class="marker" style="left:82%;top:45%;">4</span>
+    </div>
+    <div class="legend">
+      <div><b>1.</b> Módulo Configuración.</div>
+      <div><b>2.</b> Opciones principales.</div>
+      <div><b>3.</b> Datos o ajustes del sistema.</div>
+    </div>
+    <div class="footer"><span>GastroSoft · Manual de Usuario con Capturas</span><span>Página 31</span></div>
+  </section>
+
+  <section class="page">
+    <div class="header-line"><img src="../public/LogoGastroSoftHeader.png" alt="GastroSoft"><h1>15.1 Cómo usar Configuración</h1></div>
+    <ol class="steps">
+      <li><span class="num">1</span><div>Entre solo si tiene autorización.</div></li>
+      <li><span class="num">2</span><div>Revise qué opción va a modificar.</div></li>
+      <li><span class="num">3</span><div>No cambie datos si no conoce su efecto.</div></li>
+      <li><span class="num">4</span><div>Guarde cambios y verifique que el sistema siga funcionando correctamente.</div></li>
+    </ol>
+    <div class="note">Configuración puede afectar la operación general. Si tiene duda, consulte al administrador antes de guardar.</div>
+    <div class="footer"><span>GastroSoft · Manual de Usuario con Capturas</span><span>Página 32</span></div>
+  </section>
+
+  <section class="page">
+    <div class="header-line"><img src="../public/LogoGastroSoftHeader.png" alt="GastroSoft"><h1>16. Preguntas frecuentes</h1></div>
+    <div class="grid-2">
+      <div class="box"><h3>No puedo iniciar sesión</h3><p>Revise usuario, contraseña y que su cuenta esté activa.</p></div>
+      <div class="box"><h3>No aparece un módulo</h3><p>Puede ser por permisos. Consulte al administrador.</p></div>
+      <div class="box"><h3>No encuentro una comanda</h3><p>Use el buscador por mesa o cliente y revise los filtros.</p></div>
+      <div class="box"><h3>No hay mesas disponibles</h3><p>La mesa puede estar ocupada o reservada.</p></div>
+      <div class="box"><h3>Inventario agotado</h3><p>Registre una entrada si llegó mercancía o avise al encargado.</p></div>
+      <div class="box"><h3>Error en pago</h3><p>Revise la comanda antes de confirmar. Si ya se confirmó, consulte al administrador.</p></div>
+    </div>
+    <div class="footer"><span>GastroSoft · Manual de Usuario con Capturas</span><span>Página 33</span></div>
+  </section>
+
+  <section class="page">
+    <div class="header-line"><img src="../public/LogoGastroSoftHeader.png" alt="GastroSoft"><h1>17. Glosario</h1></div>
+    <div class="grid-2">
+      <div class="box"><h3>Comanda</h3><p>Orden de productos asignada a una mesa o cliente.</p></div>
+      <div class="box"><h3>Cuenta separada</h3><p>División de una comanda por persona para cobrar individualmente.</p></div>
+      <div class="box"><h3>Reservación</h3><p>Mesa apartada para un cliente, fecha y hora específica.</p></div>
+      <div class="box"><h3>Stock</h3><p>Cantidad disponible de un ingrediente.</p></div>
+      <div class="box"><h3>Entrada</h3><p>Movimiento que aumenta inventario.</p></div>
+      <div class="box"><h3>Salida</h3><p>Movimiento que descuenta inventario.</p></div>
+      <div class="box"><h3>Caja</h3><p>Control de efectivo y movimientos del turno.</p></div>
+      <div class="box"><h3>Rol</h3><p>Permiso asignado al usuario para acceder a módulos.</p></div>
+    </div>
+    <div class="note">Manual elaborado con capturas reales del sistema GastroSoft proporcionadas en FotosSistemaModulos.zip.</div>
+    <div class="footer"><span>GastroSoft · Manual de Usuario con Capturas</span><span>Página 34</span></div>
+  </section>
+</body>
+</html>

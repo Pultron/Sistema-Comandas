@@ -253,7 +253,6 @@ export const MenuModule = ({ menu, categories, selectedCategory, setSelectedCate
               className={activeCategory === category.key ? 'active' : ''}
               onClick={() => setActiveCategory(category.key)}
             >
-              <CategoryIcon label={category.label} />
               {category.label}
             </button>
           ))}

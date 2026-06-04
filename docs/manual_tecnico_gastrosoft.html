@@ -1,0 +1,834 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Manual Técnico GastroSoft</title>
+  <style>
+    @page { size: letter; margin: 13mm; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #f4f5f7;
+      color: #111827;
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 12px;
+      line-height: 1.42;
+    }
+    .page {
+      min-height: 252mm;
+      margin: 0 auto 16px;
+      padding: 28px;
+      background: #fff;
+      page-break-after: always;
+      position: relative;
+      overflow: hidden;
+    }
+    .page:last-child { page-break-after: auto; }
+    .cover {
+      padding: 42px 44px;
+      color: #000;
+    }
+    .school-head {
+      display: grid;
+      grid-template-columns: 112px 1fr;
+      gap: 28px;
+      align-items: start;
+      margin: 0 8px 54px;
+    }
+    .uadeo-logo {
+      width: 112px;
+      height: 112px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: #8b1238;
+      color: #fff;
+      text-align: center;
+      font-weight: 800;
+      line-height: 1;
+    }
+    .uadeo-logo .seal {
+      width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid #fff;
+      border-radius: 50%;
+      margin-bottom: 7px;
+      font-size: 20px;
+    }
+    .uadeo-logo strong { font-size: 18px; }
+    .uadeo-logo small { display: block; margin-top: 3px; font-size: 8px; }
+    .school-text {
+      padding-top: 2px;
+      text-align: center;
+      font-weight: 900;
+      font-size: 16px;
+      line-height: 1.12;
+    }
+    .school-text .career {
+      display: block;
+      margin-top: 18px;
+      font-size: 14px;
+    }
+    .cover-title {
+      text-align: center;
+      margin-top: 28px;
+      font-weight: 900;
+    }
+    .cover-title h1 {
+      margin: 0 0 18px;
+      font-size: 18px;
+    }
+    .cover-title h2 {
+      max-width: 500px;
+      margin: 0 auto;
+      font-size: 16px;
+      line-height: 1.75;
+      font-weight: 900;
+    }
+    .cover-data {
+      position: absolute;
+      left: 44px;
+      right: 44px;
+      bottom: 58px;
+      display: grid;
+      gap: 12px;
+      font-size: 13px;
+      font-weight: 900;
+    }
+    .cover-data span { font-weight: 700; }
+    .header-line {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding-bottom: 12px;
+      margin-bottom: 15px;
+      border-bottom: 3px solid #ff7a00;
+    }
+    .header-line img {
+      width: 58px;
+      height: 50px;
+      object-fit: contain;
+    }
+    h1, h2, h3 { margin: 0; color: #101828; }
+    h1 { font-size: 24px; font-weight: 900; }
+    h2 { font-size: 18px; font-weight: 900; margin: 15px 0 8px; }
+    h3 { font-size: 14px; font-weight: 900; margin: 11px 0 7px; }
+    p { margin: 0 0 8px; color: #475467; font-weight: 600; }
+    .footer {
+      position: absolute;
+      left: 28px;
+      right: 28px;
+      bottom: 14px;
+      display: flex;
+      justify-content: space-between;
+      padding-top: 8px;
+      border-top: 1px solid #e4e7ec;
+      color: #98a2b3;
+      font-size: 10px;
+      font-weight: 800;
+    }
+    .toc { display: grid; gap: 8px; margin-top: 13px; }
+    .toc-row {
+      display: grid;
+      grid-template-columns: 34px 1fr auto;
+      gap: 10px;
+      align-items: center;
+      padding: 8px 12px;
+      border: 1px solid #e4e7ec;
+      border-radius: 10px;
+      background: #fcfcfd;
+      font-weight: 900;
+    }
+    .toc-row span:first-child {
+      width: 28px;
+      height: 28px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      background: #ff7a00;
+      color: #fff;
+    }
+    .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin: 12px 0; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 12px 0; }
+    .box {
+      padding: 12px 13px;
+      border: 1px solid #e4e7ec;
+      border-radius: 12px;
+      background: #fff;
+      box-shadow: 0 7px 18px rgba(15, 23, 42, 0.045);
+      break-inside: avoid;
+    }
+    .box strong { color: #101828; }
+    .note {
+      padding: 11px 13px;
+      border-left: 5px solid #ff7a00;
+      border-radius: 10px;
+      background: #fff7ed;
+      color: #7c2d12;
+      font-weight: 800;
+      margin: 11px 0;
+    }
+    .diagram {
+      display: grid;
+      gap: 10px;
+      margin: 14px 0;
+      padding: 14px;
+      border-radius: 14px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+    }
+    .layer {
+      padding: 12px;
+      border-radius: 12px;
+      border: 1px solid #dbe3ec;
+      background: #fff;
+      text-align: center;
+      font-weight: 900;
+    }
+    .arrow { text-align: center; color: #ff7a00; font-weight: 900; }
+    pre {
+      margin: 10px 0;
+      padding: 12px;
+      border-radius: 10px;
+      background: #0f172a;
+      color: #e5e7eb;
+      font-size: 10.5px;
+      line-height: 1.4;
+      overflow: hidden;
+      white-space: pre-wrap;
+    }
+    code { font-family: Consolas, "Courier New", monospace; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 10px 0;
+      font-size: 11px;
+      break-inside: avoid;
+    }
+    th, td {
+      border: 1px solid #e4e7ec;
+      padding: 7px 8px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      background: #fff1e5;
+      color: #7c2d12;
+      font-weight: 900;
+    }
+    ul { margin: 8px 0 10px 18px; padding: 0; color: #475467; font-weight: 650; }
+    li { margin-bottom: 5px; }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 900;
+      background: #fff1e5;
+      color: #ff5a00;
+    }
+  </style>
+</head>
+<body>
+  <section class="page cover">
+    <div class="school-head">
+      <div class="uadeo-logo">
+        <div class="seal">U</div>
+        <strong>UAdeO</strong>
+        <small>UNIVERSIDAD<br>AUTÓNOMA DE<br>OCCIDENTE</small>
+      </div>
+      <div class="school-text">
+        UNIVERSIDAD AUTÓNOMA DE<br>
+        OCCIDENTE<br>
+        UNIDAD REGIONAL<br>
+        CULIACÁN
+        <span class="career">INGENIERÍA DE SOFTWARE</span>
+      </div>
+    </div>
+    <div class="cover-title">
+      <h1>MANUAL TÉCNICO:</h1>
+      <h2>“Manual Técnico: Sistema de Gestión para Restaurantes GastroSoft”</h2>
+    </div>
+    <div class="cover-data">
+      <div>NOMBRE: <span>Héctor Paul Vizcarra Astorga</span></div>
+      <div>MATRÍCULA: <span>23040013</span></div>
+      <div>ASIGNATURA: <span>Innovación de ingeniería de software</span></div>
+      <div>FECHA: <span>29/05/2026</span></div>
+    </div>
+  </section>
+
+  <section class="page">
+    <div class="header-line"><img src="../public/LogoGastroSoftHeader.png" alt="GastroSoft"><h1>Índice</h1></div>
+    <div class="toc">
+      <div class="toc-row"><span>1</span><div>Introducción técnica</div><b>3</b></div>
+      <div class="toc-row"><span>2</span><div>Alcance, objetivos y roles</div><b>4</b></div>
+      <div class="toc-row"><span>3</span><div>Stack tecnológico</div><b>5</b></div>
+      <div class="toc-row"><span>4</span><div>Arquitectura general</div><b>6</b></div>
+      <div class="toc-row"><span>5</span><div>Estructura de carpetas</div><b>7</b></div>
+      <div class="toc-row"><span>6</span><div>Instalación y ejecución local</div><b>8</b></div>
+      <div class="toc-row"><span>7</span><div>Configuración de Supabase</div><b>10</b></div>
+      <div class="toc-row"><span>8</span><div>Módulos del sistema</div><b>11</b></div>
+      <div class="toc-row"><span>9</span><div>Hooks y lógica de datos</div><b>14</b></div>
+      <div class="toc-row"><span>10</span><div>Modelo de base de datos</div><b>16</b></div>
+      <div class="toc-row"><span>11</span><div>Flujos internos principales</div><b>21</b></div>
+      <div class="toc-row"><span>12</span><div>Seguridad, pruebas y despliegue</div><b>24</b></div>
+      <div class="toc-row"><span>13</span><div>Mantenimiento, errores y glosario</div><b>27</b></div>
+    </div>
+    <div class="footer"><span>GastroSoft · Manual Técnico</span><span>Página 2</span></div>
+  </section>
+
+  <section class="page">
+    <div class="header-line"><img src="../public/LogoGastroSoftHeader.png" alt="GastroSoft"><h1>1. Introducción técnica</h1></div>
+    <p>GastroSoft es una aplicación web para la gestión operativa de restaurantes. El sistema centraliza comandas, mesas, pagos, inventario, proveedores, promociones, clientes, reservaciones, personal, caja, reportes y configuración.</p>
+    <p>Este manual técnico describe cómo está construido el sistema, qué tecnologías utiliza, cómo se instala, cómo se comunica con Supabase y cómo se organiza la lógica interna del proyecto.</p>
+    <div class="grid-2">
+      <div class="box"><h3>Tipo de sistema</h3><p>Aplicación web de una sola página construida con React y Vite.</p></div>
+      <div class="box"><h3>Persistencia</h3><p>Base de datos PostgreSQL administrada mediante Supabase y consumida con el SDK de JavaScript.</p></div>
+      <div class="box"><h3>Interfaz</h3><p>Dashboard modular con barra superior, navegación por módulos y componentes reutilizables.</p></div>
+      <div class="box"><h3>Estado de datos</h3><p>Uso de hooks personalizados para consultar, insertar, actualizar y sincronizar información.</p></div>
+    </div>
+    <div class="note">El documento está pensado para desarrolladores, administradores técnicos y responsables de mantenimiento del sistema.</div>
+    <div class="footer"><span>GastroSoft · Manual Técnico</span><span>Página 3</span></div>
+  </section>
+
+  <section class="page">
+    <div class="header-line"><img src="../public/LogoGastroSoftHeader.png" alt="GastroSoft"><h1>2. Alcance, objetivos y roles</h1></div>
+    <h2>Alcance funcional</h2>
+    <p>El sistema cubre operación de sala, administración de productos, gestión de inventario, pagos, caja, reportes y control de personal.</p>
+    <table>
+      <tr><th>Área</th><th>Funciones cubiertas</th></tr>
+      <tr><td>Operación</td><td>Comandas, mesas, cuentas separadas, reservaciones y pagos.</td></tr>
+      <tr><td>Administración</td><td>Menú, promociones, personal, proveedores y configuración.</td></tr>
+      <tr><td>Control</td><td>Inventario, movimientos, caja y reportes.</td></tr>
+    </table>
+    <h2>Roles de usuario</h2>
+    <p>La aplicación filtra módulos según rol desde el frontend. Los roles detectados en la lógica principal son administrador, gerente, mesero y cocinero.</p>
+    <table>
+      <tr><th>Rol</th><th>Acceso esperado</th></tr>
+      <tr><td>Administrador</td><td>Acceso completo a módulos de operación, administración y configuración.</td></tr>
+      <tr><td>Gerente</td><td>Acceso a módulos operativos y administrativos, excluyendo configuración sensible.</td></tr>
+      <tr><td>Mesero / Cocinero</td><td>Acceso limitado principalmente a comandas, menú y pagos.</td></tr>
+    </table>
+    <div class="footer"><span>GastroSoft · Manual Técnico</span><span>Página 4</span></div>
+  </section>
+
+  <section class="page">
+    <div class="header-line"><img src="../public/LogoGastroSoftHeader.png" alt="GastroSoft"><h1>3. Stack tecnológico</h1></div>
+    <table>
+      <tr><th>Capa</th><th>Tecnología</th><th>Uso</th></tr>
+      <tr><td>Frontend</td><td>React 19.2.5</td><td>Construcción de componentes, estado y vistas dinámicas.</td></tr>
+      <tr><td>Bundler</td><td>Vite 8.0.9</td><td>Servidor de desarrollo y compilación para producción.</td></tr>
+      <tr><td>Base de datos</td><td>Supabase / PostgreSQL</td><td>Persistencia de comandas, usuarios, inventario y demás tablas.</td></tr>
+      <tr><td>SDK</td><td>@supabase/supabase-js 2.106.0</td><td>Consultas directas desde el frontend hacia Supabase.</td></tr>
+      <tr><td>Estilos</td><td>CSS y estilos inline</td><td>Diseño visual del dashboard y módulos.</td></tr>
+      <tr><td>Lint</td><td>ESLint 9.39.4</td><td>Revisión de calidad básica del código.</td></tr>
+    </table>
+    <h2>Scripts disponibles</h2>
+    <pre><code>npm run dev      # Ejecuta servidor local de desarrollo
+npm run build    # Genera versión optimizada en dist/
+npm run lint     # Ejecuta análisis estático
+npm run preview  # Previsualiza build de producción</code></pre>
+    <div class="note">El proyecto no utiliza backend Node propio para la lógica de negocio; las operaciones de datos se realizan mediante Supabase desde hooks de React.</div>
+    <div class="footer"><span>GastroSoft · Manual Técnico</span><span>Página 5</span></div>
+  </section>
+
+  <section class="page">
+    <div class="header-line"><img src="../public/LogoGastroSoftHeader.png" alt="GastroSoft"><h1>4. Arquitectura general</h1></div>
+    <div class="diagram">
+      <div class="layer">Usuario final: administrador, gerente, cajero o mesero</div>
+      <div class="arrow">↓</div>
+      <div class="layer">React App: App.jsx, Header.jsx y Dashboard.jsx</div>
+      <div class="arrow">↓</div>
+      <div class="layer">Módulos: Comandas, Menú, Mesas, Pagos, Inventario, Reportes, etc.</div>
+      <div class="arrow">↓</div>
+      <div class="layer">Hooks personalizados: useComandas, useInventario, useClientes, useCaja...</div>
+      <div class="arrow">↓</div>
+      <div class="layer">Supabase SDK: consultas select, insert, update y delete</div>
+      <div class="arrow">↓</div>
+      <div class="layer">PostgreSQL: tablas del sistema y relaciones</div>
+    </div>
+    <h2>Componentes base</h2>
+    <table>
+      <tr><th>Archivo</th><th>Responsabilidad</th></tr>
+      <tr><td>App.jsx</td><td>Controla autenticación, usuario activo, rol y módulo activo.</td></tr>
+      <tr><td>Header.jsx</td><td>Barra superior, navegación, perfil y cierre de sesión.</td></tr>
+      <tr><td>Dashboard.jsx</td><td>Renderiza el módulo correspondiente según activeModule.</td></tr>
+      <tr><td>useSupabase.js</td><td>Centraliza consultas y operaciones contra Supabase.</td></tr>
+    </table>
+    <div class="footer"><span>GastroSoft · Manual Técnico</span><span>Página 6</span></div>
+  </section>
+
+  <section class="page">
+    <div class="header-line"><img src="../public/LogoGastroSoftHeader.png" alt="GastroSoft"><h1>5. Estructura de carpetas</h1></div>
+    <pre><code>Sistema-Comandas/
+├─ public/
+│  ├─ LogoGastroSoftHeader.png
+│  └─ MenuImagenes/
+├─ src/
+│  ├─ components/
+│  │  ├─ Header.jsx
+│  │  ├─ Dashboard.jsx
+│  │  └─ modules/
+│  ├─ data/
+│  │  └─ modulesData.js
+│  ├─ hooks/
+│  │  └─ useSupabase.js
+│  ├─ styles/
+│  ├─ supabase.js
+│  ├─ App.jsx
+│  └─ main.jsx
+├─ docs/
+├─ package.json
+└─ vite.config.js</code></pre>
+    <table>
+      <tr><th>Carpeta</th><th>Descripción</th></tr>
+      <tr><td>public</td><td>Recursos estáticos: logo e imágenes de productos.</td></tr>
+      <tr><td>src/components/modules</td><td>Componentes de cada módulo funcional.</td></tr>
+      <tr><td>src/hooks</td><td>Hooks que manejan datos y llamadas a Supabase.</td></tr>
+      <tr><td>src/styles</td><td>Hojas CSS por módulo y estilos compartidos.</td></tr>
+      <tr><td>docs</td><td>Documentación generada: manuales HTML y PDF.</td></tr>
+    </table>
+    <div class="footer"><span>GastroSoft · Manual Técnico</span><span>Página 7</span></div>
+  </section>
+
+  <section class="page">
+    <div class="header-line"><img src="../public/LogoGastroSoftHeader.png" alt="GastroSoft"><h1>6. Instalación local</h1></div>
+    <h2>Requisitos previos</h2>
+    <ul>
+      <li>Node.js instalado.</li>
+      <li>NPM disponible en terminal.</li>
+      <li>Acceso al proyecto Supabase configurado.</li>
+      <li>Repositorio o carpeta del proyecto GastroSoft.</li>
+    </ul>
+    <h2>Pasos de instalación</h2>
+    <pre><code># 1. Entrar a la carpeta del proyecto
+cd Sistema-Comandas
+
+# 2. Instalar dependencias
+npm install
+
+# 3. Ejecutar en modo desarrollo
+npm run dev
+
+# 4. Abrir la URL local indicada por Vite</code></pre>
+    <h2>Compilación de producción</h2>
+    <pre><code>npm run build</code></pre>
+    <p>El resultado se genera en la carpeta <b>dist/</b>, lista para publicarse en un servidor web compatible con aplicaciones estáticas.</p>
+    <div class="footer"><span>GastroSoft · Manual Técnico</span><span>Página 8</span></div>
+  </section>
+
+  <section class="page">
+    <div class="header-line"><img src="../public/LogoGastroSoftHeader.png" alt="GastroSoft"><h1>6.1 Ejecución y validación</h1></div>
+    <h2>Validación básica después de instalar</h2>
+    <table>
+      <tr><th>Prueba</th><th>Resultado esperado</th></tr>
+      <tr><td>npm run dev</td><td>Vite inicia sin errores y muestra URL local.</td></tr>
+      <tr><td>Pantalla login</td><td>Se muestra el acceso de GastroSoft.</td></tr>
+      <tr><td>Inicio de sesión</td><td>Usuario válido entra al dashboard o módulo inicial.</td></tr>
+      <tr><td>Cambio de módulo</td><td>La barra superior permite navegar entre módulos permitidos.</td></tr>
+      <tr><td>npm run build</td><td>Se genera dist/ sin errores de compilación.</td></tr>
+    </table>
+    <h2>Comandos de mantenimiento</h2>
+    <pre><code>npm run lint
+npm run build
+npm run preview</code></pre>
+    <div class="note">Si la aplicación carga pero no muestra datos, revisar conexión a Supabase, permisos de tablas y usuario autenticado.</div>
+    <div class="footer"><span>GastroSoft · Manual Técnico</span><span>Página 9</span></div>
+  </section>
+
+  <section class="page">
+    <div class="header-line"><img src="../public/LogoGastroSoftHeader.png" alt="GastroSoft"><h1>7. Configuración de Supabase</h1></div>
+    <p>La conexión con Supabase se define en <b>src/supabase.js</b>. Este archivo crea un cliente con <b>createClient</b> del SDK oficial.</p>
+    <pre><code>import { createClient } from '@supabase/supabase-js'
+
+const SUPABASE_URL = '...'
+const SUPABASE_KEY = '...'
+
+export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY)</code></pre>
+    <h2>Recomendación técnica</h2>
+    <p>Para producción, se recomienda mover URL y key a variables de entorno de Vite para evitar dejarlas directamente en el código fuente.</p>
+    <pre><code>VITE_SUPABASE_URL=...
+VITE_SUPABASE_ANON_KEY=...</code></pre>
+    <h2>Tablas consumidas por el frontend</h2>
+    <p>El sistema consulta tablas como comandas, detalles_comanda, mesas, usuarios, asistencia, inventario, proveedores, promociones, reservaciones y cortes_caja.</p>
+    <div class="footer"><span>GastroSoft · Manual Técnico</span><span>Página 10</span></div>
+  </section>
+
+  <section class="page">
+    <div class="header-line"><img src="../public/LogoGastroSoftHeader.png" alt="GastroSoft"><h1>8. Módulos del sistema</h1></div>
+    <p>Los módulos disponibles se definen en <b>src/data/modulesData.js</b>. Cada módulo contiene un identificador, nombre e icono.</p>
+    <table>
+      <tr><th>ID técnico</th><th>Módulo</th><th>Componente principal</th></tr>
+      <tr><td>dashboard</td><td>Dashboard</td><td>DashboardModule</td></tr>
+      <tr><td>comandas</td><td>Comandas</td><td>Comandas</td></tr>
+      <tr><td>menu</td><td>Menú</td><td>MenuModule</td></tr>
+      <tr><td>mesas</td><td>Mesas</td><td>MesasModule</td></tr>
+      <tr><td>personal_asistencia</td><td>Personal / Asistencia</td><td>PersonalAsistenciaModule</td></tr>
+      <tr><td>pagos</td><td>Pagos</td><td>Pagos</td></tr>
+      <tr><td>inventario</td><td>Inventario</td><td>InventarioModule</td></tr>
+    </table>
+    <div class="footer"><span>GastroSoft · Manual Técnico</span><span>Página 11</span></div>
+  </section>
+
+  <section class="page">
+    <div class="header-line"><img src="../public/LogoGastroSoftHeader.png" alt="GastroSoft"><h1>8.1 Módulos administrativos</h1></div>
+    <table>
+      <tr><th>ID técnico</th><th>Módulo</th><th>Función</th></tr>
+      <tr><td>proveedores</td><td>Proveedores</td><td>Alta, edición, productos y compras de proveedores.</td></tr>
+      <tr><td>promociones</td><td>Promociones</td><td>Gestión de descuentos, combos y ofertas.</td></tr>
+      <tr><td>clientes</td><td>Clientes / Reservaciones</td><td>Reservaciones, clientes, mesas reservadas y comandas ligadas.</td></tr>
+      <tr><td>reportes</td><td>Reportes</td><td>Consulta de ventas, comandas y datos operativos.</td></tr>
+      <tr><td>caja</td><td>Caja</td><td>Cortes, totales y registros del turno.</td></tr>
+      <tr><td>configuracion</td><td>Configuración</td><td>Ajustes administrativos del sistema.</td></tr>
+    </table>
+    <h2>Renderizado de módulos</h2>
+    <p>Dashboard.jsx decide qué componente renderizar según el valor de <b>activeModule</b>.</p>
+    <pre><code>{activeModule === 'comandas' && (
+  &lt;Comandas ... /&gt;
+)}</code></pre>
+    <div class="footer"><span>GastroSoft · Manual Técnico</span><span>Página 12</span></div>
+  </section>
+
+  <section class="page">
+    <div class="header-line"><img src="../public/LogoGastroSoftHeader.png" alt="GastroSoft"><h1>8.2 Control de acceso por rol</h1></div>
+    <p>App.jsx filtra los módulos disponibles según el rol del usuario activo. El usuario se conserva en localStorage para mantener sesión.</p>
+    <table>
+      <tr><th>Elemento</th><th>Descripción técnica</th></tr>
+      <tr><td>gastrosoft_user</td><td>Clave usada en localStorage para persistir usuario actual.</td></tr>
+      <tr><td>currentUser</td><td>Estado React con datos del usuario autenticado.</td></tr>
+      <tr><td>userRole</td><td>Rol usado para filtrar módulos disponibles.</td></tr>
+      <tr><td>activeModule</td><td>Módulo actual renderizado por Dashboard.jsx.</td></tr>
+    </table>
+    <pre><code>const modulosMesero = modulesData.filter(m =>
+  ['comandas', 'menu', 'pagos'].includes(m.id)
+)</code></pre>
+    <div class="note">Para seguridad robusta, los permisos deben reforzarse también en Supabase mediante políticas RLS, no solo en frontend.</div>
+    <div class="footer"><span>GastroSoft · Manual Técnico</span><span>Página 13</span></div>
+  </section>
+
+  <section class="page">
+    <div class="header-line"><img src="../public/LogoGastroSoftHeader.png" alt="GastroSoft"><h1>9. Hooks y lógica de datos</h1></div>
+    <p>La lógica de consulta y actualización se concentra en <b>src/hooks/useSupabase.js</b>. Cada hook encapsula un área funcional.</p>
+    <table>
+      <tr><th>Hook</th><th>Tablas principales</th><th>Responsabilidad</th></tr>
+      <tr><td>useMenu</td><td>categorias, productos</td><td>Carga categorías y productos del menú.</td></tr>
+      <tr><td>useComandas</td><td>comandas, detalles_comanda, mesas</td><td>CRUD de comandas y detalles.</td></tr>
+      <tr><td>useMesas</td><td>mesas</td><td>Alta, edición y estado de mesas.</td></tr>
+      <tr><td>usePersonal</td><td>usuarios, asistencia</td><td>Empleados, roles y asistencia.</td></tr>
+      <tr><td>useClientes</td><td>reservaciones, mesas, comandas</td><td>Reservaciones y comanda asociada.</td></tr>
+      <tr><td>useInventario</td><td>inventario, movimientos_inventario</td><td>Stock y movimientos.</td></tr>
+    </table>
+    <div class="footer"><span>GastroSoft · Manual Técnico</span><span>Página 14</span></div>
+  </section>
+
+  <section class="page">
+    <div class="header-line"><img src="../public/LogoGastroSoftHeader.png" alt="GastroSoft"><h1>9.1 Hooks administrativos</h1></div>
+    <table>
+      <tr><th>Hook</th><th>Tablas principales</th><th>Responsabilidad</th></tr>
+      <tr><td>useProveedores</td><td>proveedores, productos_proveedor, compras_proveedor, inventario</td><td>Proveedores, compras y actualización de stock.</td></tr>
+      <tr><td>usePromociones</td><td>promociones</td><td>Promociones, estados y actualización.</td></tr>
+      <tr><td>useCaja</td><td>cortes_caja</td><td>Historial y cierre de caja.</td></tr>
+      <tr><td>useReportes</td><td>comandas, detalles_comanda</td><td>Datos agregados para reportes.</td></tr>
+    </table>
+    <h2>Patrón general de hooks</h2>
+    <pre><code>const [datos, setDatos] = useState([])
+
+useEffect(() => {
+  fetchDatos()
+}, [])
+
+async function fetchDatos() {
+  const { data } = await supabase.from('tabla').select('*')
+  setDatos(data || [])
+}</code></pre>
+    <div class="footer"><span>GastroSoft · Manual Técnico</span><span>Página 15</span></div>
+  </section>
+
+  <section class="page">
+    <div class="header-line"><img src="../public/LogoGastroSoftHeader.png" alt="GastroSoft"><h1>10. Modelo de base de datos I</h1></div>
+    <table>
+      <tr><th>Tabla</th><th>Campos relevantes</th><th>Uso</th></tr>
+      <tr><td>usuarios</td><td>id, nombre, usuario, contrasena, rol, estado, foto_perfil</td><td>Login, empleados, roles y perfil.</td></tr>
+      <tr><td>mesas</td><td>id, numero, capacidad, ubicacion, estado</td><td>Control de mesas disponibles, ocupadas o reservadas.</td></tr>
+      <tr><td>categorias</td><td>id, nombre</td><td>Agrupación de productos del menú.</td></tr>
+      <tr><td>productos</td><td>id, nombre, precio, categoria, imagen, estado</td><td>Catálogo visible en menú y comandas.</td></tr>
+      <tr><td>asistencia</td><td>id, id_usuario, entrada, salida, fecha</td><td>Registro de asistencia del personal.</td></tr>
+    </table>
+    <h2>Relaciones principales</h2>
+    <ul>
+      <li>Un usuario puede aparecer como mesero o empleado responsable.</li>
+      <li>Una mesa puede estar ligada a comandas y reservaciones.</li>
+      <li>Los productos pertenecen a categorías del menú.</li>
+    </ul>
+    <div class="footer"><span>GastroSoft · Manual Técnico</span><span>Página 16</span></div>
+  </section>
+
+  <section class="page">
+    <div class="header-line"><img src="../public/LogoGastroSoftHeader.png" alt="GastroSoft"><h1>10.1 Modelo de base de datos II</h1></div>
+    <table>
+      <tr><th>Tabla</th><th>Campos relevantes</th><th>Uso</th></tr>
+      <tr><td>comandas</td><td>id, numero_comanda, id_mesa, id_mesero, estado, subtotal, descuento, impuesto, total, id_reservacion, cuenta_separada</td><td>Orden principal del cliente.</td></tr>
+      <tr><td>detalles_comanda</td><td>id, id_comanda, nombre_item, cantidad, precio_unitario, subtotal, observaciones</td><td>Productos incluidos en una comanda.</td></tr>
+      <tr><td>reservaciones</td><td>id, cliente, fecha, hora, personas, id_mesa, telefono, estado</td><td>Reservas y relación con mesas.</td></tr>
+      <tr><td>promociones</td><td>id, nombre, descripcion, tipo, valor, estado</td><td>Descuentos y combos.</td></tr>
+    </table>
+    <h2>Relación comanda-reservación</h2>
+    <p>Al crear una reservación, el sistema puede crear una comanda asociada con <b>id_reservacion</b>, <b>id_mesa</b> y límite de cuentas según número de personas.</p>
+    <div class="footer"><span>GastroSoft · Manual Técnico</span><span>Página 17</span></div>
+  </section>
+
+  <section class="page">
+    <div class="header-line"><img src="../public/LogoGastroSoftHeader.png" alt="GastroSoft"><h1>10.2 Modelo de base de datos III</h1></div>
+    <table>
+      <tr><th>Tabla</th><th>Campos relevantes</th><th>Uso</th></tr>
+      <tr><td>inventario</td><td>id, nombre, cantidad, unidad, cantidad_minima, cantidad_maxima, id_proveedor, estado</td><td>Control de ingredientes y existencias.</td></tr>
+      <tr><td>movimientos_inventario</td><td>id, id_ingrediente, tipo, cantidad, empleado, fecha</td><td>Entradas y salidas de stock.</td></tr>
+      <tr><td>proveedores</td><td>id, nombre, telefono, correo, direccion, estado</td><td>Datos de proveedores.</td></tr>
+      <tr><td>productos_proveedor</td><td>id, id_proveedor, nombre, precio, unidad, estado</td><td>Productos ofrecidos por proveedor.</td></tr>
+      <tr><td>compras_proveedor</td><td>id, id_proveedor, total, fecha, estado</td><td>Compras registradas.</td></tr>
+      <tr><td>cortes_caja</td><td>id, fecha, total_ventas, efectivo, tarjeta, usuario</td><td>Cierres y cortes de caja.</td></tr>
+    </table>
+    <div class="footer"><span>GastroSoft · Manual Técnico</span><span>Página 18</span></div>
+  </section>
+
+  <section class="page">
+    <div class="header-line"><img src="../public/LogoGastroSoftHeader.png" alt="GastroSoft"><h1>10.3 Diagrama relacional lógico</h1></div>
+    <div class="diagram">
+      <div class="layer">usuarios ── asistencia</div>
+      <div class="layer">mesas ── comandas ── detalles_comanda</div>
+      <div class="layer">reservaciones ── comandas</div>
+      <div class="layer">proveedores ── inventario ── movimientos_inventario</div>
+      <div class="layer">proveedores ── productos_proveedor ── compras_proveedor</div>
+      <div class="layer">comandas ── reportes / pagos / caja</div>
+    </div>
+    <h2>Reglas de integridad recomendadas</h2>
+    <ul>
+      <li>No eliminar físicamente datos críticos de ventas; preferir estados como cancelado o inactivo.</li>
+      <li>Validar que una comanda pagada no pueda modificarse sin autorización.</li>
+      <li>Actualizar estado de mesa al crear, pagar o cancelar comanda.</li>
+      <li>Registrar todo movimiento de inventario con empleado responsable.</li>
+    </ul>
+    <div class="footer"><span>GastroSoft · Manual Técnico</span><span>Página 19</span></div>
+  </section>
+
+  <section class="page">
+    <div class="header-line"><img src="../public/LogoGastroSoftHeader.png" alt="GastroSoft"><h1>10.4 Diccionario de estados</h1></div>
+    <table>
+      <tr><th>Entidad</th><th>Estados usados</th><th>Significado</th></tr>
+      <tr><td>Mesa</td><td>disponible, ocupada, reservada</td><td>Disponibilidad operativa de mesa.</td></tr>
+      <tr><td>Comanda</td><td>pendiente, Pagado, Cancelado</td><td>Estado de orden y pago.</td></tr>
+      <tr><td>Inventario</td><td>normal, bajo, agotado</td><td>Nivel de stock respecto al mínimo.</td></tr>
+      <tr><td>Proveedor</td><td>activo, inactivo</td><td>Proveedor disponible o deshabilitado.</td></tr>
+      <tr><td>Promoción</td><td>activa, inactiva</td><td>Promoción disponible o no aplicable.</td></tr>
+      <tr><td>Usuario</td><td>activo, inactivo</td><td>Permite o bloquea acceso al sistema.</td></tr>
+    </table>
+    <div class="note">Conviene normalizar mayúsculas/minúsculas de estados para evitar comparaciones inconsistentes en frontend.</div>
+    <div class="footer"><span>GastroSoft · Manual Técnico</span><span>Página 20</span></div>
+  </section>
+
+  <section class="page">
+    <div class="header-line"><img src="../public/LogoGastroSoftHeader.png" alt="GastroSoft"><h1>11. Flujo: inicio de sesión</h1></div>
+    <div class="diagram">
+      <div class="layer">Usuario ingresa usuario y contraseña</div>
+      <div class="arrow">↓</div>
+      <div class="layer">App.jsx consulta tabla usuarios</div>
+      <div class="arrow">↓</div>
+      <div class="layer">Se valida usuario, contraseña y estado activo</div>
+      <div class="arrow">↓</div>
+      <div class="layer">Se guarda currentUser y gastrosoft_user en localStorage</div>
+      <div class="arrow">↓</div>
+      <div class="layer">Se filtran módulos según rol y se muestra dashboard</div>
+    </div>
+    <h2>Consulta base</h2>
+    <pre><code>supabase
+  .from('usuarios')
+  .select('*')
+  .eq('usuario', username)
+  .eq('contrasena', password)
+  .eq('estado', 'activo')
+  .single()</code></pre>
+    <div class="footer"><span>GastroSoft · Manual Técnico</span><span>Página 21</span></div>
+  </section>
+
+  <section class="page">
+    <div class="header-line"><img src="../public/LogoGastroSoftHeader.png" alt="GastroSoft"><h1>11.1 Flujo: creación de comanda</h1></div>
+    <div class="diagram">
+      <div class="layer">Usuario abre Nueva Comanda</div>
+      <div class="arrow">↓</div>
+      <div class="layer">Selecciona productos del menú</div>
+      <div class="arrow">↓</div>
+      <div class="layer">Se calcula subtotal, descuento, impuesto y total</div>
+      <div class="arrow">↓</div>
+      <div class="layer">Se inserta registro en comandas</div>
+      <div class="arrow">↓</div>
+      <div class="layer">Se insertan detalles_comanda</div>
+      <div class="arrow">↓</div>
+      <div class="layer">Se actualiza mesa y se disparan eventos de refresco</div>
+    </div>
+    <h2>Tablas afectadas</h2>
+    <ul>
+      <li>comandas</li>
+      <li>detalles_comanda</li>
+      <li>mesas</li>
+    </ul>
+    <div class="footer"><span>GastroSoft · Manual Técnico</span><span>Página 22</span></div>
+  </section>
+
+  <section class="page">
+    <div class="header-line"><img src="../public/LogoGastroSoftHeader.png" alt="GastroSoft"><h1>11.2 Flujos: inventario y reservaciones</h1></div>
+    <h2>Inventario</h2>
+    <div class="diagram">
+      <div class="layer">Registrar entrada/salida</div>
+      <div class="arrow">↓</div>
+      <div class="layer">Insertar movimiento en movimientos_inventario</div>
+      <div class="arrow">↓</div>
+      <div class="layer">Actualizar cantidad en inventario</div>
+      <div class="arrow">↓</div>
+      <div class="layer">Recalcular estado: normal, bajo o agotado</div>
+    </div>
+    <h2>Reservación</h2>
+    <div class="diagram">
+      <div class="layer">Capturar cliente, fecha, hora, personas y mesa</div>
+      <div class="arrow">↓</div>
+      <div class="layer">Insertar reservaciones</div>
+      <div class="arrow">↓</div>
+      <div class="layer">Actualizar mesa como reservada</div>
+      <div class="arrow">↓</div>
+      <div class="layer">Crear comanda asociada a id_reservacion</div>
+    </div>
+    <div class="footer"><span>GastroSoft · Manual Técnico</span><span>Página 23</span></div>
+  </section>
+
+  <section class="page">
+    <div class="header-line"><img src="../public/LogoGastroSoftHeader.png" alt="GastroSoft"><h1>12. Eventos y sincronización</h1></div>
+    <p>El sistema utiliza eventos del navegador para notificar cambios entre módulos y refrescar datos.</p>
+    <table>
+      <tr><th>Evento</th><th>Uso</th></tr>
+      <tr><td>comandas:changed</td><td>Indica que cambió una comanda o sus detalles.</td></tr>
+      <tr><td>mesas:changed</td><td>Indica cambio de estado o datos de una mesa.</td></tr>
+      <tr><td>reservaciones:changed</td><td>Indica creación o modificación de reservaciones.</td></tr>
+      <tr><td>inventario:changed</td><td>Indica entrada, salida o actualización de inventario.</td></tr>
+    </table>
+    <pre><code>window.dispatchEvent(new Event('comandas:changed'))
+window.addEventListener('reservaciones:changed', recargarReservaciones)</code></pre>
+    <div class="note">Este enfoque es práctico para una aplicación pequeña/mediana; si crece, puede evaluarse un estado global formal o suscripciones realtime de Supabase.</div>
+    <div class="footer"><span>GastroSoft · Manual Técnico</span><span>Página 24</span></div>
+  </section>
+
+  <section class="page">
+    <div class="header-line"><img src="../public/LogoGastroSoftHeader.png" alt="GastroSoft"><h1>13. Seguridad técnica</h1></div>
+    <table>
+      <tr><th>Aspecto</th><th>Estado actual</th><th>Recomendación</th></tr>
+      <tr><td>Autenticación</td><td>Consulta directa a tabla usuarios.</td><td>Usar Supabase Auth o hashing de contraseñas.</td></tr>
+      <tr><td>Credenciales</td><td>Cliente Supabase configurado en frontend.</td><td>Mover valores a variables de entorno y no exponer claves sensibles.</td></tr>
+      <tr><td>Autorización</td><td>Filtro de módulos en frontend.</td><td>Aplicar políticas RLS en Supabase.</td></tr>
+      <tr><td>Datos críticos</td><td>Operaciones CRUD directas.</td><td>Validar reglas en base de datos o funciones seguras.</td></tr>
+    </table>
+    <h2>Buenas prácticas</h2>
+    <ul>
+      <li>No guardar contraseñas en texto plano.</li>
+      <li>No eliminar registros críticos sin respaldo.</li>
+      <li>Limitar permisos de la anon key usando RLS.</li>
+      <li>Registrar auditoría en operaciones sensibles como pagos, caja e inventario.</li>
+    </ul>
+    <div class="footer"><span>GastroSoft · Manual Técnico</span><span>Página 25</span></div>
+  </section>
+
+  <section class="page">
+    <div class="header-line"><img src="../public/LogoGastroSoftHeader.png" alt="GastroSoft"><h1>14. Pruebas y validación</h1></div>
+    <h2>Pruebas manuales recomendadas</h2>
+    <table>
+      <tr><th>Módulo</th><th>Prueba</th><th>Resultado esperado</th></tr>
+      <tr><td>Login</td><td>Usuario válido e inválido.</td><td>Permite o bloquea acceso correctamente.</td></tr>
+      <tr><td>Comandas</td><td>Crear, editar, eliminar y pagar.</td><td>Actualiza mesa y totales.</td></tr>
+      <tr><td>Reservaciones</td><td>Crear, editar y cancelar.</td><td>Reserva/libera mesa y sincroniza comanda.</td></tr>
+      <tr><td>Inventario</td><td>Entrada y salida.</td><td>Actualiza cantidad y movimiento.</td></tr>
+      <tr><td>Caja</td><td>Corte de turno.</td><td>Registra corte en cortes_caja.</td></tr>
+    </table>
+    <h2>Validación automática mínima</h2>
+    <pre><code>npm run lint
+npm run build</code></pre>
+    <div class="footer"><span>GastroSoft · Manual Técnico</span><span>Página 26</span></div>
+  </section>
+
+  <section class="page">
+    <div class="header-line"><img src="../public/LogoGastroSoftHeader.png" alt="GastroSoft"><h1>15. Despliegue y producción</h1></div>
+    <h2>Build</h2>
+    <pre><code>npm run build</code></pre>
+    <p>El comando genera una versión estática en <b>dist/</b>. Esa carpeta puede publicarse en servicios como Netlify, Vercel, hosting estático o un servidor propio configurado para SPA.</p>
+    <h2>Checklist antes de publicar</h2>
+    <ul>
+      <li>Verificar variables de entorno.</li>
+      <li>Ejecutar build sin errores.</li>
+      <li>Confirmar conexión con Supabase.</li>
+      <li>Probar login y navegación por roles.</li>
+      <li>Probar creación de comanda y pago en entorno controlado.</li>
+      <li>Revisar políticas de seguridad en Supabase.</li>
+    </ul>
+    <div class="note">Si se publica como SPA, el servidor debe redirigir rutas desconocidas a index.html.</div>
+    <div class="footer"><span>GastroSoft · Manual Técnico</span><span>Página 27</span></div>
+  </section>
+
+  <section class="page">
+    <div class="header-line"><img src="../public/LogoGastroSoftHeader.png" alt="GastroSoft"><h1>16. Mantenimiento y respaldos</h1></div>
+    <h2>Mantenimiento periódico</h2>
+    <ul>
+      <li>Revisar dependencias con frecuencia.</li>
+      <li>Respaldar base de datos de Supabase.</li>
+      <li>Revisar logs o errores reportados por usuarios.</li>
+      <li>Validar que cortes de caja y pagos cuadren.</li>
+      <li>Depurar productos, proveedores o usuarios inactivos.</li>
+    </ul>
+    <h2>Respaldo recomendado</h2>
+    <table>
+      <tr><th>Elemento</th><th>Frecuencia sugerida</th></tr>
+      <tr><td>Base de datos Supabase</td><td>Diaria o semanal, según operación.</td></tr>
+      <tr><td>Repositorio del proyecto</td><td>Cada cambio importante.</td></tr>
+      <tr><td>Imágenes del menú</td><td>Cuando se agreguen o cambien productos.</td></tr>
+      <tr><td>Manuales y documentación</td><td>Después de cambios funcionales.</td></tr>
+    </table>
+    <div class="footer"><span>GastroSoft · Manual Técnico</span><span>Página 28</span></div>
+  </section>
+
+  <section class="page">
+    <div class="header-line"><img src="../public/LogoGastroSoftHeader.png" alt="GastroSoft"><h1>17. Solución de problemas</h1></div>
+    <table>
+      <tr><th>Problema</th><th>Causa probable</th><th>Solución</th></tr>
+      <tr><td>No inicia sesión</td><td>Credenciales incorrectas o usuario inactivo.</td><td>Validar tabla usuarios y estado activo.</td></tr>
+      <tr><td>No carga información</td><td>Fallo de conexión Supabase o permisos.</td><td>Revisar consola, URL, key y RLS.</td></tr>
+      <tr><td>No actualiza mesa</td><td>Evento no disparado o update fallido.</td><td>Validar mesas:changed y respuesta de Supabase.</td></tr>
+      <tr><td>Inventario incorrecto</td><td>Movimiento duplicado o salida mal capturada.</td><td>Revisar movimientos_inventario y cantidad actual.</td></tr>
+      <tr><td>Build falla</td><td>Error de JSX o import faltante.</td><td>Ejecutar npm run build y corregir línea indicada.</td></tr>
+    </table>
+    <h2>Diagnóstico rápido</h2>
+    <pre><code>npm run build
+npm run lint
+# Revisar consola del navegador
+# Revisar errores devueltos por Supabase</code></pre>
+    <div class="footer"><span>GastroSoft · Manual Técnico</span><span>Página 29</span></div>
+  </section>
+
+  <section class="page">
+    <div class="header-line"><img src="../public/LogoGastroSoftHeader.png" alt="GastroSoft"><h1>18. Glosario técnico</h1></div>
+    <table>
+      <tr><th>Término</th><th>Definición</th></tr>
+      <tr><td>SPA</td><td>Aplicación de una sola página, renderizada desde frontend.</td></tr>
+      <tr><td>Hook</td><td>Función de React que maneja estado, efectos o lógica reutilizable.</td></tr>
+      <tr><td>Supabase</td><td>Plataforma backend basada en PostgreSQL y APIs automáticas.</td></tr>
+      <tr><td>RLS</td><td>Row Level Security; políticas de acceso por fila en PostgreSQL/Supabase.</td></tr>
+      <tr><td>CRUD</td><td>Crear, leer, actualizar y eliminar registros.</td></tr>
+      <tr><td>Build</td><td>Versión optimizada del sistema para producción.</td></tr>
+      <tr><td>Evento</td><td>Notificación interna usada para recargar módulos relacionados.</td></tr>
+    </table>
+    <h2>Conclusión</h2>
+    <p>GastroSoft está construido como una aplicación web modular con React, Vite y Supabase. Su mantenimiento depende de conservar ordenada la estructura de componentes, reforzar seguridad en Supabase y validar los flujos críticos: login, comandas, pagos, inventario, reservaciones y caja.</p>
+    <div class="footer"><span>GastroSoft · Manual Técnico</span><span>Página 30</span></div>
+  </section>
+</body>
+</html>
