@@ -56,8 +56,9 @@ const CategoryIcon = ({ label }) => {
   return <svg viewBox="0 0 24 24"><path d="M12 2s5 5 5 10a5 5 0 0 1-10 0c0-5 5-10 5-10Z" /><path d="M12 22c-2-2-3-4-1-7" /></svg>
 }
 
-export const MenuModule = ({ menu, categories, selectedCategory, setSelectedCategory }) => {
+export const MenuModule = ({ menu, categories, selectedCategory, setSelectedCategory, currentUser }) => {
   const { menu: menuBd, categories: categoriesBd, loading } = useMenu()
+  const puedeEditarMenu = ['administrador', 'admin', 'gerente'].includes(String(currentUser?.rol || '').toLowerCase())
   const [localCategory, setLocalCategory] = useState('')
   const [search, setSearch] = useState('')
   const [viewMode, setViewMode] = useState('cards')
@@ -129,12 +130,14 @@ export const MenuModule = ({ menu, categories, selectedCategory, setSelectedCate
   const showingTo = Math.min(currentPage * pageSize, filteredProducts.length)
 
   const openAddModal = () => {
+    if (!puedeEditarMenu) return
     setForm({ id: null, nombre: '', precio: '', imagen: '', descripcion: '', categoria: activeCategory || sortedCategories[0]?.key || '' })
     setFormError('')
     setModalMode('add')
   }
 
   const openEditModal = (product) => {
+    if (!puedeEditarMenu) return
     setForm({
       id: product.id,
       nombre: product.nombre || '',
@@ -149,6 +152,10 @@ export const MenuModule = ({ menu, categories, selectedCategory, setSelectedCate
 
   const saveProduct = async (event) => {
     event.preventDefault()
+    if (!puedeEditarMenu) {
+      setFormError('Solo administrador o gerente puede modificar el menu.')
+      return
+    }
     const category = sortedCategories.find(cat => cat.key === form.categoria)
     const price = Number(String(form.precio).replace(/[^0-9.]/g, ''))
 
@@ -240,9 +247,16 @@ export const MenuModule = ({ menu, categories, selectedCategory, setSelectedCate
   return (
     <section className="menu-catalog">
       <div className="menu-catalog-header">
-        <button className="menu-add-button" onClick={openAddModal}>
-          <span>+</span> Agregar Platillo
-        </button>
+        {puedeEditarMenu && (
+          <button className="menu-add-button" onClick={openAddModal}>
+            <span>+</span> Agregar Platillo
+          </button>
+        )}
+        {!puedeEditarMenu && (
+          <div className="menu-readonly-note">
+            Solo administrador o gerente puede agregar o editar platillos.
+          </div>
+        )}
       </div>
 
       <div className="menu-toolbar">
@@ -290,15 +304,17 @@ export const MenuModule = ({ menu, categories, selectedCategory, setSelectedCate
               <h2>{product.nombre}</h2>
               <p>{getProductDescription(product)}</p>
               <strong>{product.precio}</strong>
-              <button className="menu-edit-button" onClick={() => openEditModal(product)} aria-label={`Editar ${product.nombre}`}>
-                <EditIcon size={18} />
-                <span>Editar</span>
-              </button>
+              {puedeEditarMenu && (
+                <button className="menu-edit-button" onClick={() => openEditModal(product)} aria-label={`Editar ${product.nombre}`}>
+                  <EditIcon size={18} />
+                  <span>Editar</span>
+                </button>
+              )}
             </div>
           </article>
         ))}
 
-        {!loading && (
+        {!loading && puedeEditarMenu && (
           <button className="menu-add-card" onClick={openAddModal}>
             <span>+</span>
             <strong>Agregar nuevo platillo</strong>

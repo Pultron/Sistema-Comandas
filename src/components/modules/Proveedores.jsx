@@ -587,7 +587,7 @@ export const ProveedoresModule = () => {
 
       {toast && (
         <div style={{
-          position: 'fixed', top: '8.5rem', left: '50%', transform: 'translateX(-50%)',
+          position: 'fixed', right: '22px', bottom: '22px', maxWidth: 'min(460px, calc(100vw - 44px))',
           background: toast.tipo === 'error' ? '#EF4444' : '#4CAF50',
           color: 'white', padding: '1rem 2rem', borderRadius: '10px',
           boxShadow: '0 4px 20px rgba(0,0,0,0.3)', fontWeight: 600,

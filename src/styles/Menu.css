@@ -56,6 +56,16 @@
   line-height: 1;
 }
 
+.menu-readonly-note {
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  padding: 12px 14px;
+  font-size: 0.86rem;
+  font-weight: 900;
+}
+
 .menu-toolbar {
   align-items: center;
   display: grid;

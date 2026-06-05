@@ -50,6 +50,37 @@ const calculateShiftHours = (startTime, endTime) => {
   return Number(((end - start) / 60).toFixed(2))
 }
 
+const resolveAttendanceRecord = (row, selectedHorario, jornada = 8) => {
+  const entrada = row?.fecha_entrada ? new Date(row.fecha_entrada) : null
+  if (!entrada) return null
+
+  const salida = row.fecha_salida ? new Date(row.fecha_salida) : null
+  const lateLimit = new Date(entrada)
+  const [hour, minute] = String(selectedHorario?.hora_entrada || '08:00').split(':').map(Number)
+  const tolerancia = Number(selectedHorario?.tolerancia_minutos ?? 15)
+  lateLimit.setHours(hour || 8, (minute || 0) + tolerancia, 0, 0)
+
+  const normalizedStatus = String(row.estado || '').toLowerCase()
+  const status = normalizedStatus.includes('ausente')
+    ? 'falta'
+    : entrada > lateLimit
+      ? 'retardo'
+      : 'asistencia'
+  const worked = salida ? Math.max(0, (salida - entrada) / 36e5) : 0
+
+  return {
+    id: row.id,
+    date: entrada,
+    status,
+    entrada,
+    salida,
+    worked,
+    extra: Math.max(0, worked - jornada),
+    lateLimit,
+    tolerancia
+  }
+}
+
 const statusLabels = {
   asistencia: 'Asistencia',
   retardo: 'Retardo',
@@ -62,6 +93,8 @@ const statusLabels = {
 const dayKeyByIndex = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado']
 const dayOptions = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo']
 const defaultRestDays = ['sabado', 'domingo']
+const ASISTENCIA_SELECTED_EMPLOYEE_KEY = 'gastrosoft_asistencia_selected_employee'
+const ASISTENCIA_SELECTED_MONTH_KEY = 'gastrosoft_asistencia_selected_month'
 
 const roleAreaMap = {
   admin: 'Administracion',
@@ -83,8 +116,11 @@ const normalizeRestDays = (value) => {
 
 export const AsistenciaModule = () => {
   const { personal, loading } = usePersonal()
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState('')
-  const [monthDate, setMonthDate] = useState(startOfMonth(new Date()))
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState(() => localStorage.getItem(ASISTENCIA_SELECTED_EMPLOYEE_KEY) || '')
+  const [monthDate, setMonthDate] = useState(() => {
+    const savedMonth = localStorage.getItem(ASISTENCIA_SELECTED_MONTH_KEY)
+    return savedMonth ? startOfMonth(parseDateOnly(savedMonth)) : startOfMonth(new Date())
+  })
   const [attendanceRows, setAttendanceRows] = useState([])
   const [horarios, setHorarios] = useState([])
   const [employeeConfigs, setEmployeeConfigs] = useState([])
@@ -97,10 +133,20 @@ export const AsistenciaModule = () => {
   const attendanceRequestRef = useRef(0)
 
   useEffect(() => {
-    if (!selectedEmployeeId && personal[0]) {
+    if ((!selectedEmployeeId || !personal.some((empleado) => String(empleado.id) === String(selectedEmployeeId))) && personal[0]) {
       setSelectedEmployeeId(String(personal[0].id))
     }
   }, [personal, selectedEmployeeId])
+
+  useEffect(() => {
+    if (selectedEmployeeId) {
+      localStorage.setItem(ASISTENCIA_SELECTED_EMPLOYEE_KEY, String(selectedEmployeeId))
+    }
+  }, [selectedEmployeeId])
+
+  useEffect(() => {
+    localStorage.setItem(ASISTENCIA_SELECTED_MONTH_KEY, isoDay(startOfMonth(monthDate)))
+  }, [monthDate])
 
   const selectedEmployee = useMemo(() => (
     personal.find((empleado) => String(empleado.id) === String(selectedEmployeeId)) || personal[0]
@@ -183,6 +229,14 @@ export const AsistenciaModule = () => {
 
   useEffect(() => {
     fetchAttendanceAndEvents(selectedEmployee?.id, monthDate, true)
+  }, [selectedEmployee?.id, monthDate])
+
+  useEffect(() => {
+    const recargarAsistencia = () => {
+      fetchAttendanceAndEvents(selectedEmployee?.id, monthDate, true)
+    }
+    window.addEventListener('asistencia:changed', recargarAsistencia)
+    return () => window.removeEventListener('asistencia:changed', recargarAsistencia)
   }, [selectedEmployee?.id, monthDate])
 
   useEffect(() => {
@@ -336,22 +390,17 @@ export const AsistenciaModule = () => {
       }
 
       if (row) {
-        const entrada = new Date(row.fecha_entrada)
-        const salida = row.fecha_salida ? new Date(row.fecha_salida) : null
-        const lateLimit = new Date(entrada)
-        const [hour, minute] = String(selectedHorario?.hora_entrada || '08:00').split(':').map(Number)
-        lateLimit.setHours(hour || 8, (minute || 0) + Number(selectedHorario?.tolerancia_minutos ?? 15), 0, 0)
-        const normalizedStatus = String(row.estado || '').toLowerCase()
-        const status = normalizedStatus.includes('ausente') ? 'falta' : entrada > lateLimit ? 'retardo' : 'asistencia'
-        const worked = salida ? Math.max(0, (salida - entrada) / 36e5) : 0
+        const resolved = resolveAttendanceRecord(row, selectedHorario, employeeProfile.jornada)
         return {
           date,
           inMonth,
-          status,
-          entrada,
-          salida,
-          worked,
-          extra: Math.max(0, worked - employeeProfile.jornada)
+          status: resolved.status,
+          entrada: resolved.entrada,
+          salida: resolved.salida,
+          worked: resolved.worked,
+          extra: resolved.extra,
+          lateLimit: resolved.lateLimit,
+          tolerancia: resolved.tolerancia
         }
       }
 
@@ -378,14 +427,14 @@ export const AsistenciaModule = () => {
     }
   }, [attendanceRows, eventos, festivos, employeeProfile, monthDate, selectedHorario])
 
-  const latestRecords = useMemo(() => (
-    monthModel.days
-      .filter((day) => day.inMonth && day.entrada)
-      .sort((a, b) => b.date - a.date)
-      .slice(0, 6)
-  ), [monthModel.days])
-
   const stats = monthModel.summary
+  const latestRecords = useMemo(() => (
+    attendanceRows
+      .map((row) => resolveAttendanceRecord(row, selectedHorario, employeeProfile.jornada))
+      .filter(Boolean)
+      .sort((a, b) => b.entrada - a.entrada)
+      .slice(0, 6)
+  ), [attendanceRows, employeeProfile.jornada, selectedHorario])
   const initials = employeeProfile.nombre.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase()
   const openActionModal = (action) => {
     setActionError('')
@@ -554,7 +603,7 @@ const RecordsTable = ({ records }) => (
         {records.length === 0 ? (
           <tr><td colSpan="6">No hay registros para este mes.</td></tr>
         ) : records.map((record) => (
-          <tr key={isoDay(record.date)}>
+          <tr key={record.id || record.entrada?.toISOString()}>
             <td>{DATE_FORMAT.format(record.date)}</td>
             <td>{TIME_FORMAT.format(record.entrada)}</td>
             <td>{record.salida ? TIME_FORMAT.format(record.salida) : 'Pendiente'}</td>

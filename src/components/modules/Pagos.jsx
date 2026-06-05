@@ -24,6 +24,38 @@ const formatMoney = (value) => `$${(Number(value) || 0).toLocaleString('es-MX', 
 
 const formatComandaId = (id) => `#${String(id ?? '').padStart(4, '0')}`
 
+const normalizarMetodoPago = (metodo) => String(metodo || '').trim().toLowerCase()
+
+const mostrarMetodoPago = (metodo) => {
+  const value = normalizarMetodoPago(metodo)
+  if (value === 'efectivo') return 'Efectivo'
+  if (value === 'tarjeta') return 'Tarjeta'
+  return metodo || 'No especificado'
+}
+
+const insertarPagoCompatible = async (payload, metodoSeleccionado) => {
+  const candidatos = [...new Set([
+    normalizarMetodoPago(metodoSeleccionado),
+    'efectivo',
+    metodoSeleccionado
+  ].filter(Boolean))]
+
+  let ultimoError = null
+  for (const metodo_pago of candidatos) {
+    const { data, error } = await supabase
+      .from('pagos')
+      .insert({ ...payload, metodo_pago })
+      .select('id, metodo_pago')
+      .single()
+
+    if (!error) return { data, metodoGuardado: metodo_pago, error: null }
+    ultimoError = error
+    if (!String(error.message || '').includes('pagos_metodo_pago_check')) break
+  }
+
+  return { data: null, metodoGuardado: null, error: ultimoError }
+}
+
 const formatFechaHora = (fecha) => {
   const date = new Date(fecha)
   if (Number.isNaN(date.getTime())) return fecha || '-'
@@ -84,9 +116,13 @@ export const Pagos = ({ comandas: comandasProp, currentUser }) => {
     loading,
     actualizarEstadoComanda,
     refetch
-  } = useComandas()
+  } = useComandas(currentUser)
 
   const comandas = comandasProp || comandasBd
+  const puedeVerTodasLasCuentas = ['administrador', 'admin', 'gerente'].includes(String(currentUser?.rol || '').toLowerCase())
+  const comandasVisibles = puedeVerTodasLasCuentas
+    ? comandas
+    : comandas.filter(comanda => String(comanda.id_mesero || '') === String(currentUser?.id || ''))
   const [busqueda, setBusqueda] = useState('')
   const [filtroMesa, setFiltroMesa] = useState('Todas')
   const [filtroMesero, setFiltroMesero] = useState('Todos')
@@ -104,13 +140,13 @@ export const Pagos = ({ comandas: comandasProp, currentUser }) => {
   const [ticketImpresoComandaId, setTicketImpresoComandaId] = useState(null)
 
   const comandasPendientes = useMemo(
-    () => comandas.filter(comanda => !esPagada(comanda) && !esCancelada(comanda)),
-    [comandas]
+    () => comandasVisibles.filter(comanda => !esPagada(comanda) && !esCancelada(comanda)),
+    [comandasVisibles]
   )
 
   const comandasPagadas = useMemo(
-    () => comandas.filter(esPagada).sort((a, b) => new Date(b.fechaPago || b.fecha) - new Date(a.fechaPago || a.fecha)),
-    [comandas]
+    () => comandasVisibles.filter(esPagada).sort((a, b) => new Date(b.fechaPago || b.fecha) - new Date(a.fechaPago || a.fecha)),
+    [comandasVisibles]
   )
 
   const mesas = useMemo(
@@ -143,8 +179,8 @@ export const Pagos = ({ comandas: comandasProp, currentUser }) => {
   }, [busqueda, comandasPendientes, filtroEstado, filtroMesa, filtroMesero])
 
   const comandaSeleccionada = useMemo(() => (
-    comandas.find(comanda => comanda.id === comandaSeleccionadaId) || cuentasFiltradas[0] || null
-  ), [comandaSeleccionadaId, comandas, cuentasFiltradas])
+    comandasVisibles.find(comanda => comanda.id === comandaSeleccionadaId) || cuentasFiltradas[0] || null
+  ), [comandaSeleccionadaId, comandasVisibles, cuentasFiltradas])
 
   const subtotal = parseMonto(comandaSeleccionada?.subtotal) || comandaSeleccionada?.items?.reduce((sum, item) => sum + parseMonto(item.subtotal), 0) || 0
   const descuento = parseMonto(comandaSeleccionada?.descuento)
@@ -208,6 +244,13 @@ export const Pagos = ({ comandas: comandasProp, currentUser }) => {
   }, [comandaSeleccionadaId, cuentasFiltradas])
 
   useEffect(() => {
+    if (!comandaSeleccionadaId) return
+    if (!comandasVisibles.some(comanda => comanda.id === comandaSeleccionadaId)) {
+      setComandaSeleccionadaId(cuentasFiltradas[0]?.id || null)
+    }
+  }, [comandaSeleccionadaId, comandasVisibles, cuentasFiltradas])
+
+  useEffect(() => {
     if (!comandaSeleccionada) return
     const venta = Math.max(
       (parseMonto(comandaSeleccionada.subtotal) || comandaSeleccionada.items?.reduce((sum, item) => sum + parseMonto(item.subtotal), 0) || 0) -
@@ -236,12 +279,14 @@ export const Pagos = ({ comandas: comandasProp, currentUser }) => {
   const cargarPagosRegistrados = async () => {
     const { data, error } = await supabase
       .from('pagos')
-      .select('id, id_comanda, id_usuario, metodo_pago, monto, subtotal, descuento, impuesto, propina, total_venta, total_cobrado, monto_recibido, cambio_entregado, dejar_cambio_como_propina, estado_pago, fecha_pago, comandas(id, total, created_at, usuarios(nombre), mesas(numero))')
+      .select('id, id_comanda, id_usuario, metodo_pago, monto, subtotal, descuento, impuesto, propina, total_venta, total_cobrado, monto_recibido, cambio_entregado, dejar_cambio_como_propina, estado_pago, fecha_pago, usuarios(nombre), comandas(id, total, created_at, usuarios(nombre), mesas(numero))')
       .order('fecha_pago', { ascending: false })
       .limit(8)
 
     if (!error) {
-      setPagosRegistrados(data || [])
+      setPagosRegistrados((data || []).filter(pago =>
+        puedeVerTodasLasCuentas || String(pago.id_usuario || '') === String(currentUser?.id || '')
+      ))
     }
   }
 
@@ -250,6 +295,11 @@ export const Pagos = ({ comandas: comandasProp, currentUser }) => {
   }, [])
 
   const cobrarComanda = (comanda) => {
+    if (!puedeVerTodasLasCuentas && String(comanda.id_mesero || '') !== String(currentUser?.id || '')) {
+      setMensajeAlerta('No puedes cobrar comandas de otro usuario.')
+      setTimeout(() => setMensajeAlerta(''), 3000)
+      return
+    }
     setComandaSeleccionadaId(comanda.id)
     document.querySelector('.payment-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
@@ -310,7 +360,6 @@ export const Pagos = ({ comandas: comandasProp, currentUser }) => {
         id_comanda: comandaSeleccionada.id,
         id_usuario: currentUser?.id || null,
         monto: totalCobrado,
-        metodo_pago: metodoPago,
         subtotal,
         descuento,
         impuesto,
@@ -324,11 +373,7 @@ export const Pagos = ({ comandas: comandasProp, currentUser }) => {
         fecha_pago: new Date().toISOString()
       }
 
-      const { data: pagoGuardado, error: pagoError } = await supabase
-        .from('pagos')
-        .insert(pagoPayload)
-        .select('id')
-        .single()
+      const { data: pagoGuardado, metodoGuardado, error: pagoError } = await insertarPagoCompatible(pagoPayload, metodoPago)
       if (pagoError) throw pagoError
 
       const numeroComanda = formatComandaId(comandaSeleccionada.id)
@@ -337,7 +382,7 @@ export const Pagos = ({ comandas: comandasProp, currentUser }) => {
         comanda_id: comandaSeleccionada.id,
         usuario_id: currentUser?.id || null,
         tipo: 'pago',
-        metodo_pago: metodoPago,
+        metodo_pago: metodoGuardado || normalizarMetodoPago(metodoPago),
         concepto: `Pago de comanda ${numeroComanda}`,
         monto: totalVenta,
         propina: propinaNumero,
@@ -346,13 +391,21 @@ export const Pagos = ({ comandas: comandasProp, currentUser }) => {
         estado: 'completado',
         fecha_movimiento: new Date().toISOString()
       })
-      if (movimientoError) throw movimientoError
+      if (movimientoError) {
+        console.warn('Pago guardado sin movimiento_caja por permisos:', movimientoError.message)
+      }
 
       await actualizarEstadoComanda(comandaSeleccionada.id, 'pagado')
       await refetch?.()
       await cargarPagosRegistrados()
       window.dispatchEvent(new Event('caja:changed'))
-      setMensajeAlerta(`Pago confirmado para ${formatComandaId(comandaSeleccionada.id)}. Movimiento disponible en Caja y reportes.`)
+      const avisoMetodo = normalizarMetodoPago(metodoPago) !== normalizarMetodoPago(metodoGuardado)
+        ? ' La base de datos solo aceptó efectivo para este registro.'
+        : ''
+      setMensajeAlerta(movimientoError
+        ? `Pago confirmado para ${formatComandaId(comandaSeleccionada.id)}. Caja lo reflejará desde pagos.${avisoMetodo}`
+        : `Pago confirmado para ${formatComandaId(comandaSeleccionada.id)}. Movimiento disponible en Caja y reportes.${avisoMetodo}`
+      )
       setComandaSeleccionadaId(null)
       setModalPago({ abierto: false, etapa: 'propina', paso: 0, listo: false })
       setTicketImpresoComandaId(null)
@@ -644,10 +697,10 @@ export const Pagos = ({ comandas: comandasProp, currentUser }) => {
                 <tr key={`pago-${pago.id}`}>
                   <td>{formatHora(pago.fecha_pago || pago.comandas?.created_at)}</td>
                   <td><strong>{formatComandaId(pago.id_comanda)}</strong></td>
-                  <td>{pago.metodo_pago || 'No especificado'}</td>
+                  <td>{mostrarMetodoPago(pago.metodo_pago)}</td>
                   <td><strong>{formatMoney(parseMonto(pago.total_cobrado ?? pago.monto))}</strong></td>
                   <td>{formatMoney(propinaPago)}</td>
-                  <td>{currentUser?.nombre || pago.comandas?.usuarios?.nombre || 'Usuario'}</td>
+                  <td>{pago.usuarios?.nombre || pago.comandas?.usuarios?.nombre || currentUser?.nombre || 'Usuario'}</td>
                   <td><span className="status-badge">Completado</span></td>
                 </tr>
               )})}

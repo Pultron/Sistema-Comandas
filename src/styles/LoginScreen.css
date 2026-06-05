@@ -69,6 +69,142 @@
   color: #6b7280;
 }
 
+.login-test-users {
+  margin-top: 1rem;
+  padding: 0.95rem;
+  border: 1px solid rgba(249, 115, 22, 0.24);
+  border-radius: 12px;
+  background: rgba(255, 247, 237, 0.94);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+}
+
+.login-test-header {
+  align-items: flex-start;
+  display: flex;
+  justify-content: space-between;
+  gap: 0.8rem;
+  margin-bottom: 0.55rem;
+}
+
+.login-test-header span {
+  color: #ea580c;
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.login-test-header h2 {
+  color: #111827;
+  font-size: 1rem;
+  font-weight: 900;
+  line-height: 1.15;
+  margin: 0.12rem 0 0;
+}
+
+.login-test-header small {
+  background: #ffffff;
+  border: 1px solid rgba(249, 115, 22, 0.22);
+  border-radius: 999px;
+  color: #9a3412;
+  flex: 0 0 auto;
+  font-size: 0.72rem;
+  font-weight: 900;
+  padding: 0.28rem 0.52rem;
+}
+
+.login-test-users > p {
+  color: #64748b;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.35;
+  margin: 0 0 0.72rem;
+}
+
+.login-test-list {
+  display: grid;
+  gap: 0.55rem;
+  max-height: 210px;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
+.login-test-user {
+  background: #ffffff;
+  border: 1px solid #fed7aa;
+  border-radius: 10px;
+  cursor: pointer;
+  display: grid;
+  gap: 0.55rem;
+  padding: 0.72rem;
+  text-align: left;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.login-test-user:hover {
+  border-color: #f97316;
+  box-shadow: 0 8px 18px rgba(249, 115, 22, 0.14);
+  transform: translateY(-1px);
+}
+
+.login-test-user > div {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  gap: 0.7rem;
+}
+
+.login-test-user strong {
+  color: #111827;
+  font-size: 0.88rem;
+  font-weight: 900;
+}
+
+.login-test-user span {
+  background: #ffedd5;
+  border-radius: 999px;
+  color: #c2410c;
+  flex: 0 0 auto;
+  font-size: 0.68rem;
+  font-weight: 900;
+  padding: 0.2rem 0.48rem;
+  text-transform: capitalize;
+}
+
+.login-test-user dl {
+  display: grid;
+  grid-template-columns: auto 1fr auto 1fr;
+  gap: 0.35rem 0.55rem;
+  margin: 0;
+}
+
+.login-test-user dt {
+  color: #94a3b8;
+  font-size: 0.68rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.login-test-user dd {
+  color: #334155;
+  font-size: 0.76rem;
+  font-weight: 800;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.login-test-empty {
+  background: #ffffff;
+  border: 1px dashed #fed7aa;
+  border-radius: 10px;
+  color: #64748b;
+  font-size: 0.82rem;
+  font-weight: 800;
+  padding: 0.9rem;
+  text-align: center;
+}
+
 .attendance-overlay {
   align-items: center;
   background: rgba(0, 0, 0, 0.68);

@@ -161,14 +161,14 @@ const estadoVisual = (estado, esHistorial = false) => {
     : { label: 'Confirmada', tone: 'success' }
 }
 
-export const ClientesModule = () => {
+export const ClientesModule = ({ currentUser }) => {
   const {
     reservaciones,
     guardarReservacion: guardarReservacionBd,
     refetchReservaciones
-  } = useClientes()
+  } = useClientes(currentUser)
   const { mesas, refetch: refetchMesas } = useMesas()
-  const { comandas } = useComandas()
+  const { comandas } = useComandas(currentUser)
 
   const [mostrarReservacion, setMostrarReservacion] = useState(false)
   const [editando, setEditando] = useState(null)
@@ -247,7 +247,7 @@ export const ClientesModule = () => {
         numero_comanda: `RES-${Date.now()}`,
         id_mesa: idMesa,
         nombre_mesa: nombreMesa,
-        id_mesero: 1,
+        id_mesero: currentUser?.id || 1,
         estado: 'pendiente',
         subtotal: 0,
         descuento: 0,
@@ -326,7 +326,7 @@ export const ClientesModule = () => {
         if (mesaError) throw mesaError
         await sincronizarComandaReservacion(editando.id, reservaData)
       } else {
-        await guardarReservacionBd(reservaData)
+        await guardarReservacionBd({ ...reservaData, id_mesero: currentUser?.id || 1 })
       }
 
       await refetchReservaciones()

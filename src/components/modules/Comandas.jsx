@@ -127,7 +127,7 @@ export const Comandas = ({
   eliminarComanda: eliminarComandaProp,
   currentUser
 }) => {
-  const { comandas: comandasBd, agregarComanda: agregarComandaBd, actualizarComanda, eliminarComanda: eliminarComandaHook } = useComandas()
+  const { comandas: comandasBd, agregarComanda: agregarComandaBd, actualizarComanda, eliminarComanda: eliminarComandaHook } = useComandas(currentUser)
   const { menu, categories, loading: loadingMenu } = useMenu()
   const { mesas: mesasBd } = useMesas()
   const { promociones } = usePromociones()
@@ -138,6 +138,10 @@ export const Comandas = ({
   const actualizarComandaActiva = actualizarComandaProp || actualizarComanda
   const eliminarComandaBd = eliminarComandaProp || eliminarComandaHook
   const puedeEliminarComandas = ['administrador', 'admin'].includes(currentUser?.rol)
+  const puedeVerTodasLasComandas = ['administrador', 'admin', 'gerente'].includes(String(currentUser?.rol || '').toLowerCase())
+  const comandasVisibles = puedeVerTodasLasComandas
+    ? comandas
+    : comandas.filter(comanda => String(comanda.id_mesero || '') === String(currentUser?.id || ''))
   const [showComandaForm, setShowComandaForm] = useState(false)
   const [showMesaModal, setShowMesaModal] = useState(false)
   const [numeroMesa, setNumeroMesa] = useState('')
@@ -159,7 +163,7 @@ export const Comandas = ({
   const [paginaActual, setPaginaActual] = useState(1)
 
   // Calcular ID automáticamente basado en comandas existentes
-  const proximoId = comandas.length + 1
+  const proximoId = comandasVisibles.length + 1
   const activeCategory = selectedCategory || categories[0]?.key || ''
   const productosMenu = Object.entries(menu).flatMap(([key, categoria]) => {
     const categoriaInfo = categories.find(cat => cat.key === key)
@@ -172,9 +176,9 @@ export const Comandas = ({
   const categoriasMenu = [...new Set(productosMenu.map(producto => producto.categoriaLabel).filter(Boolean))]
 
   // Calcular estadísticas
-  const totalComandas = comandas.length
-  const comandasPagadas = comandas.filter(c => c.estado === 'Pagado').length
-  const ingresosHoy = comandas.reduce((total, c) => {
+  const totalComandas = comandasVisibles.length
+  const comandasPagadas = comandasVisibles.filter(c => c.estado === 'Pagado').length
+  const ingresosHoy = comandasVisibles.reduce((total, c) => {
     const precio = parseFloat(c.total.replace('$', ''))
     return total + precio
   }, 0)
@@ -191,7 +195,7 @@ export const Comandas = ({
   }
 
   const obtenerComandaActiva = (mesa) => {
-    return comandas.find(c => {
+    return comandasVisibles.find(c => {
       const mismaMesa = c.mesa === `Mesa ${mesa.numero}` || c.mesa?.startsWith(`Mesa ${mesa.numero} `)
       return mismaMesa && c.estado !== 'Pagado' && c.estado !== 'Cancelado'
     })
@@ -210,7 +214,7 @@ export const Comandas = ({
       return { limitado: false, usadas: 0, limite: null, alcanzado: false }
     }
 
-    const usadas = comandas.filter(c =>
+    const usadas = comandasVisibles.filter(c =>
       c.cuentaSeparada &&
       c.idReservacion === comanda.idReservacion &&
       c.estado !== 'Cancelado'
@@ -656,6 +660,7 @@ export const Comandas = ({
           productos: aplicada.items.map(item => item.nombre)
         })),
         id_mesa: comandaBaseCuenta?.id_mesa || null,
+        id_mesero: currentUser?.id || null,
         cuentaSeparada: !!comandaBaseCuenta,
         nombreCuenta: comandaBaseCuenta ? nombreMesa.trim() : null,
         idReservacion: comandaBaseCuenta?.idReservacion || null,
@@ -798,7 +803,7 @@ export const Comandas = ({
       return partes.slice(2).join(' - ')
     }
 
-    const baseReservacion = comandas.find(item =>
+    const baseReservacion = comandasVisibles.find(item =>
       item.idReservacion &&
       item.idReservacion === comanda?.idReservacion &&
       !item.cuentaSeparada &&
@@ -836,7 +841,7 @@ export const Comandas = ({
     return valores.some(valor => normalizarTexto(valor).includes(termino))
   }
 
-  const comandasFiltradas = comandas.filter(comanda => {
+  const comandasFiltradas = comandasVisibles.filter(comanda => {
     const coincideEstado =
       filtroEstado === 'todas' ||
       (filtroEstado === 'pendientes' && comanda.estado === 'Pendiente') ||
@@ -845,7 +850,7 @@ export const Comandas = ({
     return coincideEstado && buscarEnComanda(comanda)
   })
 
-  const comandasPendientes = comandas.filter(c => c.estado === 'Pendiente').length
+  const comandasPendientes = comandasVisibles.filter(c => c.estado === 'Pendiente').length
   const comandasPorPagina = 10
   const totalPaginas = Math.max(1, Math.ceil(comandasFiltradas.length / comandasPorPagina))
   const paginaSegura = Math.min(paginaActual, totalPaginas)
@@ -1936,8 +1941,9 @@ export const Comandas = ({
       {mensajeAlerta && (
         <div style={{
           position: 'fixed',
-          top: '20px',
           right: '20px',
+          bottom: '22px',
+          maxWidth: 'min(460px, calc(100vw - 44px))',
           backgroundColor: '#DC2626',
           color: '#fff',
           padding: '1rem 1.5rem',

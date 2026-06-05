@@ -19,6 +19,7 @@ import { useComandas, useMesas } from '../hooks/useSupabase'
 
 export const Dashboard = ({ 
   activeModule, 
+  onModuleChange,
   menu, 
   categories,
   selectedCategory, 
@@ -36,7 +37,7 @@ export const Dashboard = ({
     agregarComanda: agregarComandaBd,
     actualizarComanda: actualizarComandaBd,
     eliminarComanda: eliminarComandaBd
-  } = useComandas()
+  } = useComandas(currentUser)
   const { mesas } = useMesas()
 
   const comandasActivas = comandas || comandasBd
@@ -56,7 +57,7 @@ export const Dashboard = ({
   return (
     <main style={getPageContentStyle()}>
       {activeModule === 'dashboard' && (
-        <DashboardModule comandas={comandasActivas} />
+        <DashboardModule comandas={comandasActivas} onModuleChange={onModuleChange} />
       )}
 
       {activeModule === 'comandas' && (
@@ -78,6 +79,7 @@ export const Dashboard = ({
           setSelectedCategory={setSelectedCategory}
           selectedDish={selectedDish}
           setSelectedDish={setSelectedDish}
+          currentUser={currentUser}
         />
       )}
 
@@ -102,7 +104,7 @@ export const Dashboard = ({
       )}
 
       {activeModule === 'clientes' && (
-        <ClientesModule />
+        <ClientesModule currentUser={currentUser} />
       )}
 
       {activeModule === 'inventario' && (
@@ -118,7 +120,7 @@ export const Dashboard = ({
       )}
 
       {activeModule === 'caja' && (
-        <CajaModule comandas={comandasActivas} currentUser={currentUser} />
+        <CajaModule comandas={comandasActivas} currentUser={currentUser} onModuleChange={onModuleChange} />
       )}
 
       {activeModule === 'configuracion' && (

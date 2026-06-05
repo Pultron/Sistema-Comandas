@@ -37,7 +37,7 @@ const Icon = ({ name, size = 18 }) => (
 )
 
 export const PersonalAsistenciaModule = () => {
-  const [activeSection, setActiveSection] = useState('personal')
+  const [activeSection, setActiveSection] = useState('asistencia')
   const [menuOpen, setMenuOpen] = useState(false)
 
   const selectSection = (section) => {

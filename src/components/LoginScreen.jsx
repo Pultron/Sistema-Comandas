@@ -15,6 +15,26 @@ export const LoginScreen = ({ username, setUsername, password, setPassword, onLo
   const [registrandoAsistencia, setRegistrandoAsistencia] = useState(false)
   const [loginError, setLoginError] = useState('')
   const [relojAsistencia, setRelojAsistencia] = useState(new Date())
+  const [usuariosPrueba, setUsuariosPrueba] = useState([])
+  const [cargandoUsuariosPrueba, setCargandoUsuariosPrueba] = useState(true)
+
+  useEffect(() => {
+    const cargarUsuariosPrueba = async () => {
+      const { data, error: usuariosError } = await supabase
+        .from('usuarios')
+        .select('id, nombre, usuario, contrasena, rol, estado')
+        .eq('estado', 'activo')
+        .order('rol', { ascending: true })
+        .order('nombre', { ascending: true })
+
+      if (!usuariosError) {
+        setUsuariosPrueba(data || [])
+      }
+      setCargandoUsuariosPrueba(false)
+    }
+
+    cargarUsuariosPrueba()
+  }, [])
 
   useEffect(() => {
     if (!mostrarAsistencia) return undefined
@@ -121,6 +141,7 @@ export const LoginScreen = ({ username, setUsername, password, setPassword, onLo
           tipo: 'success',
           texto: `Salida registrada para ${empleado.nombre} a las ${ahora.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: true })}`
         })
+        window.dispatchEvent(new Event('asistencia:changed'))
         limpiarCamposAsistencia()
       }
 
@@ -144,6 +165,7 @@ export const LoginScreen = ({ username, setUsername, password, setPassword, onLo
         tipo: 'success',
         texto: `Entrada registrada para ${empleado.nombre} a las ${ahora.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: true })}`
       })
+      window.dispatchEvent(new Event('asistencia:changed'))
       limpiarCamposAsistencia()
       setRegistrandoAsistencia(false)
     }
@@ -354,6 +376,48 @@ export const LoginScreen = ({ username, setUsername, password, setPassword, onLo
                 </svg>
                 <span>Registrar Asistencia</span>
               </button>
+
+              <section className="login-test-users" aria-label="Usuarios de prueba">
+                <div className="login-test-header">
+                  <div>
+                    <span>Proceso de pruebas</span>
+                    <h2>Usuarios para entrar al sistema</h2>
+                  </div>
+                  <small>{usuariosPrueba.length} activos</small>
+                </div>
+
+                <p>Selecciona una cuenta para rellenar el acceso durante la revisión.</p>
+
+                <div className="login-test-list">
+                  {cargandoUsuariosPrueba ? (
+                    <div className="login-test-empty">Cargando usuarios...</div>
+                  ) : usuariosPrueba.length === 0 ? (
+                    <div className="login-test-empty">No hay usuarios activos para mostrar.</div>
+                  ) : usuariosPrueba.map(usuarioPrueba => (
+                    <button
+                      className="login-test-user"
+                      key={usuarioPrueba.id}
+                      type="button"
+                      onClick={() => {
+                        setUsername(usuarioPrueba.usuario || '')
+                        setPassword(usuarioPrueba.contrasena || '')
+                        setLoginError('')
+                      }}
+                    >
+                      <div>
+                        <strong>{usuarioPrueba.nombre}</strong>
+                        <span>{usuarioPrueba.rol || 'Sin rol'}</span>
+                      </div>
+                      <dl>
+                        <dt>Usuario</dt>
+                        <dd>{usuarioPrueba.usuario}</dd>
+                        <dt>Clave</dt>
+                        <dd>{usuarioPrueba.contrasena}</dd>
+                      </dl>
+                    </button>
+                  ))}
+                </div>
+              </section>
             </div>
 
             <div style={appStyles.loginFooter}>

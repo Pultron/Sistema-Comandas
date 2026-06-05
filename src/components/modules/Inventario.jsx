@@ -46,7 +46,6 @@ export const InventarioModule = () => {
   const [busqueda, setBusqueda] = useState('')
   const [filtroProveedor, setFiltroProveedor] = useState('todos')
   const [filtroEstado, setFiltroEstado] = useState('todos')
-  const [mostrarTodasAlertas, setMostrarTodasAlertas] = useState(false)
   const [mostrarHistorialCompleto, setMostrarHistorialCompleto] = useState(false)
   const [proveedoresAbiertos, setProveedoresAbiertos] = useState({})
   const [showToast, setShowToast] = useState(false)
@@ -75,7 +74,27 @@ export const InventarioModule = () => {
 
   const proveedores = [...new Set(ingredientes.map(item => item.proveedor || 'Sin proveedor'))].sort()
   const proveedorColores = ['#EF4444', '#F97316', '#22C55E', '#3B82F6', '#8B5CF6']
-  const alertasInventario = ingredientes.filter(item => ['agotado', 'bajo'].includes(obtenerEstadoInventario(item)))
+  const obtenerUltimoMovimientoIngrediente = (item) => {
+    const movimiento = movimientos
+      .filter(mov => normalizar(mov.ingrediente) === normalizar(item.nombre))
+      .sort((a, b) => crearFechaLocal(b.fecha).getTime() - crearFechaLocal(a.fecha).getTime())[0]
+
+    return movimiento ? crearFechaLocal(movimiento.fecha).getTime() : 0
+  }
+
+  const alertasInventario = ingredientes
+    .filter(item => ['agotado', 'bajo'].includes(obtenerEstadoInventario(item)))
+    .sort((a, b) => {
+      const fechaB = obtenerUltimoMovimientoIngrediente(b)
+      const fechaA = obtenerUltimoMovimientoIngrediente(a)
+      if (fechaB !== fechaA) return fechaB - fechaA
+
+      const prioridad = { agotado: 0, bajo: 1, normal: 2 }
+      const estadoA = obtenerEstadoInventario(a)
+      const estadoB = obtenerEstadoInventario(b)
+      if (prioridad[estadoA] !== prioridad[estadoB]) return prioridad[estadoA] - prioridad[estadoB]
+      return (Number(a.cantidad) || 0) - (Number(b.cantidad) || 0)
+    })
   const personalActivo = personal.filter(persona => persona.estado !== 'inactivo')
   const ingredienteSeleccionado = ingredientes.find(item => String(item.id) === String(movData.ingredienteId))
   const ingredienteLimite = ingredientes.find(item => String(item.id) === String(limiteData.ingredienteId))
@@ -194,7 +213,7 @@ export const InventarioModule = () => {
     return `${fecha || 'Ayer'}, ${formatoHora(mov.fecha)}`
   }
 
-  const alertasVisibles = mostrarTodasAlertas ? alertasInventario : alertasInventario.slice(0, 3)
+  const alertasVisibles = alertasInventario
   const movimientosVisibles = mostrarHistorialCompleto ? movimientos : movimientos.slice(0, 5)
 
   return (
@@ -296,6 +315,11 @@ export const InventarioModule = () => {
               Alertas de inventario
             </h3>
             <div className="inventory-alert-list">
+              {alertasVisibles.length === 0 && (
+                <div className="inventory-empty-alerts">
+                  No hay productos agotados ni con stock bajo.
+                </div>
+              )}
               {alertasVisibles.map(item => {
                 const estado = obtenerEstadoInventario(item)
                 return (

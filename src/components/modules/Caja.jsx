@@ -33,6 +33,12 @@ const esHoy = (value) => {
 }
 
 const normalizar = (value) => String(value || '').trim().toLowerCase()
+const mostrarMetodoPago = (value) => {
+  const metodo = normalizar(value)
+  if (metodo === 'efectivo') return 'Efectivo'
+  if (metodo === 'tarjeta') return 'Tarjeta'
+  return value || 'Efectivo'
+}
 const comandaLabel = (id) => `#${String(id || '').padStart(4, '0')}`
 const DENOMINACIONES_CAJA = [
   { key: 'b1000', label: 'Billetes de 1000', valor: 1000 },
@@ -45,11 +51,38 @@ const DENOMINACIONES_CAJA = [
 ]
 
 const conteoInicialCaja = DENOMINACIONES_CAJA.reduce((acc, item) => ({ ...acc, [item.key]: '' }), {})
+const CAJA_MOVIMIENTOS_LOCALES_KEY = 'gastrosoft_movimientos_caja_locales'
 
-export const CajaModule = ({ currentUser }) => {
+const movimientoInicial = {
+  tipo: 'Ajuste',
+  concepto: '',
+  monto: '',
+  propina: '',
+  monto_recibido: '',
+  cambio_entregado: '',
+  estado: 'completado'
+}
+
+const cargarMovimientosLocales = () => {
+  if (typeof localStorage === 'undefined') return []
+  try {
+    const parsed = JSON.parse(localStorage.getItem(CAJA_MOVIMIENTOS_LOCALES_KEY) || '[]')
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
+const guardarMovimientosLocales = (movimientosLocales) => {
+  if (typeof localStorage === 'undefined') return
+  localStorage.setItem(CAJA_MOVIMIENTOS_LOCALES_KEY, JSON.stringify(movimientosLocales))
+}
+
+export const CajaModule = ({ currentUser, onModuleChange }) => {
   const [activeTab, setActiveTab] = useState('cierre')
   const [pagos, setPagos] = useState([])
   const [movimientos, setMovimientos] = useState([])
+  const [movimientosLocales, setMovimientosLocales] = useState(cargarMovimientosLocales)
   const [movimientosError, setMovimientosError] = useState('')
   const [busquedaMovimiento, setBusquedaMovimiento] = useState('')
   const [tipoMovimiento, setTipoMovimiento] = useState('Todos')
@@ -58,22 +91,155 @@ export const CajaModule = ({ currentUser }) => {
   const [conteoCaja, setConteoCaja] = useState(conteoInicialCaja)
   const [observacionesCierre, setObservacionesCierre] = useState('')
   const [guardandoCierre, setGuardandoCierre] = useState(false)
+  const [modalMovimiento, setModalMovimiento] = useState({ abierto: false, preset: 'Ajuste' })
+  const [formMovimiento, setFormMovimiento] = useState(movimientoInicial)
+  const [guardandoMovimiento, setGuardandoMovimiento] = useState(false)
+  const [mensajeCaja, setMensajeCaja] = useState('')
+  const [notasCaja, setNotasCaja] = useState([])
+
+  const mostrarMensaje = (mensaje) => {
+    setMensajeCaja(mensaje)
+    setTimeout(() => setMensajeCaja(''), 3200)
+  }
+
+  const registrarMovimientoLocal = (payload) => {
+    const movimientoLocal = {
+      id: `local-${Date.now()}`,
+      ...payload,
+      fecha_movimiento: payload.fecha_movimiento || new Date().toISOString(),
+      estado: payload.estado || 'completado',
+      metodo_pago: payload.metodo_pago || 'efectivo',
+      local: true,
+      usuario: currentUser?.nombre || 'Usuario',
+      observaciones: 'Guardado localmente por permisos de Supabase'
+    }
+    setMovimientosLocales(prev => {
+      const next = [movimientoLocal, ...prev].slice(0, 120)
+      guardarMovimientosLocales(next)
+      return next
+    })
+    return movimientoLocal
+  }
 
   const cargarDatosCaja = async () => {
     const { data: pagosData } = await supabase
       .from('pagos')
-      .select('id, id_comanda, id_usuario, metodo_pago, monto, subtotal, descuento, impuesto, propina, total_venta, total_cobrado, monto_recibido, cambio_entregado, estado_pago, fecha_pago, comandas(id, usuarios(nombre))')
+      .select('id, id_comanda, id_usuario, metodo_pago, monto, subtotal, descuento, impuesto, propina, total_venta, total_cobrado, monto_recibido, cambio_entregado, estado_pago, fecha_pago, usuarios(nombre), comandas(id, usuarios(nombre))')
       .order('fecha_pago', { ascending: false })
 
     const { data: movimientosData, error: cajaError } = await supabase
       .from('movimientos_caja')
-      .select('id, pago_id, comanda_id, usuario_id, tipo, metodo_pago, concepto, monto, propina, monto_recibido, cambio_entregado, estado, fecha_movimiento')
+      .select('id, pago_id, comanda_id, usuario_id, tipo, metodo_pago, concepto, monto, propina, monto_recibido, cambio_entregado, estado, fecha_movimiento, usuarios(nombre)')
       .order('fecha_movimiento', { ascending: false })
       .limit(80)
 
     setPagos(pagosData || [])
     setMovimientos(movimientosData || [])
     setMovimientosError(cajaError?.message || '')
+  }
+
+  const abrirMovimiento = (preset = 'Ajuste', concepto = '') => {
+    setFormMovimiento({
+      ...movimientoInicial,
+      tipo: preset,
+      concepto,
+      monto: '',
+      propina: '',
+      monto_recibido: '',
+      cambio_entregado: ''
+    })
+    setModalMovimiento({ abierto: true, preset })
+  }
+
+  const cerrarModalMovimiento = () => {
+    if (guardandoMovimiento) return
+    setModalMovimiento({ abierto: false, preset: 'Ajuste' })
+  }
+
+  const guardarMovimientoManual = async (event) => {
+    event.preventDefault()
+    if (guardandoMovimiento) return
+
+    const montoBase = parseMonto(formMovimiento.monto)
+    if (!formMovimiento.concepto.trim()) {
+      mostrarMensaje('Escribe un concepto para el movimiento.')
+      return
+    }
+    if (montoBase <= 0) {
+      mostrarMensaje('Captura un monto mayor a cero.')
+      return
+    }
+
+    const tipoNormalizado = normalizar(formMovimiento.tipo)
+    const esSalida = ['retiro', 'gasto'].includes(tipoNormalizado)
+    const monto = esSalida ? -Math.abs(montoBase) : montoBase
+    const recibido = parseMonto(formMovimiento.monto_recibido) || Math.abs(monto)
+    const payloadMovimiento = {
+      usuario_id: currentUser?.id || null,
+      tipo: formMovimiento.tipo.toLowerCase(),
+      metodo_pago: 'efectivo',
+      concepto: formMovimiento.concepto.trim(),
+      monto,
+      propina: parseMonto(formMovimiento.propina),
+      monto_recibido: recibido,
+      cambio_entregado: parseMonto(formMovimiento.cambio_entregado),
+      estado: formMovimiento.estado || 'completado',
+      fecha_movimiento: new Date().toISOString()
+    }
+
+    setGuardandoMovimiento(true)
+    try {
+      const { error } = await supabase.from('movimientos_caja').insert(payloadMovimiento)
+      if (error) {
+        console.warn('Movimiento guardado localmente por permisos:', error.message)
+        registrarMovimientoLocal(payloadMovimiento)
+        mostrarMensaje('Movimiento guardado localmente. Aparecerá en Caja aunque Supabase no permita escribir movimientos.')
+      } else {
+        mostrarMensaje('Movimiento guardado correctamente.')
+      }
+
+      await cargarDatosCaja()
+      window.dispatchEvent(new Event('caja:changed'))
+      cerrarModalMovimiento()
+      setActiveTab('movimientos')
+    } catch (error) {
+      registrarMovimientoLocal(payloadMovimiento)
+      cerrarModalMovimiento()
+      setActiveTab('movimientos')
+      mostrarMensaje(`Movimiento guardado localmente. Supabase respondio: ${error.message}`)
+    } finally {
+      setGuardandoMovimiento(false)
+    }
+  }
+
+  const agregarNota = () => {
+    const texto = window.prompt('Nota para caja:')
+    if (!texto?.trim()) return
+    setNotasCaja(prev => [{
+      id: Date.now(),
+      texto: texto.trim(),
+      usuario: currentUser?.nombre || 'Usuario',
+      fecha: new Date().toISOString()
+    }, ...prev])
+    mostrarMensaje('Nota agregada al turno.')
+  }
+
+  const enviarPropinasNomina = (montoPropina) => {
+    const monto = parseMonto(montoPropina)
+    if (monto <= 0) {
+      mostrarMensaje('No hay propinas pendientes para enviar a nomina.')
+      return
+    }
+    setFormMovimiento({
+      ...movimientoInicial,
+      tipo: 'Retiro',
+      concepto: 'Envio de propinas a nomina',
+      monto: String(monto.toFixed(2)),
+      propina: String(monto.toFixed(2)),
+      monto_recibido: String(monto.toFixed(2)),
+      cambio_entregado: '0'
+    })
+    setModalMovimiento({ abierto: true, preset: 'Retiro' })
   }
 
   useEffect(() => {
@@ -83,7 +249,10 @@ export const CajaModule = ({ currentUser }) => {
   }, [])
 
   const pagosHoy = useMemo(() => pagos.filter(pago => esHoy(pago.fecha_pago)), [pagos])
-  const movimientosHoy = useMemo(() => movimientos.filter(mov => esHoy(mov.fecha_movimiento)), [movimientos])
+  const movimientosHoy = useMemo(
+    () => [...movimientos, ...movimientosLocales].filter(mov => esHoy(mov.fecha_movimiento)),
+    [movimientos, movimientosLocales]
+  )
 
   const movimientosDesdePagos = useMemo(() => pagosHoy.map(pago => ({
     id: `pago-${pago.id}`,
@@ -91,14 +260,14 @@ export const CajaModule = ({ currentUser }) => {
     comanda_id: pago.id_comanda,
     tipo: 'Pago',
     concepto: `Pago de comanda ${comandaLabel(pago.id_comanda)}`,
-    metodo_pago: 'Efectivo',
+    metodo_pago: pago.metodo_pago || 'efectivo',
     monto: parseMonto(pago.total_venta ?? pago.monto),
     propina: parseMonto(pago.propina),
     monto_recibido: parseMonto(pago.monto_recibido ?? pago.total_cobrado ?? pago.monto),
     cambio_entregado: parseMonto(pago.cambio_entregado),
     estado: pago.estado_pago || 'completado',
     fecha_movimiento: pago.fecha_pago,
-    usuario: currentUser?.nombre || pago.comandas?.usuarios?.nombre || 'Usuario',
+    usuario: pago.usuarios?.nombre || pago.comandas?.usuarios?.nombre || currentUser?.nombre || 'Usuario',
     observaciones: 'Pago conectado desde módulo Pagos'
   })), [currentUser?.nombre, pagosHoy])
 
@@ -106,8 +275,8 @@ export const CajaModule = ({ currentUser }) => {
     const movimientosReales = movimientosHoy.map(mov => ({
       ...mov,
       id: `mov-${mov.id}`,
-      metodo_pago: 'Efectivo',
-      usuario: currentUser?.nombre || 'Usuario',
+      metodo_pago: mov.metodo_pago || 'efectivo',
+      usuario: mov.usuarios?.nombre || mov.usuario || currentUser?.nombre || 'Usuario',
       observaciones: ''
     }))
     const pagosRegistradosEnCaja = new Set(movimientosHoy.map(mov => String(mov.pago_id || '')).filter(Boolean))
@@ -203,7 +372,7 @@ export const CajaModule = ({ currentUser }) => {
 
   const resumenMovimientos = useMemo(() => {
     const entradas = movimientosCombinados
-      .filter(mov => !['retiro', 'gasto'].includes(normalizar(mov.tipo)) && parseMonto(mov.monto) >= 0)
+      .filter(mov => !['apertura', 'retiro', 'gasto'].includes(normalizar(mov.tipo)) && parseMonto(mov.monto) >= 0)
       .reduce((sum, mov) => sum + parseMonto(mov.monto), 0)
     const salidas = movimientosCombinados
       .filter(mov => ['retiro', 'gasto'].includes(normalizar(mov.tipo)) || parseMonto(mov.monto) < 0)
@@ -249,6 +418,9 @@ export const CajaModule = ({ currentUser }) => {
             guardando={guardandoCierre}
             setGuardando={setGuardandoCierre}
             irAMovimientos={() => setActiveTab('movimientos')}
+            abrirMovimiento={abrirMovimiento}
+            onRefresh={cargarDatosCaja}
+            registrarMovimientoLocal={registrarMovimientoLocal}
           />
         ) : activeTab === 'movimientos' ? (
           <MovimientosCajaView
@@ -266,6 +438,9 @@ export const CajaModule = ({ currentUser }) => {
             conteosTipo={conteosTipo}
             resumenMovimientos={resumenMovimientos}
             movimientosError={movimientosError}
+            abrirMovimiento={abrirMovimiento}
+            agregarNota={agregarNota}
+            notasCaja={notasCaja}
             limpiarFiltros={() => {
               setBusquedaMovimiento('')
               setTipoMovimiento('Todos')
@@ -279,14 +454,42 @@ export const CajaModule = ({ currentUser }) => {
             pagosHoy={pagosHoy}
             movimientosHoy={movimientosCombinados}
             movimientosError={movimientosError}
+            irAMovimientos={() => setActiveTab('movimientos')}
+            irACierre={() => setActiveTab('cierre')}
+            irAPagos={() => onModuleChange?.('pagos')}
+            abrirMovimiento={abrirMovimiento}
+            enviarPropinasNomina={enviarPropinasNomina}
           />
         )}
       </div>
+
+      {modalMovimiento.abierto && (
+        <MovimientoCajaModal
+          form={formMovimiento}
+          setForm={setFormMovimiento}
+          guardando={guardandoMovimiento}
+          onClose={cerrarModalMovimiento}
+          onSubmit={guardarMovimientoManual}
+        />
+      )}
+
+      {mensajeCaja && <div className="cash-toast">{mensajeCaja}</div>}
     </section>
   )
 }
 
-const ResumenCajaView = ({ currentUser, resumen, pagosHoy, movimientosHoy, movimientosError }) => {
+const ResumenCajaView = ({
+  currentUser,
+  resumen,
+  pagosHoy,
+  movimientosHoy,
+  movimientosError,
+  irAMovimientos,
+  irACierre,
+  irAPagos,
+  abrirMovimiento,
+  enviarPropinasNomina
+}) => {
   const statCards = [
     { label: 'Total ventas', value: resumen.totalVentas, tone: 'orange', icon: DollarSignIcon },
     { label: 'Efectivo', value: resumen.efectivo, tone: 'green', icon: CajaIcon },
@@ -305,10 +508,10 @@ const ResumenCajaView = ({ currentUser, resumen, pagosHoy, movimientosHoy, movim
           </div>
         </div>
         <div className="cash-actions">
-          <button type="button">+ Movimiento</button>
-          <button type="button">Registrar gasto</button>
-          <button type="button">Corte parcial</button>
-          <button className="danger" type="button">Cerrar turno</button>
+          <button onClick={() => abrirMovimiento('Ajuste')} type="button">+ Movimiento</button>
+          <button onClick={() => abrirMovimiento('Gasto', 'Gasto de operacion')} type="button">Registrar gasto</button>
+          <button onClick={irACierre} type="button">Corte parcial</button>
+          <button className="danger" onClick={irACierre} type="button">Cerrar turno</button>
         </div>
       </header>
 
@@ -361,13 +564,13 @@ const ResumenCajaView = ({ currentUser, resumen, pagosHoy, movimientosHoy, movim
           <AmountRow label="En efectivo" value={resumen.propinasEfectivo} />
           <div className="cash-divider" />
           <AmountRow label="Pendiente de envío a nómina" value={resumen.propinaPendienteNomina} />
-          <button className="cash-outline-button" type="button">Agregar a nómina</button>
+          <button className="cash-outline-button" onClick={() => enviarPropinasNomina(resumen.propinaPendienteNomina)} type="button">Agregar a nómina</button>
         </article>
 
         <article className="cash-panel cash-wide">
           <PanelHeader title="Movimientos recientes" />
           <SimpleMovimientosTable movimientos={movimientosHoy} movimientosError={movimientosError} />
-          <button className="cash-link" type="button">Ver todos los movimientos →</button>
+          <button className="cash-link" onClick={irAMovimientos} type="button">Ver todos los movimientos →</button>
         </article>
 
         <article className="cash-panel cash-wide">
@@ -375,22 +578,23 @@ const ResumenCajaView = ({ currentUser, resumen, pagosHoy, movimientosHoy, movim
           <p className="cash-panel-subtitle">Estos pagos se registran automáticamente en Caja.</p>
           <table className="cash-table">
             <thead>
-              <tr><th>Comanda</th><th>Método</th><th>Total</th><th>Propina</th></tr>
+              <tr><th>Comanda</th><th>Método</th><th>Total</th><th>Propina</th><th>Usuario</th></tr>
             </thead>
             <tbody>
               {pagosHoy.length === 0 ? (
-                <tr><td colSpan="4" className="cash-empty">Sin pagos registrados</td></tr>
+                <tr><td colSpan="5" className="cash-empty">Sin pagos registrados</td></tr>
               ) : pagosHoy.slice(0, 5).map(pago => (
                 <tr key={pago.id}>
                   <td>{comandaLabel(pago.id_comanda)}</td>
-                  <td>Efectivo</td>
+                  <td>{mostrarMetodoPago(pago.metodo_pago)}</td>
                   <td>{formatMoney(pago.total_cobrado ?? pago.monto)}</td>
                   <td>{formatMoney(pago.propina)}</td>
+                  <td>{pago.usuarios?.nombre || pago.comandas?.usuarios?.nombre || 'Usuario'}</td>
                 </tr>
               ))}
             </tbody>
           </table>
-          <button className="cash-link" type="button">Ver todos los pagos en módulo Pagos →</button>
+          <button className="cash-link" onClick={irAPagos} type="button">Ver todos los pagos en módulo Pagos →</button>
         </article>
       </section>
 
@@ -417,7 +621,10 @@ const MovimientosCajaView = ({
   conteosTipo,
   resumenMovimientos,
   limpiarFiltros,
-  movimientosError
+  movimientosError,
+  abrirMovimiento,
+  agregarNota,
+  notasCaja
 }) => {
   const statCards = [
     { label: 'Entradas', value: resumenMovimientos.entradas, tone: 'green', icon: CheckCircleIcon },
@@ -436,7 +643,7 @@ const MovimientosCajaView = ({
       formatHora(mov.fecha_movimiento),
       mov.tipo || 'Movimiento',
       mov.concepto || 'Movimiento de caja',
-      'Efectivo',
+      mostrarMetodoPago(mov.metodo_pago),
       parseMonto(mov.monto).toFixed(2),
       parseMonto(mov.propina).toFixed(2),
       parseMonto(mov.monto_recibido).toFixed(2),
@@ -467,9 +674,9 @@ const MovimientosCajaView = ({
           </div>
         </div>
         <div className="cash-actions">
-          <button type="button">+ Nuevo movimiento</button>
-          <button type="button">Registrar retiro</button>
-          <button type="button">Registrar gasto</button>
+          <button onClick={() => abrirMovimiento('Ajuste')} type="button">+ Nuevo movimiento</button>
+          <button onClick={() => abrirMovimiento('Retiro', 'Retiro de efectivo')} type="button">Registrar retiro</button>
+          <button onClick={() => abrirMovimiento('Gasto', 'Gasto de operacion')} type="button">Registrar gasto</button>
           <button className="danger" onClick={exportarMovimientos} type="button">Exportar</button>
         </div>
       </header>
@@ -504,7 +711,7 @@ const MovimientosCajaView = ({
               <option>Gasto</option>
               <option>Ajuste</option>
             </select>
-            <select defaultValue="Hoy">
+            <select defaultValue="Hoy" aria-label="Rango de fechas">
               <option>Hoy</option>
             </select>
             <select value={usuario} onChange={event => setUsuario(event.target.value)}>
@@ -527,7 +734,7 @@ const MovimientosCajaView = ({
                   <td>{formatHora(mov.fecha_movimiento)}</td>
                   <td><span className={`cash-type ${normalizar(mov.tipo)}`}>{mov.tipo || 'Movimiento'}</span></td>
                   <td>{mov.concepto || 'Movimiento de caja'}</td>
-                  <td>Efectivo</td>
+                  <td>{mostrarMetodoPago(mov.metodo_pago)}</td>
                   <td className="green">{formatMoney(mov.monto)}</td>
                   <td className="purple">{formatMoney(mov.propina)}</td>
                   <td className="green">{formatMoney(mov.monto_recibido)}</td>
@@ -540,7 +747,7 @@ const MovimientosCajaView = ({
           </table>
           <footer className="cash-panel-footer">
             <span>Mostrando {movimientos.length === 0 ? 0 : 1} a {movimientos.length} de {movimientos.length} movimientos</span>
-            <div className="cash-pagination"><button>‹‹</button><button>‹</button><strong>1</strong><button>›</button><button>››</button></div>
+            <div className="cash-pagination"><button disabled type="button">‹‹</button><button disabled type="button">‹</button><strong>1</strong><button disabled type="button">›</button><button disabled type="button">››</button></div>
             <button className="cash-link" onClick={limpiarFiltros} type="button">Ver todos los movimientos →</button>
           </footer>
         </article>
@@ -579,9 +786,20 @@ const MovimientosCajaView = ({
           <article className="cash-panel">
             <div className="cash-panel-header">
               <h2>Notas de caja</h2>
-              <button className="cash-small-button" type="button">+ Agregar nota</button>
+              <button className="cash-small-button" onClick={agregarNota} type="button">+ Agregar nota</button>
             </div>
-            <div className="cash-note-empty">Sin notas registradas</div>
+            {notasCaja.length === 0 ? (
+              <div className="cash-note-empty">Sin notas registradas</div>
+            ) : (
+              <div className="cash-notes-list">
+                {notasCaja.map(nota => (
+                  <div className="cash-note-item" key={nota.id}>
+                    <strong>{nota.texto}</strong>
+                    <span>{nota.usuario} - {formatHora(nota.fecha)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </article>
         </aside>
       </section>
@@ -605,7 +823,10 @@ const CierreCajaView = ({
   setObservaciones,
   guardando,
   setGuardando,
-  irAMovimientos
+  irAMovimientos,
+  abrirMovimiento,
+  onRefresh,
+  registrarMovimientoLocal
 }) => {
   const diferencia = resumen.diferencia
   const cierreCorrecto = resumen.conteoCapturado && Math.abs(diferencia) < 0.01
@@ -633,7 +854,7 @@ const CierreCajaView = ({
 
     setGuardando(true)
     try {
-      const { error } = await supabase.from('cortes_caja').insert({
+      const cortePayload = {
         id_usuario: currentUser?.id || 1,
         turno: 'Actual',
         fecha: new Date().toISOString(),
@@ -642,13 +863,16 @@ const CierreCajaView = ({
         pagos_tarjeta: 0,
         cancelaciones: 0,
         descuentos: resumen.retirosGastos
-      })
-      if (error) throw error
+      }
+      const { error: corteError } = await supabase.from('cortes_caja').insert(cortePayload)
+      if (corteError) {
+        console.warn('Corte no guardado en cortes_caja por permisos:', corteError.message)
+      }
 
-      await supabase.from('movimientos_caja').insert({
+      const movimientoCierrePayload = {
         usuario_id: currentUser?.id || 1,
         tipo: cerrarTurno ? 'cierre' : 'corte',
-        metodo_pago: 'Efectivo',
+        metodo_pago: 'efectivo',
         concepto: cerrarTurno ? 'Cierre de turno' : 'Corte parcial de caja',
         monto: resumen.efectivoContado,
         propina: resumen.propinasEfectivo,
@@ -656,10 +880,17 @@ const CierreCajaView = ({
         cambio_entregado: diferencia,
         estado: cerrarTurno ? 'cerrado' : 'completado',
         fecha_movimiento: new Date().toISOString()
-      })
+      }
+      const { error: movimientoError } = await supabase.from('movimientos_caja').insert(movimientoCierrePayload)
+      if (movimientoError) {
+        console.warn('Cierre guardado localmente por permisos:', movimientoError.message)
+        registrarMovimientoLocal?.(movimientoCierrePayload)
+      }
 
       window.dispatchEvent(new Event('caja:changed'))
-      alert(cerrarTurno ? 'Cierre de turno guardado correctamente.' : 'Corte parcial guardado correctamente.')
+      await onRefresh?.()
+      const respaldo = corteError || movimientoError ? ' con respaldo local por permisos de Supabase.' : ' correctamente.'
+      alert(cerrarTurno ? `Cierre de turno guardado${respaldo}` : `Corte parcial guardado${respaldo}`)
     } catch (error) {
       alert(`No se pudo guardar el cierre: ${error.message}`)
     } finally {
@@ -680,6 +911,7 @@ const CierreCajaView = ({
         <div className="cash-actions">
           <button onClick={() => guardarCierre(false)} type="button" disabled={guardando}>Guardar cierre</button>
           <button onClick={() => window.print()} type="button">Imprimir corte</button>
+          <button onClick={() => abrirMovimiento('Retiro', 'Retiro previo a cierre')} type="button">Registrar retiro</button>
           <button className="danger" onClick={() => guardarCierre(true)} type="button" disabled={guardando}>Cerrar turno</button>
         </div>
       </header>
@@ -794,6 +1026,116 @@ const CierreCajaView = ({
         El cierre utiliza la información de Pagos y Movimientos de Caja para calcular el efectivo esperado del turno.
       </div>
     </>
+  )
+}
+
+const MovimientoCajaModal = ({ form, setForm, guardando, onClose, onSubmit }) => {
+  const setCampo = (campo, value) => {
+    setForm(prev => ({ ...prev, [campo]: value }))
+  }
+
+  const tipos = ['Apertura', 'Ajuste', 'Retiro', 'Gasto']
+  const esSalida = ['retiro', 'gasto'].includes(normalizar(form.tipo))
+  const montoPreview = parseMonto(form.monto) * (esSalida ? -1 : 1)
+
+  return (
+    <div className="cash-modal-backdrop" role="dialog" aria-modal="true">
+      <form className="cash-modal" onSubmit={onSubmit}>
+        <div className="cash-modal-header">
+          <div>
+            <h2>Movimiento de caja</h2>
+            <p>Registra entradas, salidas, apertura o ajustes del turno.</p>
+          </div>
+          <button onClick={onClose} type="button" disabled={guardando}>×</button>
+        </div>
+
+        <div className="cash-modal-grid">
+          <label>
+            <span>Tipo</span>
+            <select value={form.tipo} onChange={event => setCampo('tipo', event.target.value)}>
+              {tipos.map(tipo => <option key={tipo}>{tipo}</option>)}
+            </select>
+          </label>
+
+          <label>
+            <span>Monto</span>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={form.monto}
+              onChange={event => setCampo('monto', event.target.value)}
+              placeholder="0.00"
+            />
+          </label>
+
+          <label className="cash-modal-wide">
+            <span>Concepto</span>
+            <input
+              value={form.concepto}
+              onChange={event => setCampo('concepto', event.target.value)}
+              placeholder="Ej. compra de insumos, retiro, fondo inicial"
+            />
+          </label>
+
+          <label>
+            <span>Propina</span>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={form.propina}
+              onChange={event => setCampo('propina', event.target.value)}
+              placeholder="0.00"
+            />
+          </label>
+
+          <label>
+            <span>Recibido / Entregado</span>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={form.monto_recibido}
+              onChange={event => setCampo('monto_recibido', event.target.value)}
+              placeholder="0.00"
+            />
+          </label>
+
+          <label>
+            <span>Cambio / Diferencia</span>
+            <input
+              type="number"
+              step="0.01"
+              value={form.cambio_entregado}
+              onChange={event => setCampo('cambio_entregado', event.target.value)}
+              placeholder="0.00"
+            />
+          </label>
+
+          <label>
+            <span>Estado</span>
+            <select value={form.estado} onChange={event => setCampo('estado', event.target.value)}>
+              <option value="completado">Completado</option>
+              <option value="pendiente">Pendiente</option>
+              <option value="revisar">Revisar</option>
+            </select>
+          </label>
+        </div>
+
+        <div className={`cash-modal-preview ${montoPreview < 0 ? 'negative' : 'positive'}`}>
+          <span>Impacto en caja</span>
+          <strong>{formatMoney(montoPreview)}</strong>
+        </div>
+
+        <div className="cash-modal-actions">
+          <button onClick={onClose} type="button" disabled={guardando}>Cancelar</button>
+          <button className="danger" type="submit" disabled={guardando}>
+            {guardando ? 'Guardando...' : 'Guardar movimiento'}
+          </button>
+        </div>
+      </form>
+    </div>
   )
 }
 

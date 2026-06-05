@@ -101,7 +101,7 @@ export function useMenu() {
 }
 
 // ── COMANDAS ──────────────────────────────────
-export function useComandas() {
+export function useComandas(currentUser = null) {
   const [comandas, setComandas] = useState([])
   const [loading, setLoading]   = useState(true)
 
@@ -131,6 +131,7 @@ export function useComandas() {
       const formatted = data.map(c => ({
         id:       c.id,
         id_mesa:  c.id_mesa,
+        id_mesero: c.id_mesero,
         mesa:     c.nombre_mesa || `Mesa ${c.mesas?.numero || '?'}`,
         mesero:   c.usuarios?.nombre || 'Sin mesero',
         fecha:    c.created_at,
@@ -195,7 +196,7 @@ export function useComandas() {
       numero_comanda: numero,
       id_mesa,
       nombre_mesa:  comanda.mesa,
-      id_mesero:    1, // Cambia esto por el ID del usuario logueado
+      id_mesero:    comanda.id_mesero || comanda.idUsuario || currentUser?.id || 1,
       estado:       'pendiente',
       subtotal,
       descuento,
@@ -553,7 +554,7 @@ export function usePersonal() {
 }
 
 // ── CLIENTES ──────────────────────────────────
-export function useClientes() {
+export function useClientes(currentUser = null) {
   const [reservaciones, setReservaciones] = useState([])
   const [loading, setLoading]           = useState(true)
 
@@ -645,7 +646,7 @@ export function useClientes() {
         numero_comanda: `RES-${Date.now()}`,
         id_mesa: idMesa,
         nombre_mesa: nombreMesa,
-        id_mesero: 1,
+        id_mesero: formData.id_mesero || currentUser?.id || 1,
         estado: 'pendiente',
         subtotal: 0,
         descuento: 0,
@@ -1265,7 +1266,7 @@ export function usePromociones() {
 }
 
 // ── CAJA ──────────────────────────────────────
-export function useCaja() {
+export function useCaja(currentUser = null) {
   const [historialCortes, setHistorial] = useState([])
   const [loading, setLoading]           = useState(true)
 
@@ -1295,7 +1296,7 @@ export function useCaja() {
       parseFloat(formCorte.pagosTarjeta  || 0)
 
     await supabase.from('cortes_caja').insert({
-      id_usuario:    1, // Cambia por el ID del usuario logueado
+      id_usuario:    formCorte.id_usuario || currentUser?.id || 1,
       turno:         formCorte.turno,
       fecha:         fechaActualLocal(),
       total_ventas:  totalVentas,

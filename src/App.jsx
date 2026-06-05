@@ -22,9 +22,22 @@ function App() {
   const [username, setUsername]               = useState('')
   const [password, setPassword]               = useState('')
   const [loginError, setLoginError]           = useState('')
-  const [activeModule, setActiveModule]       = useState('comandas')
+  const savedModule = (() => {
+    try {
+      return localStorage.getItem('gastrosoft_active_module') || null
+    } catch {
+      return null
+    }
+  })()
+
+  const [activeModule, setActiveModuleState]  = useState(savedModule || 'dashboard')
   const [selectedDish, setSelectedDish]       = useState(null)
   const [selectedCategory, setSelectedCategory] = useState(null)
+
+  const setActiveModule = (moduleId) => {
+    setActiveModuleState(moduleId)
+    localStorage.setItem('gastrosoft_active_module', moduleId)
+  }
 
   // ── LOGIN CON SUPABASE ──────────────────────
   const handleLogin = async () => {
@@ -47,7 +60,7 @@ function App() {
     setIsAuthenticated(true)
     setUserRole(data.rol)
     localStorage.setItem('gastrosoft_user', JSON.stringify(data))
-    setActiveModule(data.rol === 'administrador' || data.rol === 'gerente' ? 'dashboard' : 'comandas')
+    setActiveModule('dashboard')
     setUsername('')
     setPassword('')
   }
@@ -57,9 +70,10 @@ function App() {
     setCurrentUser(null)
     setUserRole(null)
     localStorage.removeItem('gastrosoft_user')
+    localStorage.removeItem('gastrosoft_active_module')
     setUsername('')
     setPassword('')
-    setActiveModule('comandas')
+    setActiveModuleState('dashboard')
     setLoginError('')
   }
 
@@ -104,6 +118,7 @@ function App() {
       <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
         <Dashboard
           activeModule={activeModule}
+          onModuleChange={setActiveModule}
           selectedCategory={selectedCategory}
           setSelectedCategory={setSelectedCategory}
           selectedDish={selectedDish}
